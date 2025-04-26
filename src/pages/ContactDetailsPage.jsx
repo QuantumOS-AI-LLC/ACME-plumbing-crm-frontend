@@ -1,0 +1,425 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Paper,
+  Grid,
+  Avatar,
+  Chip,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  Button,
+  IconButton,
+  CircularProgress,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
+} from '@mui/material';
+import { useParams, useNavigate } from 'react-router-dom';
+import PhoneIcon from '@mui/icons-material/Phone';
+import EmailIcon from '@mui/icons-material/Email';
+import EditIcon from '@mui/icons-material/Edit';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { fetchContact, updateContact } from '../services/api';
+import PageHeader from '../components/common/PageHeader';
+
+const ContactDetailsPage = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [contact, setContact] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    status: '',
+    tags: []
+  });
+  const [updating, setUpdating] = useState(false);
+
+  useEffect(() => {
+    const loadContactDetails = async () => {
+      try {
+        setLoading(true);
+        const response = await fetchContact(id);
+        if (response && response.data) {
+          setContact(response.data);
+          // Initialize edit form with contact data
+          setEditFormData({
+            name: response.data.name || '',
+            email: response.data.email || '',
+            phone: response.data.phone || '',
+            address: response.data.address || '',
+            status: response.data.status || 'client',
+            tags: response.data.tags || []
+          });
+        }
+      } catch (error) {
+        console.error(`Error loading contact ${id}:`, error);
+        setError('Failed to load contact details. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadContactDetails();
+  }, [id]);
+
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
+  };
+
+  const handleEdit = () => {
+    setOpenEditDialog(true);
+  };
+
+  const handleCloseEdit = () => {
+    setOpenEditDialog(false);
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleTagInput = (e) => {
+    if (e.key === 'Enter' && e.target.value.trim() !== '') {
+      const newTag = e.target.value.trim();
+      if (!editFormData.tags.includes(newTag)) {
+        setEditFormData(prev => ({
+          ...prev,
+          tags: [...prev.tags, newTag]
+        }));
+      }
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
+    setEditFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
+  };
+
+  const handleSaveContact = async () => {
+    try {
+      setUpdating(true);
+      const response = await updateContact(id, editFormData);
+      if (response && response.data) {
+        setContact(response.data);
+        setOpenEditDialog(false);
+      }
+    } catch (error) {
+      console.error('Error updating contact:', error);
+      alert('Failed to update contact. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleCall = () => {
+    if (contact?.phone) {
+      window.location.href = `tel:${contact.phone}`;
+    }
+  };
+
+  const handleEmail = () => {
+    if (contact?.email) {
+      window.location.href = `mailto:${contact.email}`;
+    }
+  };
+
+  const handleBack = () => {
+    navigate('/contacts');
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error || !contact) {
+    return (
+      <Box sx={{ textAlign: 'center', py: 4 }}>
+        <Typography color="error">{error || 'Contact not found'}</Typography>
+        <Button variant="outlined" color="primary" sx={{ mt: 2 }} onClick={handleBack}>
+          Back to Contacts
+        </Button>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <PageHeader title="Contact Details" showBackButton={true} />
+      
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Avatar 
+              sx={{ 
+                bgcolor: 'primary.main', 
+                width: 64, 
+                height: 64,
+                mr: 2
+              }}
+            >
+              {getInitials(contact.name)}
+            </Avatar>
+            <Box>
+              <Typography variant="h5">{contact.name}</Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                {contact.status === 'client' ? 'Client' : 
+                 contact.status === 'lead' ? 'Lead' : 
+                 contact.status === 'former_client' ? 'Former Client' : 'Contact'}
+              </Typography>
+              {contact.tags && contact.tags.length > 0 && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                  {contact.tags.map((tag, index) => (
+                    <Chip 
+                      key={index}
+                      label={tag}
+                      size="small"
+                      color="primary"
+                    />
+                  ))}
+                </Box>
+              )}
+            </Box>
+          </Box>
+          <Box>
+            <Button 
+              variant="outlined" 
+              color="primary" 
+              startIcon={<EditIcon />}
+              onClick={handleEdit}
+              sx={{ mr: 1 }}
+            >
+              Edit
+            </Button>
+            <Button 
+              variant="contained" 
+              color="primary"
+              startIcon={<PhoneIcon />}
+              onClick={handleCall}
+              sx={{ mr: 1 }}
+              disabled={!contact.phone}
+            >
+              Call
+            </Button>
+            <Button 
+              variant="contained" 
+              color="secondary"
+              startIcon={<EmailIcon />}
+              onClick={handleEmail}
+              disabled={!contact.email}
+            >
+              Email
+            </Button>
+          </Box>
+        </Box>
+        
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Typography variant="h6" gutterBottom>Contact Information</Typography>
+            <Box sx={{ mb: 3 }}>
+              <Grid container spacing={2}>
+                {contact.phone && (
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary">Phone Number</Typography>
+                    <Typography variant="body1">{contact.phone}</Typography>
+                  </Grid>
+                )}
+                {contact.email && (
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary">Email</Typography>
+                    <Typography variant="body1">{contact.email}</Typography>
+                  </Grid>
+                )}
+                {contact.address && (
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary">Address</Typography>
+                    <Typography variant="body1">{contact.address}</Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Typography variant="h6" gutterBottom>Recent Jobs</Typography>
+            {contact.jobs && contact.jobs.length > 0 ? (
+              <List disablePadding>
+                {contact.jobs.map((job, index) => (
+                  <React.Fragment key={job.id}>
+                    <ListItem sx={{ px: 0 }}>
+                      <ListItemText
+                        primary={job.name}
+                        secondary={`Status: ${job.status} • Amount: $${job.amount?.toLocaleString() || 'N/A'}`}
+                      />
+                    </ListItem>
+                    {index < contact.jobs.length - 1 && <Divider />}
+                  </React.Fragment>
+                ))}
+              </List>
+            ) : (
+              <Typography variant="body2" color="text.secondary">No recent jobs found.</Typography>
+            )}
+          </Grid>
+        </Grid>
+      </Paper>
+      
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>Communication History</Typography>
+        {contact.communications && contact.communications.length > 0 ? (
+          <List disablePadding>
+            {contact.communications.map((comm, index) => (
+              <React.Fragment key={index}>
+                <ListItem sx={{ px: 0 }}>
+                  <ListItemText
+                    primary={comm.type}
+                    secondary={
+                      <React.Fragment>
+                        <Typography component="span" variant="body2" color="text.secondary">
+                          {comm.date}
+                        </Typography>
+                        <Typography component="div" variant="body2">
+                          {comm.description}
+                        </Typography>
+                      </React.Fragment>
+                    }
+                  />
+                </ListItem>
+                {index < contact.communications.length - 1 && <Divider />}
+              </React.Fragment>
+            ))}
+          </List>
+        ) : (
+          <Typography variant="body2" color="text.secondary">No communication history found.</Typography>
+        )}
+      </Paper>
+
+      {/* Edit Contact Dialog */}
+      <Dialog open={openEditDialog} onClose={handleCloseEdit} maxWidth="md" fullWidth>
+        <DialogTitle>Edit Contact</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Full Name"
+                name="name"
+                value={editFormData.name}
+                onChange={handleFormChange}
+                fullWidth
+                margin="normal"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Status"
+                name="status"
+                select
+                SelectProps={{
+                  native: true,
+                }}
+                value={editFormData.status}
+                onChange={handleFormChange}
+                fullWidth
+                margin="normal"
+              >
+                <option value="lead">Lead</option>
+                <option value="client">Client</option>
+                <option value="former_client">Former Client</option>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Email"
+                name="email"
+                type="email"
+                value={editFormData.email}
+                onChange={handleFormChange}
+                fullWidth
+                margin="normal"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Phone"
+                name="phone"
+                value={editFormData.phone}
+                onChange={handleFormChange}
+                fullWidth
+                margin="normal"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Address"
+                name="address"
+                value={editFormData.address}
+                onChange={handleFormChange}
+                fullWidth
+                multiline
+                rows={2}
+                margin="normal"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="body2" sx={{ mb: 1 }}>Tags</Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+                {editFormData.tags.map((tag, index) => (
+                  <Chip
+                    key={index}
+                    label={tag}
+                    onDelete={() => handleRemoveTag(tag)}
+                    size="small"
+                    color="primary"
+                  />
+                ))}
+              </Box>
+              <TextField
+                placeholder="Type and press Enter to add tags"
+                onKeyPress={handleTagInput}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEdit}>Cancel</Button>
+          <Button 
+            onClick={handleSaveContact} 
+            color="primary" 
+            variant="contained" 
+            disabled={updating}
+          >
+            {updating ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default ContactDetailsPage;
