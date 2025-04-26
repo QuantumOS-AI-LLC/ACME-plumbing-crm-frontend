@@ -121,7 +121,8 @@ const AIAssistantPage = () => {
     try {
       const response = await sendMessageToAI(
         message,
-        activeConversation.contactId
+        activeConversation.contactId,
+        activeConversation.estimateId
       );
 
       if (response?.data?.message) {

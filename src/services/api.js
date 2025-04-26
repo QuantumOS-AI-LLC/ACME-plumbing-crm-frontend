@@ -413,11 +413,12 @@ export const updateNotificationSettings = async (settingsData) => {
 };
 
 // AI Assistant API
-export const sendMessageToAI = async (message, conversationId) => {
+export const sendMessageToAI = async (message, contactId, estimateId) => {
   try {
-    const response = await api.post("/ai/message", {
+    const response = await api.post("/ai/reply", {
       message,
-      conversationId,
+      contactId,
+      estimateId,
     });
     return response.data;
   } catch (error) {
@@ -436,15 +437,13 @@ export const getConversations = async () => {
   }
 };
 
-export const getConversationMessages = async (conversationId) => {
+export const getConversationMessages = async (contactId) => {
   try {
-    const response = await api.get(
-      `/ai/conversation/contact/${conversationId}`
-    );
+    const response = await api.get(`/ai/conversation/contact/${contactId}`);
     return response.data;
   } catch (error) {
     console.error(
-      `Error fetching messages for conversation ${conversationId}:`,
+      `Error fetching messages for conversation ${contactId}:`,
       error
     );
     throw error;
