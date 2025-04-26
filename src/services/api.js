@@ -1,10 +1,10 @@
-import axios from 'axios';
+import axios from "axios";
 
 // Create an axios instance
 const api = axios.create({
-  baseURL: 'https://get-connected-backend.dev.quantumos.ai/api',
+  baseURL: "https://get-connected-backend.dev.quantumos.ai/api",
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -14,8 +14,9 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Check both localStorage and sessionStorage for token
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    
+    const token =
+      localStorage.getItem("token") || sessionStorage.getItem("token");
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -32,66 +33,63 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       // Clear token from both storage types
-      localStorage.removeItem('token');
-      localStorage.removeItem('isLoggedIn');
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('isLoggedIn');
-      
+      localStorage.removeItem("token");
+      localStorage.removeItem("isLoggedIn");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("isLoggedIn");
+
       // If not already on the login page, redirect
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+      if (!window.location.pathname.includes("/login")) {
+        window.location.href = "/login";
       }
     }
     return Promise.reject(error);
   }
 );
 
-
-
-
 // Authentication APIs
 export const loginUser = async (phoneNumber, password) => {
   try {
-    const response = await api.post('/auth/login', {
+    const response = await api.post("/auth/login", {
       phoneNumber,
-      password
+      password,
     });
     return response.data;
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     throw error;
   }
 };
 
 export const logoutUser = async () => {
   try {
-    await api.post('/auth/logout');
+    await api.post("/auth/logout");
     return true;
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error("Logout error:", error);
     return false;
   }
 };
 
 export const forgotPassword = async (phoneNumber) => {
   try {
-    const response = await api.post('/auth/forgot-password', { phoneNumber });
+    const response = await api.post("/auth/forgot-password", { phoneNumber });
     return response.data;
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error("Forgot password error:", error);
     throw error;
   }
 };
 
 export const resetPassword = async (token, newPassword) => {
   try {
-    const response = await api.post('/auth/reset-password', { 
-      token, 
-      newPassword 
+    const response = await api.post("/auth/reset-password", {
+      token,
+      newPassword,
     });
     return response.data;
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error("Reset password error:", error);
     throw error;
   }
 };
@@ -99,28 +97,28 @@ export const resetPassword = async (token, newPassword) => {
 // User Profile APIs
 export const fetchUserProfile = async () => {
   try {
-    const response = await api.get('/users/me');
+    const response = await api.get("/users/me");
     if (response.data && response.data.success) {
       // Save the full response to localStorage
-      localStorage.setItem('userProfile', JSON.stringify(response.data));
+      localStorage.setItem("userProfile", JSON.stringify(response.data));
     }
     return response.data;
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error("Error fetching user profile:", error);
     throw error;
   }
 };
 
 export const updateUserProfile = async (profileData) => {
   try {
-    const response = await api.put('/users/profile', profileData);
+    const response = await api.put("/users/profile", profileData);
     if (response.data && response.data.success) {
       // Save the full response to localStorage
-      localStorage.setItem('userProfile', JSON.stringify(response.data));
+      localStorage.setItem("userProfile", JSON.stringify(response.data));
     }
     return response.data;
   } catch (error) {
-    console.error('Error updating user profile:', error);
+    console.error("Error updating user profile:", error);
     throw error;
   }
 };
@@ -128,40 +126,39 @@ export const updateUserProfile = async (profileData) => {
 // Company APIs
 export const fetchCompanySettings = async () => {
   try {
-    const response = await api.get('/companies/settings');
+    const response = await api.get("/companies/settings");
     if (response.data && response.data.success) {
       // Save the full response to localStorage
-      localStorage.setItem('companyProfile', JSON.stringify(response.data));
+      localStorage.setItem("companyProfile", JSON.stringify(response.data));
     }
     return response.data;
   } catch (error) {
-    console.error('Error fetching company settings:', error);
+    console.error("Error fetching company settings:", error);
     throw error;
   }
 };
 
 export const updateCompanySettings = async (companyData) => {
   try {
-    const response = await api.put('/companies/settings', companyData);
+    const response = await api.put("/companies/settings", companyData);
     if (response.data && response.data.success) {
       // Save the full response to localStorage
-      localStorage.setItem('companyProfile', JSON.stringify(response.data));
+      localStorage.setItem("companyProfile", JSON.stringify(response.data));
     }
     return response.data;
   } catch (error) {
-    console.error('Error updating company settings:', error);
+    console.error("Error updating company settings:", error);
     throw error;
   }
 };
 
-
 // Jobs APIs
 export const fetchJobs = async (params = {}) => {
   try {
-    const response = await api.get('/jobs', { params });
+    const response = await api.get("/jobs", { params });
     return response.data;
   } catch (error) {
-    console.error('Error fetching jobs:', error);
+    console.error("Error fetching jobs:", error);
     throw error;
   }
 };
@@ -178,10 +175,10 @@ export const fetchJob = async (id) => {
 
 export const createJob = async (jobData) => {
   try {
-    const response = await api.post('/jobs', jobData);
+    const response = await api.post("/jobs", jobData);
     return response.data;
   } catch (error) {
-    console.error('Error creating job:', error);
+    console.error("Error creating job:", error);
     throw error;
   }
 };
@@ -209,10 +206,10 @@ export const deleteJob = async (id) => {
 // Estimates APIs
 export const fetchEstimates = async (params = {}) => {
   try {
-    const response = await api.get('/estimates', { params });
+    const response = await api.get("/estimates", { params });
     return response.data;
   } catch (error) {
-    console.error('Error fetching estimates:', error);
+    console.error("Error fetching estimates:", error);
     throw error;
   }
 };
@@ -229,10 +226,10 @@ export const fetchEstimate = async (id) => {
 
 export const createEstimate = async (estimateData) => {
   try {
-    const response = await api.post('/estimates', estimateData);
+    const response = await api.post("/estimates", estimateData);
     return response.data;
   } catch (error) {
-    console.error('Error creating estimate:', error);
+    console.error("Error creating estimate:", error);
     throw error;
   }
 };
@@ -260,10 +257,10 @@ export const deleteEstimate = async (id) => {
 // Contacts APIs
 export const fetchContacts = async (params = {}) => {
   try {
-    const response = await api.get('/contacts', { params });
+    const response = await api.get("/contacts", { params });
     return response.data;
   } catch (error) {
-    console.error('Error fetching contacts:', error);
+    console.error("Error fetching contacts:", error);
     throw error;
   }
 };
@@ -280,10 +277,10 @@ export const fetchContact = async (id) => {
 
 export const createContact = async (contactData) => {
   try {
-    const response = await api.post('/contacts', contactData);
+    const response = await api.post("/contacts", contactData);
     return response.data;
   } catch (error) {
-    console.error('Error creating contact:', error);
+    console.error("Error creating contact:", error);
     throw error;
   }
 };
@@ -311,10 +308,10 @@ export const deleteContact = async (id) => {
 // Calendar/Events APIs
 export const fetchEvents = async (params = {}) => {
   try {
-    const response = await api.get('/calendar/events', { params });
+    const response = await api.get("/calendar/events", { params });
     return response.data;
   } catch (error) {
-    console.error('Error fetching events:', error);
+    console.error("Error fetching events:", error);
     throw error;
   }
 };
@@ -331,10 +328,10 @@ export const fetchEvent = async (id) => {
 
 export const createEvent = async (eventData) => {
   try {
-    const response = await api.post('/calendar/events', eventData);
+    const response = await api.post("/calendar/events", eventData);
     return response.data;
   } catch (error) {
-    console.error('Error creating event:', error);
+    console.error("Error creating event:", error);
     throw error;
   }
 };
@@ -362,10 +359,10 @@ export const deleteEvent = async (id) => {
 // Password Change API
 export const changePassword = async (passwordData) => {
   try {
-    const response = await api.post('/auth/change-password', passwordData);
+    const response = await api.post("/auth/change-password", passwordData);
     return response.data;
   } catch (error) {
-    console.error('Error changing password:', error);
+    console.error("Error changing password:", error);
     throw error;
   }
 };
@@ -373,20 +370,20 @@ export const changePassword = async (passwordData) => {
 // Time Zone API
 export const fetchTimeZone = async () => {
   try {
-    const response = await api.get('/users/timezone');
+    const response = await api.get("/users/timezone");
     return response.data;
   } catch (error) {
-    console.error('Error fetching time zone:', error);
+    console.error("Error fetching time zone:", error);
     throw error;
   }
 };
 
 export const updateTimeZone = async (timeZoneData) => {
   try {
-    const response = await api.put('/users/timezone', timeZoneData);
+    const response = await api.put("/users/timezone", timeZoneData);
     return response.data;
   } catch (error) {
-    console.error('Error updating time zone:', error);
+    console.error("Error updating time zone:", error);
     throw error;
   }
 };
@@ -394,20 +391,23 @@ export const updateTimeZone = async (timeZoneData) => {
 // Notification Settings API
 export const fetchNotificationSettings = async () => {
   try {
-    const response = await api.get('/users/notifications/settings');
+    const response = await api.get("/users/notifications/settings");
     return response.data;
   } catch (error) {
-    console.error('Error fetching notification settings:', error);
+    console.error("Error fetching notification settings:", error);
     throw error;
   }
 };
 
 export const updateNotificationSettings = async (settingsData) => {
   try {
-    const response = await api.put('/users/notifications/settings', settingsData);
+    const response = await api.put(
+      "/users/notifications/settings",
+      settingsData
+    );
     return response.data;
   } catch (error) {
-    console.error('Error updating notification settings:', error);
+    console.error("Error updating notification settings:", error);
     throw error;
   }
 };
@@ -415,43 +415,48 @@ export const updateNotificationSettings = async (settingsData) => {
 // AI Assistant API
 export const sendMessageToAI = async (message, conversationId) => {
   try {
-    const response = await api.post('/ai/message', {
+    const response = await api.post("/ai/message", {
       message,
-      conversationId
+      conversationId,
     });
     return response.data;
   } catch (error) {
-    console.error('Error sending message to AI:', error);
+    console.error("Error sending message to AI:", error);
     throw error;
   }
 };
 
 export const getConversations = async () => {
   try {
-    const response = await api.get('/ai/conversations');
+    const response = await api.get("/ai/conversations");
     return response.data;
   } catch (error) {
-    console.error('Error fetching AI conversations:', error);
+    console.error("Error fetching AI conversations:", error);
     throw error;
   }
 };
 
 export const getConversationMessages = async (conversationId) => {
   try {
-    const response = await api.get(`/ai/conversations/${conversationId}/messages`);
+    const response = await api.get(
+      `/ai/conversation/contact/${conversationId}`
+    );
     return response.data;
   } catch (error) {
-    console.error(`Error fetching messages for conversation ${conversationId}:`, error);
+    console.error(
+      `Error fetching messages for conversation ${conversationId}:`,
+      error
+    );
     throw error;
   }
 };
 
 export const createConversation = async (name) => {
   try {
-    const response = await api.post('/ai/conversations', { name });
+    const response = await api.post("/ai/conversations", { name });
     return response.data;
   } catch (error) {
-    console.error('Error creating conversation:', error);
+    console.error("Error creating conversation:", error);
     throw error;
   }
 };
