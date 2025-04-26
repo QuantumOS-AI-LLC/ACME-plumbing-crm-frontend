@@ -40,7 +40,7 @@ const Header = ({ isMobile, onMenuClick }) => {
             aria-label="open drawer"
             edge="start"
             onClick={onMenuClick}
-            sx={{ mr: 2 }}
+            sx={{ mr: 1 }}
           >
             <MenuIcon />
           </IconButton>

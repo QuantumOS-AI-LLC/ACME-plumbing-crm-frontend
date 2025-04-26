@@ -36,7 +36,7 @@ const SidebarContainer = styled(Box)(({ theme }) => ({
   top: 0,
   zIndex: 1200,
   display: 'flex',
-  flexDirection: 'column',
+  flexDirection: 'column'
 }));
 
 const StyledListItemButton = styled(ListItemButton)(({ theme, selected }) => ({

@@ -15,10 +15,12 @@ import {
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PageHeader from '../components/common/PageHeader';
 import { getConversations} from '../services/api';
 
 const AIAssistantPage = () => {
+  // converstaion list
   const [conversations, setConversations] = useState([
     // { id: 1, name: 'Alli', messages: [], selected: true }
     {
@@ -40,11 +42,21 @@ const AIAssistantPage = () => {
     });
   },[]);
 
+  // only for small devices
+  const [isConversationListVisible,updateConversationListVisible]=useState(false);
+  const showConversationList = ()=>{
+    updateConversationListVisible(true);
+  }
+  const hideConversationList = ()=>{
+    updateConversationListVisible(false);
+  }
+
+
+  // active converstaion item
   const [activeConversation, setActiveConversation] = useState(null);
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef(null);
   
-  console.log(activeConversation);
   // Sample initial conversation with Alli
   const alliMessages = [
     { id: 1, sender: 'ai', text: "Hello! I'm Alli, your digital worker manager. How can I help you today?" },
@@ -64,6 +76,7 @@ const AIAssistantPage = () => {
 
   useEffect(() => {
     scrollToBottom();
+    hideConversationList();
   }, [activeConversation]);
 
 
@@ -160,7 +173,7 @@ const AIAssistantPage = () => {
       
       <Box sx={{ 
         display:'flex',
-        flexDirection:{xs:'column',md:'row'} ,
+        flexDirection:{xs:'column',sm:'row'} ,
         height: 'calc(100vh - 180px)',
         borderRadius: 2,
         overflow: 'hidden',
@@ -170,12 +183,13 @@ const AIAssistantPage = () => {
         <Box sx={{ 
           width: {sm: 240 },
           minWidth: {sm: 240 },
+          maxWidth: {sm:240},
           height:'100%',
           bgcolor: 'background.paper', 
           borderRight: 1, 
           borderColor: 'divider',
           flexGrow: 1, 
-          display: 'flex',
+          display: {xs:isConversationListVisible?'flex':'none', sm:'flex'},
           flexDirection: 'column'
         }}>
           <Box sx={{ p: 2 }}>
@@ -212,9 +226,10 @@ const AIAssistantPage = () => {
         {/* Chat area */}
         <Box sx={{ 
           flexGrow: 1, 
-          bgcolor: 'background.default',
-          display: 'flex',
-          flexDirection: 'column'
+          bgcolor: 'background.paper',
+          display:  {xs:isConversationListVisible?'none':'flex', sm:'flex'},
+          flexDirection: 'column',
+          height:'100%',
         }}>
           {activeConversation ? (
             <>
@@ -227,6 +242,15 @@ const AIAssistantPage = () => {
                 display: 'flex',
                 alignItems: 'center'
               }}>
+                  <IconButton
+                    color="inherit"
+                    aria-label="open drawer"
+                    edge="start"
+                    onClick={showConversationList}
+                    sx={{ mr: 1, display:{sm:"none"} }}
+                  >
+                    <ArrowBackIcon />
+                  </IconButton>
                 <Typography variant="h6">{activeConversation.contactName}</Typography>
               </Box>
               
@@ -236,7 +260,8 @@ const AIAssistantPage = () => {
                 p: 2, 
                 overflow: 'auto',
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                bgcolor: 'background.default'
               }}>
                 {activeConversation.messages.map(msg => (
                   <Box 
@@ -297,6 +322,8 @@ const AIAssistantPage = () => {
           ) : (
             <Box sx={{ 
               display: 'flex', 
+              flexDirection:'column',
+              gap:'16px',
               alignItems: 'center', 
               justifyContent: 'center',
               height: '100%'
@@ -304,6 +331,15 @@ const AIAssistantPage = () => {
               <Typography variant="body1" color="text.secondary">
                 Select a conversation to start chatting
               </Typography>
+              <Button 
+                variant="outlined" 
+                onClick={showConversationList}
+                sx={{
+                  display:{md:"none"}
+                }}
+              >
+                See Conversations
+              </Button>
             </Box>
           )}
         </Box>
