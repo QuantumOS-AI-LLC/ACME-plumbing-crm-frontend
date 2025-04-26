@@ -27,6 +27,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 const SidebarContainer = styled(Box)(({ theme }) => ({
   width: 240,
+  // minWidth:240,
   height: '100vh',
   background: 'linear-gradient(to bottom, #9D4EE9 0%, #8A2BE2 100%)',
   color: 'white',
@@ -39,7 +40,7 @@ const SidebarContainer = styled(Box)(({ theme }) => ({
 }));
 
 const StyledListItemButton = styled(ListItemButton)(({ theme, selected }) => ({
-  margin: '4px 8px 4px 16px',
+  margin: '4px 8px 4px 0px',
   borderRadius: '0 24px 24px 0',
   backgroundColor: selected ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
   '&:hover': {
@@ -73,8 +74,8 @@ const Sidebar = ({ onClose }) => {
   
   return (
     <SidebarContainer>
-      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' ,borderBottom:'1px solid rgba(255, 255, 255, 0.1)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center'}}>
           <Avatar sx={{ mr: 2, bgcolor: 'rgba(255, 255, 255, 0.2)' }}>
             {user?.name ? user.name.charAt(0) : 'U'}
           </Avatar>
@@ -102,7 +103,7 @@ const Sidebar = ({ onClose }) => {
                 selected={location.pathname === item.path}
                 onClick={() => handleItemClick(item.path)}
               >
-                <ListItemIcon sx={{ color: 'white', minWidth: '40px' }}>
+                <ListItemIcon sx={{ color: 'white', minWidth: '36px' }}>
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText primary={item.text} />

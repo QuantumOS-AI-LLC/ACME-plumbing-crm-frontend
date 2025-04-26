@@ -11,7 +11,7 @@ const PageHeader = ({ title, subtitle, action, actionText, onAction, showBackBut
   };
 
   return (
-    <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
         {showBackButton && (
           <IconButton onClick={handleBack} sx={{ mr: 1 }}>

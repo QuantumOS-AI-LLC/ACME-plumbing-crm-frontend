@@ -15,6 +15,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 const StyledAppBar = styled(AppBar)(({ theme, ismobile }) => ({
   background: 'linear-gradient(to right, #9D4EE9, #FF1493)',
+  borderRadius: 0,
   boxShadow: 'none',
   width: ismobile === 'true' ? '100%' : `calc(100% - 240px)`,
   left: ismobile === 'true' ? 0 : 240,

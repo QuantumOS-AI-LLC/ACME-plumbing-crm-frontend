@@ -16,17 +16,35 @@ import {
 import SendIcon from '@mui/icons-material/Send';
 import AddIcon from '@mui/icons-material/Add';
 import PageHeader from '../components/common/PageHeader';
+import { getConversations} from '../services/api';
 
 const AIAssistantPage = () => {
   const [conversations, setConversations] = useState([
-    { id: 1, name: 'Alli', messages: [], selected: true },
-    { id: 2, name: 'Roeich', messages: [], selected: false },
-    { id: 3, name: 'Developer', messages: [], selected: false }
+    // { id: 1, name: 'Alli', messages: [], selected: true }
+    {
+      contactId: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      estimateId: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      contactName: "Alli",
+      estimateLeadName: "string",
+      lastMessage: "string"
+    }
+  
   ]);
+  useEffect(()=>{
+    getConversations()
+    .then((data)=>{
+      setConversations([...conversations,...data.data])
+    })
+    .catch((err)=>{
+      console.log(err)
+    });
+  },[]);
+
   const [activeConversation, setActiveConversation] = useState(null);
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef(null);
-
+  
+  console.log(activeConversation);
   // Sample initial conversation with Alli
   const alliMessages = [
     { id: 1, sender: 'ai', text: "Hello! I'm Alli, your digital worker manager. How can I help you today?" },
@@ -47,6 +65,7 @@ const AIAssistantPage = () => {
   useEffect(() => {
     scrollToBottom();
   }, [activeConversation]);
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -140,7 +159,8 @@ const AIAssistantPage = () => {
       <PageHeader title="AI Assistant" />
       
       <Box sx={{ 
-        display: 'flex', 
+        display:'flex',
+        flexDirection:{xs:'column',md:'row'} ,
         height: 'calc(100vh - 180px)',
         borderRadius: 2,
         overflow: 'hidden',
@@ -148,10 +168,13 @@ const AIAssistantPage = () => {
       }}>
         {/* Conversations sidebar */}
         <Box sx={{ 
-          width: 250, 
+          width: {sm: 240 },
+          minWidth: {sm: 240 },
+          height:'100%',
           bgcolor: 'background.paper', 
           borderRight: 1, 
           borderColor: 'divider',
+          flexGrow: 1, 
           display: 'flex',
           flexDirection: 'column'
         }}>
@@ -170,16 +193,16 @@ const AIAssistantPage = () => {
           <Divider />
           
           <List sx={{ flexGrow: 1, overflow: 'auto' }}>
-            {conversations.map(conversation => (
+            {conversations.map((conversation,idx) => (
               <ListItem 
-                key={conversation.id} 
+                key={idx} 
                 disablePadding
               >
                 <ListItemButton 
                   selected={conversation.selected}
-                  onClick={() => selectConversation(conversation.id)}
+                  onClick={() => selectConversation(conversation.contactId)}
                 >
-                  <ListItemText primary={conversation.name} />
+                  <ListItemText primary={conversation.contactName} />
                 </ListItemButton>
               </ListItem>
             ))}
@@ -204,7 +227,7 @@ const AIAssistantPage = () => {
                 display: 'flex',
                 alignItems: 'center'
               }}>
-                <Typography variant="h6">{activeConversation.name}</Typography>
+                <Typography variant="h6">{activeConversation.contactName}</Typography>
               </Box>
               
               {/* Messages area */}
