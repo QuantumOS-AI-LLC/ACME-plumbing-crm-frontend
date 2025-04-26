@@ -15,51 +15,31 @@ import {
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import AddIcon from "@mui/icons-material/Add";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PageHeader from "../components/common/PageHeader";
+import {
+  getConversationMessages,
+  getConversations,
+  sendMessageToAI,
+  createConversation,
+} from "../services/api";
 
 const AIAssistantPage = () => {
-  const [conversations, setConversations] = useState([
-    { id: 1, name: "Alli", messages: [], selected: true },
-    { id: 2, name: "Roeich", messages: [], selected: false },
-    { id: 3, name: "Developer", messages: [], selected: false },
-  ]);
+  const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const messagesEndRef = useRef(null);
 
-  // Sample initial conversation with Alli
-  const alliMessages = [
-    {
-      id: 1,
-      sender: "ai",
-      text: "Hello! I'm Alli, your digital worker manager. How can I help you today?",
-    },
-    { id: 2, sender: "user", text: "I need to check the status of Project X." },
-    {
-      id: 3,
-      sender: "ai",
-      text: "Project X is currently in progress. The team completed the initial assessment phase yesterday and is now working on the implementation. The current completion is at 45% and it's on track to be completed by the scheduled date of June 15th.",
-    },
-    {
-      id: 4,
-      sender: "user",
-      text: "Great! Any pending tasks I should know about?",
-    },
-    {
-      id: 5,
-      sender: "ai",
-      text: "Yes, there are 3 pending tasks: 1. Material approval for phase 2 (due in 2 days) 2. Client meeting for mid-project review (scheduled for tomorrow at 2 PM) 3. Budget review for the next milestone (due by end of week) Would you like me to help you with any of these tasks?",
-    },
-  ];
+  const [isConversationListVisible, setConversationListVisible] =
+    useState(false);
 
-  useEffect(() => {
-    // Set initial messages for the first conversation
-    const updatedConversations = [...conversations];
-    updatedConversations[0].messages = alliMessages;
-    setConversations(updatedConversations);
-    setActiveConversation(updatedConversations[0]);
-  }, []);
+  const showConversationList = () => setConversationListVisible(true);
+  const hideConversationList = () => setConversationListVisible(false);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
     scrollToBottom();
@@ -146,7 +126,7 @@ const AIAssistantPage = () => {
 
       if (response?.data?.message) {
         const aiResponse = {
-          id: Date.now(),
+          id: `${Date.now()}-${Math.random()}`,
           senderType: "AI",
           message: response.data.message || "No message received from AI.",
         };
@@ -167,20 +147,28 @@ const AIAssistantPage = () => {
       <Box
         sx={{
           display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
           height: "calc(100vh - 180px)",
           borderRadius: 2,
           overflow: "hidden",
           boxShadow: 1,
         }}
       >
-        {/* Conversations sidebar */}
+        {/* Sidebar */}
         <Box
           sx={{
-            width: 250,
+            width: { sm: 240 },
+            minWidth: { sm: 240 },
+            maxWidth: { sm: 240 },
+            height: "100%",
             bgcolor: "background.paper",
             borderRight: 1,
             borderColor: "divider",
-            display: "flex",
+            flexGrow: 1,
+            display: {
+              xs: isConversationListVisible ? "flex" : "none",
+              sm: "flex",
+            },
             flexDirection: "column",
           }}
         >
@@ -198,33 +186,39 @@ const AIAssistantPage = () => {
             </Button>
           </Box>
           <Divider />
-
           <List sx={{ flexGrow: 1, overflow: "auto" }}>
             {conversations.map((conversation) => (
-              <ListItem key={conversation.id} disablePadding>
+              <ListItem key={conversation.contactId} disablePadding>
                 <ListItemButton
-                  selected={conversation.selected}
-                  onClick={() => selectConversation(conversation.id)}
+                  selected={
+                    activeConversation?.contactId === conversation.contactId
+                  }
+                  onClick={() => selectConversation(conversation.contactId)}
                 >
-                  <ListItemText primary={conversation.name} />
+                  <ListItemText
+                    primary={conversation.contactName || "Unnamed Contact"}
+                  />
                 </ListItemButton>
               </ListItem>
             ))}
           </List>
         </Box>
 
-        {/* Chat area */}
+        {/* Chat Area */}
         <Box
           sx={{
             flexGrow: 1,
-            bgcolor: "background.default",
-            display: "flex",
+            bgcolor: "background.paper",
+            display: {
+              xs: isConversationListVisible ? "none" : "flex",
+              sm: "flex",
+            },
             flexDirection: "column",
+            height: "100%",
           }}
         >
           {activeConversation ? (
             <>
-              {/* Chat header */}
               <Box
                 sx={{
                   p: 2,
@@ -235,10 +229,20 @@ const AIAssistantPage = () => {
                   alignItems: "center",
                 }}
               >
-                <Typography variant="h6">{activeConversation.name}</Typography>
+                <IconButton
+                  color="inherit"
+                  aria-label="open drawer"
+                  edge="start"
+                  onClick={showConversationList}
+                  sx={{ mr: 1, display: { sm: "none" } }}
+                >
+                  <ArrowBackIcon />
+                </IconButton>
+                <Typography variant="h6">
+                  {activeConversation.contactName || "AI Conversation"}
+                </Typography>
               </Box>
 
-              {/* Messages area */}
               <Box
                 sx={{
                   flexGrow: 1,
@@ -246,15 +250,16 @@ const AIAssistantPage = () => {
                   overflow: "auto",
                   display: "flex",
                   flexDirection: "column",
+                  bgcolor: "background.default",
                 }}
               >
-                {activeConversation.messages.map((msg) => (
+                {messages.map((msg, idx) => (
                   <Box
-                    key={msg.id}
+                    key={idx}
                     sx={{
                       display: "flex",
                       justifyContent:
-                        msg.sender === "user" ? "flex-end" : "flex-start",
+                        msg.senderType === "USER" ? "flex-end" : "flex-start",
                       mb: 2,
                     }}
                   >
@@ -324,6 +329,8 @@ const AIAssistantPage = () => {
             <Box
               sx={{
                 display: "flex",
+                flexDirection: "column",
+                gap: "16px",
                 alignItems: "center",
                 justifyContent: "center",
                 height: "100%",
@@ -332,6 +339,15 @@ const AIAssistantPage = () => {
               <Typography variant="body1" color="text.secondary">
                 Select a conversation to start chatting
               </Typography>
+              <Button
+                variant="outlined"
+                onClick={showConversationList}
+                sx={{
+                  display: { md: "none" },
+                }}
+              >
+                See Conversations
+              </Button>
             </Box>
           )}
         </Box>
