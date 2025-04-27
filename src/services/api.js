@@ -476,26 +476,18 @@ export const sendMessageToAI = async (
   userId
 ) => {
   try {
-    // store user message
-    const replyResponse = await api.post("/ai/reply", {
+    // Only call /ai/reply to send the user's message
+    const response = await api.post("/ai/reply", {
       message,
       contactId,
       estimateId,
       userId,
     });
-
-    // recieve messages
-    if(replyResponse?.data?.success){
-      const response = await api.post("/ai/webhook/message", {
-        message:"Replying same: "+message,
-        contactId,
-        estimateId,
-        userId,
-      });
-      return response.data;
-    }
+    // Return the response from /ai/reply (or handle as needed, maybe just return success/failure)
+    // The actual AI response will come via WebSocket
+    return response.data; 
   } catch (error) {
-    console.error("Error creating conversation:", error);
+    console.error("Error sending message via /ai/reply:", error);
     throw error;
   }
 };

@@ -12,6 +12,7 @@ import {
   Avatar,
   Divider,
   IconButton,
+  Badge, // Import Badge component
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import AddIcon from "@mui/icons-material/Add";
@@ -29,7 +30,10 @@ const AIAssistantPage = () => {
   const [activeConversation, setActiveConversation] = useState(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [unreadCounts, setUnreadCounts] = useState({}); // State for unread counts { contactId: count }
   const messagesEndRef = useRef(null);
+  const wsRef = useRef(null); // Ref to hold the WebSocket instance
+  const activeConversationRef = useRef(activeConversation); // Ref to track active conversation for WS handler
 
   const [isConversationListVisible, setConversationListVisible] =
     useState(false);
@@ -44,6 +48,7 @@ const AIAssistantPage = () => {
   useEffect(() => {
     scrollToBottom();
     hideConversationList();
+    activeConversationRef.current = activeConversation; // Keep the ref updated
   }, [activeConversation]);
 
   useEffect(() => {
@@ -86,6 +91,75 @@ const AIAssistantPage = () => {
     fetchMessages();
   }, [activeConversation]);
 
+  // Effect for WebSocket connection (runs once on mount)
+  useEffect(() => {
+    console.log("Attempting to establish WebSocket connection.");
+    const wsUrl = "wss://get-connected-backend.dev.quantumos.ai";
+    wsRef.current = new WebSocket(wsUrl);
+
+    wsRef.current.onopen = () => {
+      console.log("WebSocket connected to", wsUrl);
+    };
+
+    wsRef.current.onmessage = (event) => {
+      try {
+        const parsedData = JSON.parse(event.data);
+        console.log("WebSocket message received:", parsedData);
+
+        if (
+          parsedData.type === "newMessage" &&
+          parsedData.data &&
+          parsedData.data.senderType === "AI"
+        ) {
+          const incomingContactId = parsedData.data.contactId;
+          const newAiMessage = {
+            id: parsedData.data.id,
+            senderType: parsedData.data.senderType,
+            message: parsedData.data.message,
+            createdAt: parsedData.data.createdAt,
+          };
+
+          // Use the ref to get the current active conversation
+          if (incomingContactId === activeConversationRef.current?.contactId) {
+            // Add to messages list if active (and prevent duplicates)
+            setMessages((prev) => {
+              if (!prev.some(msg => msg.id === newAiMessage.id)) {
+                return [...prev, newAiMessage];
+              }
+              return prev;
+            });
+          } else {
+            // Increment unread count for inactive conversation
+            setUnreadCounts((prevCounts) => ({
+              ...prevCounts,
+              [incomingContactId]: (prevCounts[incomingContactId] || 0) + 1,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to parse WebSocket message or update state:", error);
+      }
+    };
+
+    wsRef.current.onerror = (event) => {
+      console.error("WebSocket error:", event);
+    };
+
+    wsRef.current.onclose = (event) => {
+      console.log("WebSocket disconnected:", event.reason, event.code);
+      wsRef.current = null; // Clear the ref on close
+    };
+
+    // Cleanup function to close WebSocket on component unmount
+    return () => {
+      if (wsRef.current) {
+        console.log("Closing WebSocket connection on component unmount.");
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, []); // Empty dependency array: run only once on mount
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -93,6 +167,11 @@ const AIAssistantPage = () => {
   const selectConversation = (contactId) => {
     const selected = conversations.find((c) => c.contactId === contactId);
     setActiveConversation(selected);
+    // Reset unread count for the selected conversation
+    setUnreadCounts((prevCounts) => ({
+      ...prevCounts,
+      [contactId]: 0,
+    }));
   };
 
   const createNewConversationHandler = async () => {
@@ -132,8 +211,7 @@ const AIAssistantPage = () => {
     if (!message.trim() || !activeConversation) return;
 
     const newUserMessage = {
-      // id: `${Date.now()}-${Math.random()}`,
-      id: activeConversation?.lastMessage?.id,
+      id: crypto.randomUUID(), // Use a unique temporary ID
       senderType: "USER",
       message: message,
     };
@@ -141,26 +219,16 @@ const AIAssistantPage = () => {
     setMessages((prev) => [...prev, newUserMessage]);
     setMessage("");
     try {
-      const response = await sendMessageToAI(
+      // Send the message but don't handle the response here
+      await sendMessageToAI(
         message,
         activeConversation?.contactId,
         activeConversation?.estimateId,
         activeConversation?.lastMessage?.userId
       );
 
-      // console.log("hello", response.data);
-
-      if (response?.data?.message) {
-        const aiResponse = {
-          id: `${Date.now()}-${Math.random()}`,
-          senderType: "AI",
-          message: response.data.message || "No message received from AI.",
-        };
-
-        setMessages((prev) => [...prev, aiResponse]);
-      } else {
-        console.error("AI response is empty or malformed");
-      }
+      // AI response will be handled by fetching or WebSocket later
+      
     } catch (error) {
       console.error("Failed to send message:", error);
     }
@@ -224,6 +292,11 @@ const AIAssistantPage = () => {
                   <ListItemText
                     primary={conversation.contactName || "Unnamed Contact"}
                   />
+                  <Badge 
+                    badgeContent={unreadCounts[conversation.contactId] || 0} 
+                    color="primary"
+                    sx={{ ml: 1 }} // Add some margin
+                  />
                 </ListItemButton>
               </ListItem>
             ))}
@@ -279,9 +352,9 @@ const AIAssistantPage = () => {
                   bgcolor: "background.default",
                 }}
               >
-                {messages.map((msg, idx) => (
+                {messages.map((msg) => ( // Removed idx from map parameters
                   <Box
-                    key={idx}
+                    key={msg.id} // Use message ID as key
                     sx={{
                       display: "flex",
                       justifyContent:
