@@ -69,7 +69,7 @@ const AIAssistantPage = () => {
 
   useEffect(() => {
     const fetchMessages = async () => {
-      console.log("activeConversation:", activeConversation);
+      // console.log("activeConversation:", activeConversation);
 
       if (activeConversation?.contactId) {
         try {
@@ -132,14 +132,14 @@ const AIAssistantPage = () => {
     if (!message.trim() || !activeConversation) return;
 
     const newUserMessage = {
-      id: `${Date.now()}-${Math.random()}`,
+      // id: `${Date.now()}-${Math.random()}`,
+      id: activeConversation?.lastMessage?.id,
       senderType: "USER",
       message: message,
     };
 
     setMessages((prev) => [...prev, newUserMessage]);
     setMessage("");
-
     try {
       const response = await sendMessageToAI(
         message,
@@ -148,7 +148,7 @@ const AIAssistantPage = () => {
         activeConversation?.lastMessage?.userId
       );
 
-      console.log("hello", response.data);
+      // console.log("hello", response.data);
 
       if (response?.data?.message) {
         const aiResponse = {
@@ -296,7 +296,8 @@ const AIAssistantPage = () => {
                     )}
                     <Paper
                       sx={{
-                        p: 2,
+                        px:2,
+                        py:1.5,
                         maxWidth: "70%",
                         bgcolor:
                           msg.senderType === "USER"
@@ -306,8 +307,8 @@ const AIAssistantPage = () => {
                           msg.senderType === "USER" ? "white" : "text.primary",
                         borderRadius:
                           msg.senderType === "USER"
-                            ? "20px 20px 0 20px"
-                            : "20px 20px 20px 0",
+                            ? "20px 0 20px 20px"
+                            : "0px 20px 20px 20px",
                       }}
                     >
                       <Typography variant="body1">{msg.message}</Typography>

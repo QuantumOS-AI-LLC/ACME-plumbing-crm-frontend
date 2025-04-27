@@ -450,6 +450,25 @@ export const getConversationMessages = async (contactId) => {
   }
 };
 
+// export const sendMessageToAI = async (
+//   message,
+//   contactId,
+//   estimateId,
+//   userId
+// ) => {
+//   try {
+//     const response = await api.post("/ai/webhook/message", {
+//       message,
+//       contactId,
+//       estimateId,
+//       userId,
+//     });
+//     return response.data;
+//   } catch (error) {
+//     console.error("Error creating conversation:", error);
+//     throw error;
+//   }
+// };
 export const sendMessageToAI = async (
   message,
   contactId,
@@ -457,13 +476,24 @@ export const sendMessageToAI = async (
   userId
 ) => {
   try {
-    const response = await api.post("/ai/webhook/message", {
+    // store user message
+    const replyResponse = await api.post("/ai/reply", {
       message,
       contactId,
       estimateId,
       userId,
     });
-    return response.data;
+
+    // recieve messages
+    if(replyResponse?.data?.success){
+      const response = await api.post("/ai/webhook/message", {
+        message:"Replying same: "+message,
+        contactId,
+        estimateId,
+        userId,
+      });
+      return response.data;
+    }
   } catch (error) {
     console.error("Error creating conversation:", error);
     throw error;
