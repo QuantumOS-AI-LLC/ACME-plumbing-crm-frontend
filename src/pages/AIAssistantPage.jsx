@@ -50,6 +50,9 @@ const AIAssistantPage = () => {
     const fetchAllConversations = async () => {
       try {
         const res = await getConversations();
+
+        console.log("get conversation", res.data);
+
         const convos = res?.data || [];
         setConversations(convos);
 
@@ -66,6 +69,8 @@ const AIAssistantPage = () => {
 
   useEffect(() => {
     const fetchMessages = async () => {
+      console.log("activeConversation:", activeConversation);
+
       if (activeConversation?.contactId) {
         try {
           const data = await getConversationMessages(
@@ -92,17 +97,34 @@ const AIAssistantPage = () => {
 
   const createNewConversationHandler = async () => {
     try {
-      const newName = `Conversation ${conversations.length + 1}`;
-      const newConv = await createConversation(newName);
-      const newData = newConv?.data;
+      const payload = {
+        message: activeConversation?.lastMessage?.message,
+        contactId: activeConversation?.contactId,
+        estimateId: activeConversation?.estimateId,
+        userId: activeConversation?.lastMessage?.userId,
+      };
 
-      if (newData) {
-        const updatedList = [...conversations, newData];
-        setConversations(updatedList);
-        setActiveConversation(newData);
+      console.log("payload", payload);
+
+      const response = await createConversation(
+        payload.message,
+        payload.contactId,
+        payload.estimateId
+      );
+
+      console.log("response data", response?.data);
+
+      if (response?.data) {
+        const newConversation = response.data;
+        setConversations((prev) => [...prev, newConversation]);
+        setActiveConversation(newConversation);
+        return newConversation;
+      } else {
+        throw new Error("Invalid response format from API");
       }
     } catch (error) {
       console.error("Error creating new conversation:", error);
+      throw error;
     }
   };
 
@@ -121,9 +143,12 @@ const AIAssistantPage = () => {
     try {
       const response = await sendMessageToAI(
         message,
-        activeConversation.contactId,
-        activeConversation.estimateId
+        activeConversation?.contactId,
+        activeConversation?.estimateId,
+        activeConversation?.lastMessage?.userId
       );
+
+      console.log("hello", response.data);
 
       if (response?.data?.message) {
         const aiResponse = {

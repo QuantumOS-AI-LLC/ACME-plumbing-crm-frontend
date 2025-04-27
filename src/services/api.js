@@ -412,8 +412,8 @@ export const updateNotificationSettings = async (settingsData) => {
   }
 };
 
-// AI Assistant API
-export const sendMessageToAI = async (message, contactId, estimateId) => {
+// AI Assistant
+export const createConversation = async (message, estimateId, contactId) => {
   try {
     const response = await api.post("/ai/reply", {
       message,
@@ -450,9 +450,19 @@ export const getConversationMessages = async (contactId) => {
   }
 };
 
-export const createConversation = async (name) => {
+export const sendMessageToAI = async (
+  message,
+  contactId,
+  estimateId,
+  userId
+) => {
   try {
-    const response = await api.post("/ai/conversations", { name });
+    const response = await api.post("/ai/webhook/message", {
+      message,
+      contactId,
+      estimateId,
+      userId,
+    });
     return response.data;
   } catch (error) {
     console.error("Error creating conversation:", error);
