@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -17,15 +17,15 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
-} from '@mui/material';
-import { useParams, useNavigate } from 'react-router-dom';
-import PhoneIcon from '@mui/icons-material/Phone';
-import EmailIcon from '@mui/icons-material/Email';
-import EditIcon from '@mui/icons-material/Edit';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { fetchContact, updateContact } from '../services/api';
-import PageHeader from '../components/common/PageHeader';
+  DialogActions,
+} from "@mui/material";
+import { useParams, useNavigate } from "react-router-dom";
+import PhoneIcon from "@mui/icons-material/Phone";
+import EmailIcon from "@mui/icons-material/Email";
+import EditIcon from "@mui/icons-material/Edit";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { fetchContact, updateContact } from "../services/api";
+import PageHeader from "../components/common/PageHeader";
 
 const ContactDetailsPage = () => {
   const { id } = useParams();
@@ -35,12 +35,12 @@ const ContactDetailsPage = () => {
   const [error, setError] = useState(null);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [editFormData, setEditFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    status: '',
-    tags: []
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    status: "",
+    tags: [],
   });
   const [updating, setUpdating] = useState(false);
 
@@ -49,21 +49,23 @@ const ContactDetailsPage = () => {
       try {
         setLoading(true);
         const response = await fetchContact(id);
+        console.log("hello contact", response);
+        console.log("hello phone:", response.data.phoneNumber);
         if (response && response.data) {
           setContact(response.data);
           // Initialize edit form with contact data
           setEditFormData({
-            name: response.data.name || '',
-            email: response.data.email || '',
-            phone: response.data.phone || '',
-            address: response.data.address || '',
-            status: response.data.status || 'client',
-            tags: response.data.tags || []
+            name: response.data.name || "",
+            email: response.data.email || "",
+            phone: response.data.phoneNumber || "",
+            address: response.data.address || "",
+            status: response.data.status || "client",
+            tags: response.data.tags || [],
           });
         }
       } catch (error) {
         console.error(`Error loading contact ${id}:`, error);
-        setError('Failed to load contact details. Please try again.');
+        setError("Failed to load contact details. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -73,11 +75,11 @@ const ContactDetailsPage = () => {
   }, [id]);
 
   const getInitials = (name) => {
-    if (!name) return '?';
+    if (!name) return "?";
     return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
       .toUpperCase();
   };
 
@@ -91,29 +93,29 @@ const ContactDetailsPage = () => {
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    setEditFormData(prev => ({
+    setEditFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleTagInput = (e) => {
-    if (e.key === 'Enter' && e.target.value.trim() !== '') {
+    if (e.key === "Enter" && e.target.value.trim() !== "") {
       const newTag = e.target.value.trim();
       if (!editFormData.tags.includes(newTag)) {
-        setEditFormData(prev => ({
+        setEditFormData((prev) => ({
           ...prev,
-          tags: [...prev.tags, newTag]
+          tags: [...prev.tags, newTag],
         }));
       }
-      e.target.value = '';
+      e.target.value = "";
     }
   };
 
   const handleRemoveTag = (tagToRemove) => {
-    setEditFormData(prev => ({
+    setEditFormData((prev) => ({
       ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
+      tags: prev.tags.filter((tag) => tag !== tagToRemove),
     }));
   };
 
@@ -126,8 +128,8 @@ const ContactDetailsPage = () => {
         setOpenEditDialog(false);
       }
     } catch (error) {
-      console.error('Error updating contact:', error);
-      alert('Failed to update contact. Please try again.');
+      console.error("Error updating contact:", error);
+      alert("Failed to update contact. Please try again.");
     } finally {
       setUpdating(false);
     }
@@ -146,12 +148,19 @@ const ContactDetailsPage = () => {
   };
 
   const handleBack = () => {
-    navigate('/contacts');
+    navigate("/contacts");
   };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: 400,
+        }}
+      >
         <CircularProgress />
       </Box>
     );
@@ -159,9 +168,14 @@ const ContactDetailsPage = () => {
 
   if (error || !contact) {
     return (
-      <Box sx={{ textAlign: 'center', py: 4 }}>
-        <Typography color="error">{error || 'Contact not found'}</Typography>
-        <Button variant="outlined" color="primary" sx={{ mt: 2 }} onClick={handleBack}>
+      <Box sx={{ textAlign: "center", py: 4 }}>
+        <Typography color="error">{error || "Contact not found"}</Typography>
+        <Button
+          variant="outlined"
+          color="primary"
+          sx={{ mt: 2 }}
+          onClick={handleBack}
+        >
           Back to Contacts
         </Button>
       </Box>
@@ -171,16 +185,23 @@ const ContactDetailsPage = () => {
   return (
     <Box>
       <PageHeader title="Contact Details" showBackButton={true} />
-      
+
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Avatar 
-              sx={{ 
-                bgcolor: 'primary.main', 
-                width: 64, 
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            mb: 3,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Avatar
+              sx={{
+                bgcolor: "primary.main",
+                width: 64,
                 height: 64,
-                mr: 2
+                mr: 2,
               }}
             >
               {getInitials(contact.name)}
@@ -188,14 +209,18 @@ const ContactDetailsPage = () => {
             <Box>
               <Typography variant="h5">{contact.name}</Typography>
               <Typography variant="subtitle1" color="text.secondary">
-                {contact.status === 'client' ? 'Client' : 
-                 contact.status === 'lead' ? 'Lead' : 
-                 contact.status === 'former_client' ? 'Former Client' : 'Contact'}
+                {contact.status === "client"
+                  ? "Client"
+                  : contact.status === "lead"
+                  ? "Lead"
+                  : contact.status === "former_client"
+                  ? "Former Client"
+                  : "Contact"}
               </Typography>
               {contact.tags && contact.tags.length > 0 && (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
                   {contact.tags.map((tag, index) => (
-                    <Chip 
+                    <Chip
                       key={index}
                       label={tag}
                       size="small"
@@ -207,27 +232,27 @@ const ContactDetailsPage = () => {
             </Box>
           </Box>
           <Box>
-            <Button 
-              variant="outlined" 
-              color="primary" 
+            <Button
+              variant="outlined"
+              color="primary"
               startIcon={<EditIcon />}
               onClick={handleEdit}
               sx={{ mr: 1 }}
             >
               Edit
             </Button>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               color="primary"
               startIcon={<PhoneIcon />}
               onClick={handleCall}
               sx={{ mr: 1 }}
-              disabled={!contact.phone}
+              disabled={!contact.phoneNumber}
             >
               Call
             </Button>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               color="secondary"
               startIcon={<EmailIcon />}
               onClick={handleEmail}
@@ -237,36 +262,48 @@ const ContactDetailsPage = () => {
             </Button>
           </Box>
         </Box>
-        
+
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
-            <Typography variant="h6" gutterBottom>Contact Information</Typography>
+            <Typography variant="h6" gutterBottom>
+              Contact Information
+            </Typography>
             <Box sx={{ mb: 3 }}>
               <Grid container spacing={2}>
-                {contact.phone && (
+                {contact.phoneNumber && (
                   <Grid item xs={12}>
-                    <Typography variant="body2" color="text.secondary">Phone Number</Typography>
-                    <Typography variant="body1">{contact.phone}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Phone Number
+                    </Typography>
+                    <Typography variant="body1">
+                      {contact.phoneNumber}
+                    </Typography>
                   </Grid>
                 )}
                 {contact.email && (
                   <Grid item xs={12}>
-                    <Typography variant="body2" color="text.secondary">Email</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Email
+                    </Typography>
                     <Typography variant="body1">{contact.email}</Typography>
                   </Grid>
                 )}
                 {contact.address && (
                   <Grid item xs={12}>
-                    <Typography variant="body2" color="text.secondary">Address</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Address
+                    </Typography>
                     <Typography variant="body1">{contact.address}</Typography>
                   </Grid>
                 )}
               </Grid>
             </Box>
           </Grid>
-          
+
           <Grid item xs={12} md={6}>
-            <Typography variant="h6" gutterBottom>Recent Jobs</Typography>
+            <Typography variant="h6" gutterBottom>
+              Recent Jobs
+            </Typography>
             {contact.jobs && contact.jobs.length > 0 ? (
               <List disablePadding>
                 {contact.jobs.map((job, index) => (
@@ -274,7 +311,9 @@ const ContactDetailsPage = () => {
                     <ListItem sx={{ px: 0 }}>
                       <ListItemText
                         primary={job.name}
-                        secondary={`Status: ${job.status} • Amount: $${job.amount?.toLocaleString() || 'N/A'}`}
+                        secondary={`Status: ${job.status} • Amount: $${
+                          job.amount?.toLocaleString() || "N/A"
+                        }`}
                       />
                     </ListItem>
                     {index < contact.jobs.length - 1 && <Divider />}
@@ -282,14 +321,18 @@ const ContactDetailsPage = () => {
                 ))}
               </List>
             ) : (
-              <Typography variant="body2" color="text.secondary">No recent jobs found.</Typography>
+              <Typography variant="body2" color="text.secondary">
+                No recent jobs found.
+              </Typography>
             )}
           </Grid>
         </Grid>
       </Paper>
-      
+
       <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>Communication History</Typography>
+        <Typography variant="h6" gutterBottom>
+          Communication History
+        </Typography>
         {contact.communications && contact.communications.length > 0 ? (
           <List disablePadding>
             {contact.communications.map((comm, index) => (
@@ -299,7 +342,11 @@ const ContactDetailsPage = () => {
                     primary={comm.type}
                     secondary={
                       <React.Fragment>
-                        <Typography component="span" variant="body2" color="text.secondary">
+                        <Typography
+                          component="span"
+                          variant="body2"
+                          color="text.secondary"
+                        >
                           {comm.date}
                         </Typography>
                         <Typography component="div" variant="body2">
@@ -314,12 +361,19 @@ const ContactDetailsPage = () => {
             ))}
           </List>
         ) : (
-          <Typography variant="body2" color="text.secondary">No communication history found.</Typography>
+          <Typography variant="body2" color="text.secondary">
+            No communication history found.
+          </Typography>
         )}
       </Paper>
 
       {/* Edit Contact Dialog */}
-      <Dialog open={openEditDialog} onClose={handleCloseEdit} maxWidth="md" fullWidth>
+      <Dialog
+        open={openEditDialog}
+        onClose={handleCloseEdit}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>Edit Contact</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -385,8 +439,10 @@ const ContactDetailsPage = () => {
               />
             </Grid>
             <Grid item xs={12}>
-              <Typography variant="body2" sx={{ mb: 1 }}>Tags</Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Tags
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 1 }}>
                 {editFormData.tags.map((tag, index) => (
                   <Chip
                     key={index}
@@ -408,13 +464,13 @@ const ContactDetailsPage = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseEdit}>Cancel</Button>
-          <Button 
-            onClick={handleSaveContact} 
-            color="primary" 
-            variant="contained" 
+          <Button
+            onClick={handleSaveContact}
+            color="primary"
+            variant="contained"
             disabled={updating}
           >
-            {updating ? 'Saving...' : 'Save Changes'}
+            {updating ? "Saving..." : "Save Changes"}
           </Button>
         </DialogActions>
       </Dialog>
