@@ -485,7 +485,7 @@ export const sendMessageToAI = async (
     });
     // Return the response from /ai/reply (or handle as needed, maybe just return success/failure)
     // The actual AI response will come via WebSocket
-    return response.data; 
+    return response.data;
   } catch (error) {
     console.error("Error sending message via /ai/reply:", error);
     throw error;
