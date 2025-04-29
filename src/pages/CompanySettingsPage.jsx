@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -7,18 +7,18 @@ import {
   Button,
   Grid,
   CircularProgress,
-  Alert
-} from '@mui/material';
-import { fetchCompanySettings, updateCompanySettings } from '../services/api';
-import PageHeader from '../components/common/PageHeader';
+  Alert,
+} from "@mui/material";
+import { fetchCompanySettings, updateCompanySettings } from "../services/api";
+import PageHeader from "../components/common/PageHeader";
 
 const CompanySettingsPage = () => {
   const [formData, setFormData] = useState({
-    companyName: '',
-    companyAddress: '',
-    phone: '',
-    email: '',
-    website: ''
+    companyName: "",
+    companyAddress: "",
+    phone: "",
+    email: "",
+    website: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,18 +30,19 @@ const CompanySettingsPage = () => {
       try {
         setLoading(true);
         const response = await fetchCompanySettings();
+        console.log("company response", response);
         if (response && response.data) {
           setFormData({
-            companyName: response.data.companyName || '',
-            companyAddress: response.data.companyAddress || '',
-            phone: response.data.phone || '',
-            email: response.data.email || '',
-            website: response.data.website || ''
+            companyName: response.data.companyName || "",
+            companyAddress: response.data.companyAddress || "",
+            phone: response.data.phone || "",
+            email: response.data.email || "",
+            website: response.data.website || "",
           });
         }
       } catch (error) {
-        console.error('Error loading company settings:', error);
-        setError('Failed to load company settings. Please try again.');
+        console.error("Error loading company settings:", error);
+        setError("Failed to load company settings. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -52,27 +53,27 @@ const CompanySettingsPage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       setSaving(true);
       setError(null);
       setSuccess(false);
-      
+
       await updateCompanySettings(formData);
       setSuccess(true);
-      
+
       // Auto-hide success message after 3 seconds
       setTimeout(() => {
         setSuccess(false);
       }, 3000);
     } catch (error) {
-      console.error('Error updating company settings:', error);
-      setError('Failed to update company settings. Please try again.');
+      console.error("Error updating company settings:", error);
+      setError("Failed to update company settings. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -81,9 +82,9 @@ const CompanySettingsPage = () => {
   return (
     <Box>
       <PageHeader title="Company Settings" />
-      
+
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
           <CircularProgress />
         </Box>
       ) : (
@@ -93,13 +94,13 @@ const CompanySettingsPage = () => {
               {error}
             </Alert>
           )}
-          
+
           {success && (
             <Alert severity="success" sx={{ mb: 3 }}>
               Company settings updated successfully!
             </Alert>
           )}
-          
+
           <form onSubmit={handleSubmit}>
             <Grid container spacing={3}>
               <Grid item xs={12}>
@@ -111,7 +112,7 @@ const CompanySettingsPage = () => {
                   onChange={handleChange}
                 />
               </Grid>
-              
+
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -123,7 +124,7 @@ const CompanySettingsPage = () => {
                   rows={3}
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
@@ -133,7 +134,7 @@ const CompanySettingsPage = () => {
                   onChange={handleChange}
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
@@ -144,7 +145,7 @@ const CompanySettingsPage = () => {
                   onChange={handleChange}
                 />
               </Grid>
-              
+
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -155,15 +156,19 @@ const CompanySettingsPage = () => {
                   placeholder="https://example.com"
                 />
               </Grid>
-              
-              <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+
+              <Grid
+                item
+                xs={12}
+                sx={{ display: "flex", justifyContent: "flex-end" }}
+              >
                 <Button
                   type="submit"
                   variant="contained"
                   color="primary"
                   disabled={saving}
                 >
-                  {saving ? 'Saving...' : 'Save Changes'}
+                  {saving ? "Saving..." : "Save Changes"}
                 </Button>
               </Grid>
             </Grid>

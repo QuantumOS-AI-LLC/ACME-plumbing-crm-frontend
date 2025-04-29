@@ -49,8 +49,6 @@ const ContactDetailsPage = () => {
       try {
         setLoading(true);
         const response = await fetchContact(id);
-        console.log("hello contact", response);
-        console.log("hello phone:", response.data.phoneNumber);
         if (response && response.data) {
           setContact(response.data);
           // Initialize edit form with contact data
