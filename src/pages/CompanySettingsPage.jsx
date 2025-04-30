@@ -16,7 +16,7 @@ const CompanySettingsPage = () => {
   const [formData, setFormData] = useState({
     companyName: "",
     companyAddress: "",
-    phone: "",
+    phoneNumber: "",
     email: "",
     website: "",
   });
@@ -30,12 +30,11 @@ const CompanySettingsPage = () => {
       try {
         setLoading(true);
         const response = await fetchCompanySettings();
-        console.log("company response", response);
         if (response && response.data) {
           setFormData({
             companyName: response.data.companyName || "",
             companyAddress: response.data.companyAddress || "",
-            phone: response.data.phone || "",
+            phoneNumber: response.data.phoneNumber || "",
             email: response.data.email || "",
             website: response.data.website || "",
           });
@@ -63,7 +62,7 @@ const CompanySettingsPage = () => {
       setSaving(true);
       setError(null);
       setSuccess(false);
-
+      console.log("Form data",formData);
       await updateCompanySettings(formData);
       setSuccess(true);
 
@@ -129,8 +128,8 @@ const CompanySettingsPage = () => {
                 <TextField
                   fullWidth
                   label="Business Phone"
-                  name="phone"
-                  value={formData.phone}
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
                   onChange={handleChange}
                 />
               </Grid>

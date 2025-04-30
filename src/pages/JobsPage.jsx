@@ -87,8 +87,8 @@ const JobsPage = () => {
     return statusFilters.includes(job.status);
   });
 
+  console.log('jobs',jobs);
   console.log("active tab:", activeTab);
-
   console.log("filtered jobs:", filteredJobs);
 
   return (

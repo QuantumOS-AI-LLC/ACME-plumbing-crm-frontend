@@ -14,7 +14,7 @@ import { styled } from '@mui/material/styles';
 import { useAuth } from '../../hooks/useAuth';
 
 const StyledAppBar = styled(AppBar)(({ theme, ismobile }) => ({
-  background: 'linear-gradient(to right, #9D4EE9, #FF1493)',
+  background: 'linear-gradient(to right, #873ECE, #FF1493)',
   borderRadius: 0,
   boxShadow: 'none',
   width: ismobile === 'true' ? '100%' : `calc(100% - 240px)`,
@@ -27,6 +27,14 @@ const StyledAppBar = styled(AppBar)(({ theme, ismobile }) => ({
 
 const Header = ({ isMobile, onMenuClick }) => {
   const { user } = useAuth();
+  const getInitials = (name) => {
+    if (!name) return 'G';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
+  };
   
   return (
     <StyledAppBar 
@@ -58,7 +66,7 @@ const Header = ({ isMobile, onMenuClick }) => {
             <Avatar 
               sx={{ width: 32, height: 32, bgcolor: 'rgba(255, 255, 255, 0.2)' }}
             >
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              {getInitials(user.data.name)}
             </Avatar>
           </IconButton>
         </Box>

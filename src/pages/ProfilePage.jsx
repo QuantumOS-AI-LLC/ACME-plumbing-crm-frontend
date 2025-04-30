@@ -90,7 +90,7 @@ const ProfilePage = () => {
   };
 
   const getInitials = (name) => {
-    if (!name) return 'U';
+    if (!name) return 'G';
     return name
       .split(' ')
       .map(n => n[0])

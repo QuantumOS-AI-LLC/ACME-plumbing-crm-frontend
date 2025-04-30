@@ -140,7 +140,7 @@ export const fetchCompanySettings = async () => {
 
 export const updateCompanySettings = async (companyData) => {
   try {
-    const response = await api.put("/companies/settings", companyData);
+    const response = await api.put("/users/company", companyData);
     if (response.data && response.data.success) {
       // Save the full response to localStorage
       localStorage.setItem("companyProfile", JSON.stringify(response.data));

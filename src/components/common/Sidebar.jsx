@@ -54,7 +54,6 @@ const Sidebar = ({ onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-
   const menuItems = [
     { text: "Dashboard", icon: <DashboardIcon />, path: "/" },
     { text: "Profile", icon: <ProfileIcon />, path: "/profile" },
@@ -85,12 +84,21 @@ const Sidebar = ({ onClose }) => {
     navigate(path);
     if (onClose) onClose(); // Close drawer when item is clicked (mobile only)
   };
+  const getInitials = (name) => {
+    if (!name) return 'G';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
+  };
 
   return (
     <SidebarContainer>
       <Box
         sx={{
-          p: 2,
+          py:2,
+          px:1,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -98,15 +106,15 @@ const Sidebar = ({ onClose }) => {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center" }}>
-          <Avatar sx={{ mr: 2, bgcolor: "rgba(255, 255, 255, 0.2)" }}>
-            {user?.name ? user.name.charAt(0) : "U"}
+          <Avatar sx={{ mr: 2, bgcolor: "rgba(255, 255, 255, 0.2)",width:"48px",height:"48px" }}>
+            {getInitials(user.data.name)}
           </Avatar>
           <Box>
             <Typography variant="body1" sx={{ fontWeight: "bold" }}>
-              {user?.name || "User Name"}
+              {user?.data?.name || "Guest"}
             </Typography>
             <Typography variant="caption">
-              {user?.companyName || "Company Name"}
+              {user?.data?.companyName || "Company Name"}
             </Typography>
           </Box>
         </Box>
@@ -118,7 +126,7 @@ const Sidebar = ({ onClose }) => {
       </Box>
 
       <Box sx={{ flex: 1, overflow: "auto" }}>
-        <List sx={{ pt: 2 }}>
+        <List sx={{ pt: 1 }}>
           {menuItems.map((item) => (
             <ListItem key={item.text} disablePadding>
               <StyledListItemButton

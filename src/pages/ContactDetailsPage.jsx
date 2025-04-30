@@ -184,21 +184,23 @@ const ContactDetailsPage = () => {
     <Box>
       <PageHeader title="Contact Details" showBackButton={true} />
 
-      <Paper sx={{ p: 3, mb: 3 }}>
+      <Paper sx={{ p: {xs:2,sm:3}, mb: 3 }}>
         <Box
           sx={{
             display: "flex",
+            flexDirection: {xs:"column",sm:"row"},
+            gap:"16px",
             justifyContent: "space-between",
             alignItems: "flex-start",
             mb: 3,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Box sx={{ display: "flex"}}>
             <Avatar
               sx={{
                 bgcolor: "primary.main",
-                width: 64,
-                height: 64,
+                width: 52,
+                height: 52,
                 mr: 2,
               }}
             >

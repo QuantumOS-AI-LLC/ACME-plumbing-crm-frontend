@@ -76,13 +76,13 @@ const DashboardPage = () => {
   return (
     <Box sx={{ maxWidth: '1200px', margin: '0 auto' }}>
       <PageHeader
-        title={`Welcome, ${localStorage.getItem('user_name') || 'John'}`}
+        title={`Welcome, ${JSON.parse(localStorage.getItem('userProfile'))?.data?.name || 'Guest'}`}
         subtitle="Here's your business at a glance"
       />
       
       {/* Main cards grid */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={6}>
           <GradientCard
             icon={<ComputerIcon sx={{ fontSize: 32 }} />}
             title="AI Assistant"
@@ -90,7 +90,7 @@ const DashboardPage = () => {
             onClick={() => navigate('/ai-assistant')}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={6}>
           <GradientCard
             icon={<BuildIcon sx={{ fontSize: 32 }} />}
             title="Jobs"
@@ -98,7 +98,7 @@ const DashboardPage = () => {
             onClick={() => navigate('/jobs')}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={6}>
           <GradientCard
             icon={<DescriptionIcon sx={{ fontSize: 32 }} />}
             title="Estimates"
@@ -106,7 +106,7 @@ const DashboardPage = () => {
             onClick={() => navigate('/estimates')}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={6}>
           <GradientCard
             icon={<CalendarTodayIcon sx={{ fontSize: 32 }} />}
             title="Calendar"
