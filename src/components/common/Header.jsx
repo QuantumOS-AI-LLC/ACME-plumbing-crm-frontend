@@ -66,7 +66,7 @@ const Header = ({ isMobile, onMenuClick }) => {
             <Avatar 
               sx={{ width: 32, height: 32, bgcolor: 'rgba(255, 255, 255, 0.2)' }}
             >
-              {getInitials(user.data.name)}
+              {getInitials(user?.data?.name)}
             </Avatar>
           </IconButton>
         </Box>

@@ -122,7 +122,7 @@ const LoginPage = () => {
       overscrollBehavior: 'none',
     }}>
       <Container component="main" maxWidth="xs" disableGutters={isMobile}>
-        <StyledPaper elevation={3}>
+        <StyledPaper elevation={3} sx={{mx:'auto'}}>
           <Box sx={{ mb: 4, textAlign: 'center' }}>
             <Typography component="h1" variant="h5" color="primary" fontWeight={600} sx={{ mb: 1 }}>
               Get Connected
