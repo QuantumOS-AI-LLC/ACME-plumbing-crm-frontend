@@ -12,7 +12,7 @@ import {
   Avatar,
   Divider,
   IconButton,
-  Badge, // Import Badge component
+  Badge,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import AddIcon from "@mui/icons-material/Add";
@@ -30,11 +30,10 @@ const AIAssistantPage = () => {
   const [activeConversation, setActiveConversation] = useState(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
-  const [unreadCounts, setUnreadCounts] = useState({}); // State for unread counts { contactId: count }
+  const [unreadCounts, setUnreadCounts] = useState({});
   const messagesEndRef = useRef(null);
-  const wsRef = useRef(null); // Ref to hold the WebSocket instance
-  const activeConversationRef = useRef(activeConversation); // Ref to track active conversation for WS handler
-
+  const wsRef = useRef(null);
+  const activeConversationRef = useRef(activeConversation);
   const [isConversationListVisible, setConversationListVisible] =
     useState(false);
 
@@ -48,16 +47,13 @@ const AIAssistantPage = () => {
   useEffect(() => {
     scrollToBottom();
     hideConversationList();
-    activeConversationRef.current = activeConversation; // Keep the ref updated
+    activeConversationRef.current = activeConversation;
   }, [activeConversation]);
 
   useEffect(() => {
     const fetchAllConversations = async () => {
       try {
         const res = await getConversations();
-
-        console.log("get conversation", res.data);
-
         const convos = res?.data || [];
         setConversations(convos);
 
@@ -74,9 +70,7 @@ const AIAssistantPage = () => {
 
   useEffect(() => {
     const fetchMessages = async () => {
-      // console.log("activeConversation:", activeConversation);
-
-      if (activeConversation?.contactId) {
+      if (activeConversation?.contactId && activeConversation.contactId !== 0) {
         try {
           const data = await getConversationMessages(
             activeConversation.contactId
@@ -85,26 +79,25 @@ const AIAssistantPage = () => {
         } catch (error) {
           console.error("Failed to fetch messages:", error);
         }
+      } else {
+        setMessages([]);
       }
     };
 
     fetchMessages();
   }, [activeConversation]);
 
-  // Effect for WebSocket connection (runs once on mount)
   useEffect(() => {
-    console.log("Attempting to establish WebSocket connection.");
     const wsUrl = "wss://get-connected-backend.dev.quantumos.ai";
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
-      console.log("WebSocket connected to", wsUrl);
+      console.log("WebSocket connected");
     };
 
     wsRef.current.onmessage = (event) => {
       try {
         const parsedData = JSON.parse(event.data);
-        console.log("WebSocket message received:", parsedData);
 
         if (
           parsedData.type === "newMessage" &&
@@ -119,17 +112,14 @@ const AIAssistantPage = () => {
             createdAt: parsedData.data.createdAt,
           };
 
-          // Use the ref to get the current active conversation
           if (incomingContactId === activeConversationRef.current?.contactId) {
-            // Add to messages list if active (and prevent duplicates)
             setMessages((prev) => {
-              if (!prev.some(msg => msg.id === newAiMessage.id)) {
+              if (!prev.some((msg) => msg.id === newAiMessage.id)) {
                 return [...prev, newAiMessage];
               }
               return prev;
             });
           } else {
-            // Increment unread count for inactive conversation
             setUnreadCounts((prevCounts) => ({
               ...prevCounts,
               [incomingContactId]: (prevCounts[incomingContactId] || 0) + 1,
@@ -137,7 +127,7 @@ const AIAssistantPage = () => {
           }
         }
       } catch (error) {
-        console.error("Failed to parse WebSocket message or update state:", error);
+        console.error("WebSocket message error:", error);
       }
     };
 
@@ -146,28 +136,35 @@ const AIAssistantPage = () => {
     };
 
     wsRef.current.onclose = (event) => {
-      console.log("WebSocket disconnected:", event.reason, event.code);
-      wsRef.current = null; // Clear the ref on close
+      console.log("WebSocket closed:", event.reason);
+      wsRef.current = null;
     };
 
-    // Cleanup function to close WebSocket on component unmount
     return () => {
       if (wsRef.current) {
-        console.log("Closing WebSocket connection on component unmount.");
         wsRef.current.close();
         wsRef.current = null;
       }
     };
-  }, []); // Empty dependency array: run only once on mount
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   const selectConversation = (contactId) => {
+    if (contactId === 0) {
+      setActiveConversation({
+        contactId: 0,
+        contactName: "Alli",
+      });
+      setMessages([]);
+      return;
+    }
+
     const selected = conversations.find((c) => c.contactId === contactId);
     setActiveConversation(selected);
-    // Reset unread count for the selected conversation
+
     setUnreadCounts((prevCounts) => ({
       ...prevCounts,
       [contactId]: 0,
@@ -183,15 +180,11 @@ const AIAssistantPage = () => {
         userId: activeConversation?.lastMessage?.userId,
       };
 
-      console.log("payload", payload);
-
       const response = await createConversation(
         payload.message,
         payload.contactId,
         payload.estimateId
       );
-
-      console.log("response data", response?.data);
 
       if (response?.data) {
         const newConversation = response.data;
@@ -208,27 +201,29 @@ const AIAssistantPage = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!message.trim() || !activeConversation) return;
+    if (
+      !message.trim() ||
+      !activeConversation ||
+      activeConversation.contactId === 0
+    )
+      return;
 
     const newUserMessage = {
-      id: crypto.randomUUID(), // Use a unique temporary ID
+      id: crypto.randomUUID(),
       senderType: "USER",
       message: message,
     };
 
     setMessages((prev) => [...prev, newUserMessage]);
     setMessage("");
+
     try {
-      // Send the message but don't handle the response here
       await sendMessageToAI(
         message,
         activeConversation?.contactId,
         activeConversation?.estimateId,
         activeConversation?.lastMessage?.userId
       );
-
-      // AI response will be handled by fetching or WebSocket later
-      
     } catch (error) {
       console.error("Failed to send message:", error);
     }
@@ -237,7 +232,6 @@ const AIAssistantPage = () => {
   return (
     <Box>
       <PageHeader title="AI Assistant" />
-
       <Box
         sx={{
           display: "flex",
@@ -280,7 +274,18 @@ const AIAssistantPage = () => {
             </Button>
           </Box>
           <Divider />
+
           <List sx={{ flexGrow: 1, overflow: "auto" }}>
+            <ListItem>
+              <ListItemButton
+                selected={activeConversation?.contactId === 0}
+                onClick={() => selectConversation(0)}
+              >
+                <ListItemText primary={"Alli"} />
+                <Badge badgeContent={0} color="primary" sx={{ ml: 1 }} />
+              </ListItemButton>
+            </ListItem>
+
             {conversations.map((conversation) => (
               <ListItem key={conversation.contactId} disablePadding>
                 <ListItemButton
@@ -292,10 +297,10 @@ const AIAssistantPage = () => {
                   <ListItemText
                     primary={conversation.contactName || "Unnamed Contact"}
                   />
-                  <Badge 
-                    badgeContent={unreadCounts[conversation.contactId] || 0} 
+                  <Badge
+                    badgeContent={unreadCounts[conversation.contactId] || 0}
                     color="primary"
-                    sx={{ ml: 1 }} // Add some margin
+                    sx={{ ml: 1 }}
                   />
                 </ListItemButton>
               </ListItem>
@@ -352,9 +357,9 @@ const AIAssistantPage = () => {
                   bgcolor: "background.default",
                 }}
               >
-                {messages.map((msg) => ( // Removed idx from map parameters
+                {messages.map((msg) => (
                   <Box
-                    key={msg.id} // Use message ID as key
+                    key={msg.id}
                     sx={{
                       display: "flex",
                       justifyContent:
@@ -369,8 +374,8 @@ const AIAssistantPage = () => {
                     )}
                     <Paper
                       sx={{
-                        px:2,
-                        py:1.5,
+                        px: 2,
+                        py: 1.5,
                         maxWidth: "70%",
                         bgcolor:
                           msg.senderType === "USER"
@@ -415,11 +420,14 @@ const AIAssistantPage = () => {
                   variant="outlined"
                   size="small"
                   sx={{ mr: 1 }}
+                  disabled={activeConversation?.contactId === 0}
                 />
                 <IconButton
                   color="primary"
                   onClick={handleSendMessage}
-                  disabled={!message.trim()}
+                  disabled={
+                    !message.trim() || activeConversation?.contactId === 0
+                  }
                 >
                   <SendIcon />
                 </IconButton>
