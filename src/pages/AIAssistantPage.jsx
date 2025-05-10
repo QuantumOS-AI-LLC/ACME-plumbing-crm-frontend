@@ -23,6 +23,8 @@ import {
   getConversations,
   sendMessageToAI,
   createConversation,
+  sendAlliBotMessage,
+  getAlliBotHistory,
 } from "../services/api";
 
 const AIAssistantPage = () => {
@@ -31,6 +33,7 @@ const AIAssistantPage = () => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [userId, setUserId] = useState(null);
   const messagesEndRef = useRef(null);
   const wsRef = useRef(null);
   const activeConversationRef = useRef(activeConversation);
@@ -50,27 +53,66 @@ const AIAssistantPage = () => {
     activeConversationRef.current = activeConversation;
   }, [activeConversation]);
 
+  // Fetch userId and set AlliBot as default
+  useEffect(() => {
+    const profileString = localStorage.getItem("userProfile");
+    if (profileString) {
+      try {
+        const profile = JSON.parse(profileString);
+        const id =
+          profile?.user?.id ||
+          profile?.data?.user?.id ||
+          profile?.data?.id ||
+          profile?.id;
+
+        if (id) {
+          const userIdString = id.toString();
+          setUserId(userIdString);
+
+          // Set AlliBot as default
+          setActiveConversation({
+            contactId: userIdString,
+            contactName: "Alli",
+            isAlliBot: true,
+          });
+        } else {
+          console.error("User ID not found in profile data. Profile:", profile);
+        }
+      } catch (e) {
+        console.error("Failed to parse userProfile from localStorage", e);
+      }
+    }
+  }, []);
+
+  // Load conversations from backend
   useEffect(() => {
     const fetchAllConversations = async () => {
       try {
         const res = await getConversations();
         const convos = res?.data || [];
         setConversations(convos);
-
-        if (convos.length > 0) {
-          setActiveConversation(convos[0]);
-        }
       } catch (error) {
         console.error("Error loading conversations:", error);
       }
     };
 
-    fetchAllConversations();
-  }, []);
+    if (userId) {
+      fetchAllConversations();
+    }
+  }, [userId]);
 
+  // Load messages for active conversation
   useEffect(() => {
     const fetchMessages = async () => {
-      if (activeConversation?.contactId && activeConversation.contactId !== 0) {
+      if (activeConversation?.isAlliBot && activeConversation.contactId) {
+        try {
+          const data = await getAlliBotHistory(activeConversation.contactId);
+          setMessages(data?.data || []);
+        } catch (error) {
+          console.error("Failed to fetch AlliBot history:", error);
+          setMessages([]);
+        }
+      } else if (activeConversation?.contactId) {
         try {
           const data = await getConversationMessages(
             activeConversation.contactId
@@ -78,15 +120,19 @@ const AIAssistantPage = () => {
           setMessages(data?.data || []);
         } catch (error) {
           console.error("Failed to fetch messages:", error);
+          setMessages([]);
         }
       } else {
         setMessages([]);
       }
     };
 
-    fetchMessages();
+    if (activeConversation) {
+      fetchMessages();
+    }
   }, [activeConversation]);
 
+  // WebSocket
   useEffect(() => {
     const wsUrl = "wss://get-connected-backend.dev.quantumos.ai";
     wsRef.current = new WebSocket(wsUrl);
@@ -101,29 +147,51 @@ const AIAssistantPage = () => {
 
         if (
           parsedData.type === "newMessage" &&
-          parsedData.data &&
-          parsedData.data.senderType === "AI"
+          parsedData.data?.senderType === "AI" &&
+          parsedData.data.contactId !== 0
         ) {
-          const incomingContactId = parsedData.data.contactId;
           const newAiMessage = {
             id: parsedData.data.id,
             senderType: parsedData.data.senderType,
             message: parsedData.data.message,
             createdAt: parsedData.data.createdAt,
+            contactId: parsedData.data.contactId,
           };
 
-          if (incomingContactId === activeConversationRef.current?.contactId) {
-            setMessages((prev) => {
-              if (!prev.some((msg) => msg.id === newAiMessage.id)) {
-                return [...prev, newAiMessage];
-              }
-              return prev;
-            });
+          if (
+            newAiMessage.contactId === activeConversationRef.current?.contactId
+          ) {
+            setMessages((prev) =>
+              prev.some((msg) => msg.id === newAiMessage.id)
+                ? prev
+                : [...prev, newAiMessage]
+            );
           } else {
-            setUnreadCounts((prevCounts) => ({
-              ...prevCounts,
-              [incomingContactId]: (prevCounts[incomingContactId] || 0) + 1,
+            setUnreadCounts((prev) => ({
+              ...prev,
+              [newAiMessage.contactId]: (prev[newAiMessage.contactId] || 0) + 1,
             }));
+          }
+        } else if (
+          parsedData.type === "newAlliBotMessage" &&
+          parsedData.data?.senderType === "ALLI_BOT"
+        ) {
+          const newAlliBotMessage = {
+            id: parsedData.data.id,
+            senderType: "ALLI_BOT",
+            message: parsedData.data.message,
+            createdAt: parsedData.data.createdAt,
+          };
+
+          if (
+            activeConversationRef.current?.isAlliBot &&
+            parsedData.data.userId === activeConversationRef.current.contactId
+          ) {
+            setMessages((prev) =>
+              prev.some((msg) => msg.id === newAlliBotMessage.id)
+                ? prev
+                : [...prev, newAlliBotMessage]
+            );
           }
         }
       } catch (error) {
@@ -131,44 +199,39 @@ const AIAssistantPage = () => {
       }
     };
 
-    wsRef.current.onerror = (event) => {
-      console.error("WebSocket error:", event);
-    };
-
-    wsRef.current.onclose = (event) => {
-      console.log("WebSocket closed:", event.reason);
-      wsRef.current = null;
-    };
+    wsRef.current.onerror = (e) => console.error("WebSocket error:", e);
+    wsRef.current.onclose = () => console.log("WebSocket closed");
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
+      wsRef.current?.close();
+      wsRef.current = null;
     };
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const selectConversation = (contactId) => {
-    if (contactId === 0) {
-      setActiveConversation({
-        contactId: 0,
-        contactName: "Alli",
-      });
-      setMessages([]);
+  const selectConversation = (idOrMarker) => {
+    if (idOrMarker === "ALLI_BOT_MARKER") {
+      if (userId) {
+        setActiveConversation({
+          contactId: userId,
+          contactName: "Alli",
+          isAlliBot: true,
+        });
+        setMessages([]);
+      } else {
+        console.warn("User ID not yet available to set AlliBot");
+      }
       return;
     }
 
-    const selected = conversations.find((c) => c.contactId === contactId);
-    setActiveConversation(selected);
-
-    setUnreadCounts((prevCounts) => ({
-      ...prevCounts,
-      [contactId]: 0,
-    }));
+    const selected = conversations.find((c) => c.contactId === idOrMarker);
+    if (selected) {
+      setActiveConversation({ ...selected, isAlliBot: false });
+      setUnreadCounts((prev) => ({ ...prev, [idOrMarker]: 0 }));
+    }
   };
 
   const createNewConversationHandler = async () => {
@@ -180,52 +243,68 @@ const AIAssistantPage = () => {
         userId: activeConversation?.lastMessage?.userId,
       };
 
-      const response = await createConversation(
+      const res = await createConversation(
         payload.message,
         payload.contactId,
         payload.estimateId
       );
 
-      if (response?.data) {
-        const newConversation = response.data;
-        setConversations((prev) => [...prev, newConversation]);
-        setActiveConversation(newConversation);
-        return newConversation;
-      } else {
-        throw new Error("Invalid response format from API");
+      if (res?.data) {
+        const newConvo = res.data;
+        setConversations((prev) => [...prev, newConvo]);
+        setActiveConversation(newConvo);
+        return newConvo;
       }
-    } catch (error) {
-      console.error("Error creating new conversation:", error);
-      throw error;
+    } catch (err) {
+      console.error("Create conversation failed:", err);
     }
   };
 
   const handleSendMessage = async () => {
-    if (
-      !message.trim() ||
-      !activeConversation ||
-      activeConversation.contactId === 0
-    )
-      return;
+    if (!message.trim() || !activeConversation) return;
+
+    const localMessage = message;
+    setMessage("");
 
     const newUserMessage = {
       id: crypto.randomUUID(),
       senderType: "USER",
-      message: message,
+      message: localMessage,
+      createdAt: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, newUserMessage]);
-    setMessage("");
 
     try {
-      await sendMessageToAI(
-        message,
-        activeConversation?.contactId,
-        activeConversation?.estimateId,
-        activeConversation?.lastMessage?.userId
-      );
-    } catch (error) {
-      console.error("Failed to send message:", error);
+      if (activeConversation.isAlliBot && activeConversation.contactId) {
+        const res = await sendAlliBotMessage(
+          localMessage,
+          activeConversation.contactId
+        );
+        if (res?.data?.id) {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === newUserMessage.id
+                ? {
+                    ...msg,
+                    id: res.data.id,
+                    userId: activeConversation.contactId,
+                  }
+                : msg
+            )
+          );
+        }
+      } else if (activeConversation.contactId) {
+        await sendMessageToAI(
+          localMessage,
+          activeConversation.contactId,
+          activeConversation.estimateId,
+          activeConversation.lastMessage?.userId || userId
+        );
+      }
+    } catch (err) {
+      console.error("Message send failed:", err);
+      setMessages((prev) => prev.filter((msg) => msg.id !== newUserMessage.id));
     }
   };
 
@@ -252,7 +331,6 @@ const AIAssistantPage = () => {
             bgcolor: "background.paper",
             borderRight: 1,
             borderColor: "divider",
-            flexGrow: 1,
             display: {
               xs: isConversationListVisible ? "flex" : "none",
               sm: "flex",
@@ -269,19 +347,20 @@ const AIAssistantPage = () => {
               fullWidth
               startIcon={<AddIcon />}
               onClick={createNewConversationHandler}
+              disabled={activeConversation?.isAlliBot === true}
             >
               New Conversation
             </Button>
           </Box>
           <Divider />
-
           <List sx={{ flexGrow: 1, overflow: "auto" }}>
             <ListItem>
               <ListItemButton
-                selected={activeConversation?.contactId === 0}
-                onClick={() => selectConversation(0)}
+                selected={activeConversation?.isAlliBot === true}
+                onClick={() => selectConversation("ALLI_BOT_MARKER")}
+                disabled={!userId}
               >
-                <ListItemText primary={"Alli"} />
+                <ListItemText primary="Alli" />
                 <Badge badgeContent={0} color="primary" sx={{ ml: 1 }} />
               </ListItemButton>
             </ListItem>
@@ -367,9 +446,10 @@ const AIAssistantPage = () => {
                       mb: 2,
                     }}
                   >
-                    {msg.senderType === "AI" && (
+                    {(msg.senderType === "AI" ||
+                      msg.senderType === "ALLI_BOT") && (
                       <Avatar sx={{ bgcolor: "primary.main", mr: 1 }}>
-                        AI
+                        {msg.senderType === "ALLI_BOT" ? "AB" : "AI"}
                       </Avatar>
                     )}
                     <Paper
@@ -401,7 +481,6 @@ const AIAssistantPage = () => {
                 <div ref={messagesEndRef} />
               </Box>
 
-              {/* Message Input */}
               <Box
                 sx={{
                   p: 2,
@@ -420,14 +499,12 @@ const AIAssistantPage = () => {
                   variant="outlined"
                   size="small"
                   sx={{ mr: 1 }}
-                  disabled={activeConversation?.contactId === 0}
+                  disabled={!activeConversation}
                 />
                 <IconButton
                   color="primary"
                   onClick={handleSendMessage}
-                  disabled={
-                    !message.trim() || activeConversation?.contactId === 0
-                  }
+                  disabled={!message.trim() || !activeConversation}
                 >
                   <SendIcon />
                 </IconButton>
@@ -450,9 +527,7 @@ const AIAssistantPage = () => {
               <Button
                 variant="outlined"
                 onClick={showConversationList}
-                sx={{
-                  display: { md: "none" },
-                }}
+                sx={{ display: { md: "none" } }}
               >
                 See Conversations
               </Button>

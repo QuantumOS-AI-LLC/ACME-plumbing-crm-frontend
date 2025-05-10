@@ -1,8 +1,12 @@
 import axios from "axios";
 
 // Create an axios instance
+const isDev = window.location.hostname === "localhost";
+
 const api = axios.create({
-  baseURL: "https://get-connected-backend.dev.quantumos.ai/api",
+  baseURL: isDev
+    ? "http://localhost:5001/api"
+    : "https://get-connected-backend.dev.quantumos.ai/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -488,6 +492,27 @@ export const sendMessageToAI = async (
     return response.data;
   } catch (error) {
     console.error("Error sending message via /ai/reply:", error);
+    throw error;
+  }
+};
+
+// AlliBot APIs
+export const sendAlliBotMessage = async (message, userId) => {
+  try {
+    const response = await api.post("/alli-bot/message", { message, userId });
+    return response.data;
+  } catch (error) {
+    console.error("Error sending message to AlliBot:", error);
+    throw error;
+  }
+};
+
+export const getAlliBotHistory = async (userId) => {
+  try {
+    const response = await api.get(`/alli-bot/history/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching AlliBot history for user ${userId}:`, error);
     throw error;
   }
 };
