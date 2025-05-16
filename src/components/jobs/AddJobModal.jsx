@@ -109,7 +109,7 @@ const AddJobModal = ({ open, onClose, onJobCreated }) => {
             }}
           >
             <WorkOutlineIcon color="primary" sx={{ mr: 2, fontSize: 32 }} />
-            <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
+            <Typography color="primary"  variant="h5" component="h2" sx={{ fontWeight: 600 }}>
               Create New Job
             </Typography>
           </Box>

@@ -7,6 +7,8 @@ import {
   LinearProgress,
 } from '@mui/material';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable'; // Correct import for jspdf-autotable
 
 const isDueDateApproaching = (dueDate) => {
   const today = new Date();
@@ -21,6 +23,94 @@ const JobDetailsModal = ({ handleClose, open, job }) => {
   };
 
   const displayName = job?.leadName || job?.client?.name || 'Job Details';
+
+  const generateInvoice = () => {
+    const doc = new jsPDF();
+
+    // Colors and Fonts
+    const primaryColor = [0, 102, 204]; // RGB for a professional blue
+    const secondaryColor = [100, 100, 100]; // Gray for secondary text
+    doc.setFont('helvetica', 'bold');
+
+    // Header
+    doc.setFontSize(24);
+    doc.setTextColor(...primaryColor);
+    doc.text('INVOICE', 105, 20, { align: 'center' });
+
+    // Company Info (Customize as needed)
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Your Company Name', 20, 35);
+    doc.text('123 Business St, City, Country', 20, 40);
+    doc.text('Email: contact@company.com', 20, 45);
+    doc.text('Phone: +123-456-7890', 20, 50);
+
+    // Invoice Info (right-aligned)
+    doc.setFontSize(10);
+    doc.text(`Invoice #: INV-${Math.floor(Math.random() * 10000)}`, 140, 60);
+    doc.text(`Invoice Date: ${formatDate(new Date())}`, 140, 65);
+    doc.text(`Due Date: ${formatDate(job?.dueDate)}`, 140, 70);
+
+    // Client Info
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...primaryColor);
+    doc.text('Bill To:', 20, 65);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.text(job?.client?.name || 'N/A', 20, 72);
+    doc.text(job?.address || 'N/A', 20, 77);
+
+    // Table for Job Details using autoTable
+    autoTable(doc, {
+      startY: 90,
+      head: [['Description', 'Amount']],
+      body: [[
+        'Job/Service',
+        `$${job?.price?.toLocaleString() || 'N/A'}`
+      ]],
+      styles: {
+        fontSize: 10,
+        cellPadding: 3,
+        textColor: [0, 0, 0],
+      },
+      headStyles: {
+        fillColor: primaryColor,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+      },
+      columnStyles: {
+        0: { cellWidth: 130 },
+        1: { cellWidth: 40, halign: 'right' },
+      },
+      theme: 'striped',
+    });
+
+    // Total
+    const finalY = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...primaryColor);
+    doc.text('Total:', 130, finalY);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`$${job?.price?.toLocaleString() || 'N/A'}`, 170, finalY, { align: 'right' });
+
+    // Footer
+    doc.setFontSize(9);
+    doc.setTextColor(...secondaryColor);
+    doc.text('Thank you for your business!', 105, finalY + 20, { align: 'center' });
+    doc.text('Payment Terms: Due on receipt', 105, finalY + 25, { align: 'center' });
+
+    // Add a decorative line
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(0.5);
+    doc.line(20, finalY + 15, 190, finalY + 15);
+
+    // Save the PDF
+    doc.save(`Invoice_${job?.client?.name || 'Job'}_${format(new Date(), 'yyyyMMdd')}.pdf`);
+  };
 
   return (
     <Modal
@@ -127,11 +217,13 @@ const JobDetailsModal = ({ handleClose, open, job }) => {
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: "medium" }}>
                 Due Date
               </Typography>
-              <Typography variant="body1" sx={{ 
-                color: "text.primary",
-                fontWeight: isDueDateApproaching(job.dueDate) ? "bold" : "normal",
-                color: isDueDateApproaching(job.dueDate) ? "warning.main" : "text.primary"
-              }}>
+              <Typography
+                variant="body1"
+                sx={{ 
+                  color: isDueDateApproaching(job.dueDate) ? "warning.main" : "text.primary",
+                  fontWeight: isDueDateApproaching(job.dueDate) ? "bold" : "normal"
+                }}
+              >
                 {formatDate(job.dueDate)}
               </Typography>
             </Grid>
@@ -144,8 +236,28 @@ const JobDetailsModal = ({ handleClose, open, job }) => {
           justifyContent: "flex-end",
           pt: 2,
           borderTop: "1px solid",
-          borderColor: "divider"
+          borderColor: "divider",
+          gap: 2
         }}>
+          <Button 
+            variant="outlined" 
+            onClick={generateInvoice}
+            sx={{
+              borderColor: "primary.main",
+              color: "primary.main",
+              "&:hover": {
+                borderColor: "primary.dark",
+                bgcolor: "primary.light",
+                color:"white"
+              },
+              px: 4,
+              py: 1,
+              borderRadius: 1
+            }}
+            disabled={!job?.client?.name || !job?.price}
+          >
+            Generate Invoice
+          </Button>
           <Button 
             variant="contained" 
             onClick={handleClose}

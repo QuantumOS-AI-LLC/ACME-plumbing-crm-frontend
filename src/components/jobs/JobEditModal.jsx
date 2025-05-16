@@ -118,9 +118,6 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
             textAlign: "center",
             textTransform: "uppercase",
             letterSpacing: "1px",
-            background: "linear-gradient(to right, #6d28d9, #f97316)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
           }}
         >
           Edit Job
@@ -144,7 +141,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
               color: "#6d28d9 !important",
             },
             "& .MuiTabs-indicator": {
-              background: "linear-gradient(to right, #6d28d9, #f97316)",
+              background: "#6d28d9",
               height: "3px",
             },
           }}
@@ -536,11 +533,11 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
               flex: 1,
               py: 1.5,
               borderRadius: "12px",
-              background: "linear-gradient(to right, #6d28d9, #f97316)",
+              background: "#6d28d9",
               textTransform: "none",
               fontWeight: 600,
               "&:hover": {
-                background: "linear-gradient(to right, #5b21b6, #ea580c)",
+                background: "#6d28d9",
                 transform: "scale(1.05)",
               },
               "&:disabled": {
