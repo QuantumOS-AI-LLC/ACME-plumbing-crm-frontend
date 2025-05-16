@@ -283,7 +283,7 @@ export const createContact = async (contactData) => {
     console.error("Error creating contact:", error);
     throw error;
   }
-};
+};  
 
 export const updateContact = async (id, contactData) => {
   try {

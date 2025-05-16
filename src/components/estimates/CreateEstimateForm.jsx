@@ -13,8 +13,11 @@ import {
   Grid,
   CircularProgress,
   MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
 } from "@mui/material";
-import { createEstimate, updateEstimate } from "../../services/api"; // Assumed API service
+import { createEstimate, updateEstimate } from "../../services/api";
 
 const ESTIMATE_STATUS = {
   PENDING: "pending",
@@ -32,38 +35,74 @@ export default function CreateEstimateForm({
   open = false,
   handleCloseForm,
   handleFormSubmit,
-  formData: initialFormData,
   editingEstimate,
+  user,
 }) {
-  const [formData, setFormData] = useState(initialFormData);
+  const [formData, setFormData] = useState({
+    leadName: "",
+    address: "",
+    scope: "",
+    bidAmount: "",
+    startDate: "",
+    status: ESTIMATE_STATUS.PENDING,
+    notes: "",
+    clientId: "",
+    createdBy: user?.id || "",
+    client: {
+      id: "",
+      name: "",
+      phoneNumber: "",
+      email: "",
+    },
+  });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [activeTab, setActiveTab] = useState(0); // 0: Estimate Details, 1: Client Info
+  const [activeTab, setActiveTab] = useState(0);
 
-  // Sync formData with initialFormData or editingEstimate
+
+  // Sync formData with editingEstimate
   useEffect(() => {
     if (editingEstimate) {
       setFormData({
         leadName: editingEstimate.leadName || "",
         address: editingEstimate.address || "",
         scope: editingEstimate.scope || "",
-        bidAmount: editingEstimate.bidAmount || "",
+        bidAmount: editingEstimate.bidAmount?.toString() || "",
         startDate: editingEstimate.startDate
           ? new Date(editingEstimate.startDate).toISOString().slice(0, 10)
           : "",
-        notes: editingEstimate.notes || "",
         status: editingEstimate.status || ESTIMATE_STATUS.PENDING,
+        notes: editingEstimate.notes || "",
+        clientId: editingEstimate.clientId || "",
+        createdBy: editingEstimate.createdBy || user?.id || "",
         client: {
+          id: editingEstimate.client?.id || "",
           name: editingEstimate.client?.name || "",
           phoneNumber: editingEstimate.client?.phoneNumber || "",
           email: editingEstimate.client?.email || "",
         },
       });
     } else {
-      setFormData(initialFormData);
+      setFormData({
+        leadName: "",
+        address: "",
+        scope: "",
+        bidAmount: "",
+        startDate: "",
+        status: ESTIMATE_STATUS.PENDING,
+        notes: "",
+        clientId: "",
+        createdBy: user?.id || "",
+        client: {
+          id: "",
+          name: "",
+          phoneNumber: "",
+          email: "",
+        },
+      });
     }
     setErrors({});
-  }, [editingEstimate, initialFormData]);
+  }, [editingEstimate, user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -79,16 +118,30 @@ export default function CreateEstimateForm({
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
+  const handleClientSelect = (clientId) => {
+    const selectedClient = clients.find((client) => client.id === clientId);
+    setFormData((prev) => ({
+      ...prev,
+      clientId,
+      client: {
+        id: selectedClient?.id || "",
+        name: selectedClient?.name || "",
+        phoneNumber: selectedClient?.phoneNumber || "",
+        email: selectedClient?.email || "",
+      },
+    }));
+    setErrors((prev) => ({ ...prev, clientId: "" }));
+  };
+
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.leadName && !formData.client.name)
-      newErrors.leadName = "Lead or Client Name is required";
+    if (!formData.leadName) newErrors.leadName = "Lead Name is required";
     if (!formData.address) newErrors.address = "Address is required";
     if (!formData.scope) newErrors.scope = "Scope is required";
-    if (!formData.bidAmount || formData.bidAmount <= 0)
+    if (!formData.bidAmount || parseFloat(formData.bidAmount) <= 0)
       newErrors.bidAmount = "Valid bid amount is required";
     if (!formData.startDate) newErrors.startDate = "Start Date is required";
-    if (!formData.client.name) newErrors["client.name"] = "Client Name is required";
+    if (!formData.clientId) newErrors.clientId = "Client is required";
     return newErrors;
   };
 
@@ -102,14 +155,27 @@ export default function CreateEstimateForm({
     try {
       setLoading(true);
       setErrors({});
-      let result;
+
+      const estimateData = {
+        leadName: formData.leadName,
+        address: formData.address,
+        scope: formData.scope,
+        bidAmount: parseFloat(formData.bidAmount) || 0,
+        startDate: formData.startDate
+          ? new Date(formData.startDate).toISOString()
+          : null,
+        status: formData.status,
+        notes: formData.notes || null,
+        clientId: formData.clientId,
+        createdBy: formData.createdBy,
+      };
+
       if (editingEstimate) {
-        result = await updateEstimate(editingEstimate.id, formData); // Update API call
+        await updateEstimate(editingEstimate.id, estimateData);
       } else {
-        result = await createEstimate(formData); // Create API call
+        await createEstimate(estimateData);
       }
-      handleFormSubmit(result); // Notify parent of success
-      handleCloseForm();
+      handleFormSubmit();
     } catch (err) {
       setErrors({ general: "Failed to save estimate. Please try again." });
       console.error("Error saving estimate:", err);
@@ -200,7 +266,7 @@ export default function CreateEstimateForm({
                 value={formData.leadName || ""}
                 onChange={handleChange}
                 fullWidth
-                required={!formData.client?.name}
+                required
                 error={!!errors.leadName}
                 helperText={errors.leadName}
                 sx={{
@@ -353,13 +419,10 @@ export default function CreateEstimateForm({
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                label="Status"
-                name="status"
-                select
-                value={formData.status || ESTIMATE_STATUS.PENDING}
-                onChange={handleChange}
+              <FormControl
                 fullWidth
+                required
+                error={!!errors.status}
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     borderRadius: "12px",
@@ -384,21 +447,30 @@ export default function CreateEstimateForm({
                   },
                 }}
               >
-                {statusOptions.map((option) => (
-                  <MenuItem
-                    key={option.value}
-                    value={option.value}
-                    sx={{
-                      "&:hover": {
-                        bgcolor: "#f3e8ff",
-                        color: "#8A2BE2",
-                      },
-                    }}
-                  >
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </TextField>
+                <InputLabel id="status-label">Status</InputLabel>
+                <Select
+                  labelId="status-label"
+                  name="status"
+                  value={formData.status || ESTIMATE_STATUS.PENDING}
+                  onChange={handleChange}
+                  label="Status"
+                >
+                  {statusOptions.map((option) => (
+                    <MenuItem
+                      key={option.value}
+                      value={option.value}
+                      sx={{
+                        "&:hover": {
+                          bgcolor: "#f3e8ff",
+                          color: "#8A2BE2",
+                        },
+                      }}
+                    >
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -489,16 +561,10 @@ export default function CreateEstimateForm({
           >
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <TextField
-                  label="Client Name"
-                  name="client.name"
-                  value={formData.client.name || ""}
-                  onChange={handleChange}
+                <FormControl
                   fullWidth
                   required
-                  error={!!errors["client.name"]}
-                  helperText={errors["client.name"]}
-                  disabled={!!editingEstimate} // Read-only in edit mode
+                  error={!!errors.clientId}
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: "12px",
@@ -526,6 +592,63 @@ export default function CreateEstimateForm({
                       fontSize: "0.8rem",
                     },
                   }}
+                >
+                  <InputLabel id="client-label">Select Client</InputLabel>
+                  <Select
+                    labelId="client-label"
+                    name="clientId"
+                    value={formData.clientId || ""}
+                    onChange={(e) => handleClientSelect(e.target.value)}
+                    label="Select Client"
+                    disabled={!!editingEstimate}
+                  >
+                    {clients.map((client) => (
+                      <MenuItem
+                        key={client.id}
+                        value={client.id}
+                        sx={{
+                          "&:hover": {
+                            bgcolor: "#f3e8ff",
+                            color: "#8A2BE2",
+                          },
+                        }}
+                      >
+                        {client.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {errors.clientId && (
+                    <Typography
+                      variant="caption"
+                      color="error"
+                      sx={{ mt: 0.5, fontSize: "0.8rem" }}
+                    >
+                      {errors.clientId}
+                    </Typography>
+                  )}
+                </FormControl>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Client Name"
+                  name="client.name"
+                  value={formData.client.name || ""}
+                  onChange={handleChange}
+                  fullWidth
+                  disabled
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: "12px",
+                      bgcolor: "#e5e7eb",
+                      "& fieldset": {
+                        borderColor: "#d1d5db",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#4b5563",
+                      fontSize: "0.875rem",
+                    },
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -535,28 +658,18 @@ export default function CreateEstimateForm({
                   value={formData.client.phoneNumber || ""}
                   onChange={handleChange}
                   fullWidth
-                  disabled={!!editingEstimate} // Read-only in edit mode
+                  disabled
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: "12px",
-                      bgcolor: editingEstimate ? "#e5e7eb" : "#f8fafc",
+                      bgcolor: "#e5e7eb",
                       "& fieldset": {
                         borderColor: "#d1d5db",
-                      },
-                      "&:hover fieldset": {
-                        borderColor: "#8A2BE2",
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: "#8A2BE2",
-                        boxShadow: "0 0 8px rgba(138, 43, 226, 0.3)",
                       },
                     },
                     "& .MuiInputLabel-root": {
                       color: "#4b5563",
                       fontSize: "0.875rem",
-                      "&.Mui-focused": {
-                        color: "#8A2BE2",
-                      },
                     },
                   }}
                 />
@@ -569,28 +682,18 @@ export default function CreateEstimateForm({
                   value={formData.client.email || ""}
                   onChange={handleChange}
                   fullWidth
-                  disabled={!!editingEstimate} // Read-only in edit mode
+                  disabled
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: "12px",
-                      bgcolor: editingEstimate ? "#e5e7eb" : "#f8fafc",
+                      bgcolor: "#e5e7eb",
                       "& fieldset": {
                         borderColor: "#d1d5db",
-                      },
-                      "&:hover fieldset": {
-                        borderColor: "#8A2BE2",
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: "#8A2BE2",
-                        boxShadow: "0 0 8px rgba(138, 43, 226, 0.3)",
                       },
                     },
                     "& .MuiInputLabel-root": {
                       color: "#4b5563",
                       fontSize: "0.875rem",
-                      "&.Mui-focused": {
-                        color: "#8A2BE2",
-                      },
                     },
                   }}
                 />

@@ -24,7 +24,7 @@ const ESTIMATE_STATUS = {
 
 const EstimatesPage = () => {
   const { user } = useContext(AuthContext);
-  console.log(user)
+  console.log("User:", user);
   const [activeTab, setActiveTab] = useState("active");
   const [editingEstimate, setEditingEstimate] = useState(null);
   const [estimates, setEstimates] = useState([]);
@@ -37,8 +37,12 @@ const EstimatesPage = () => {
     scope: "",
     bidAmount: "",
     startDate: "",
+    status: "pending", 
     notes: "",
+    clientId: "", 
+    createdBy: user?.id || "", 
     client: {
+      id: "", 
       name: "",
       phoneNumber: "",
       email: "",
@@ -102,19 +106,41 @@ const EstimatesPage = () => {
 
   const handleOpenForm = () => {
     setEditingEstimate(null);
-    setOpenForm(true);
-  };
-
-  const handleCloseForm = () => {
-    setOpenForm(false);
     setFormData({
       leadName: "",
       address: "",
       scope: "",
       bidAmount: "",
       startDate: "",
+      status: "pending",
       notes: "",
+      clientId: "",
+      createdBy: user?.id || "",
       client: {
+        id: "",
+        name: "",
+        phoneNumber: "",
+        email: "",
+      },
+    });
+    setOpenForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setOpenForm(false);
+    setEditingEstimate(null);
+    setFormData({
+      leadName: "",
+      address: "",
+      scope: "",
+      bidAmount: "",
+      startDate: "",
+      status: "pending",
+      notes: "",
+      clientId: "",
+      createdBy: user?.id || "",
+      client: {
+        id: "",
         name: "",
         phoneNumber: "",
         email: "",
@@ -138,60 +164,62 @@ const EstimatesPage = () => {
     }
   };
 
- const handleFormSubmit = async () => {
-  try {
-    const estimateData = {
-      leadName: formData.leadName,
-      address: formData.address,
-      scope: formData.scope,
-      bidAmount: parseFloat(formData.bidAmount) || 0,
-      startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
-      notes: formData.notes,
-      client: {
-        [editingEstimate ? "update" : "create"]: {
-          name: formData.client.name,
-          phoneNumber: formData.client.phoneNumber,
-          email: formData.client.email,
-        },
-      },
-      user: {
-        connect: {
-          id: user.id,
-        },
-      },
-    };
-
-    if (editingEstimate) {
-      // EDIT MODE
-      await updateEstimate(editingEstimate.id, estimateData);
-      toast.success("Estimate updated successfully");
-    } else {
-      // CREATE MODE
-      await createEstimate(estimateData);
-      toast.success("Estimate added successfully");
-    }
-
-    const response = await fetchEstimates({ page: 1, limit: 50 });
-    if (response && response.data) {
-      setEstimates(response.data);
-    }
-    handleCloseForm();
-  } catch (error) {
-    console.error("Error saving estimate:", error);
-    toast.error(
-      editingEstimate ? "Failed to update estimate." : "Failed to create estimate.",
-      {
-        position: "bottom-right",
-        duration: 5000,
-        icon: "❌",
+  const handleFormSubmit = async () => {
+    try {
+      // ভ্যালিডেশন
+      if (!formData.leadName || !formData.address || !formData.clientId) {
+        toast.error("Please fill in all required fields.", {
+          position: "bottom-right",
+          duration: 5000,
+          icon: "❌",
+        });
+        return;
       }
-    );
-  }
-};
 
+      const estimateData = {
+        leadName: formData.leadName,
+        address: formData.address,
+        scope: formData.scope,
+        bidAmount: parseFloat(formData.bidAmount) || 0,
+        startDate: formData.startDate
+          ? new Date(formData.startDate).toISOString()
+          : null,
+        status: formData.status,
+        notes: formData.notes || null,
+        clientId: formData.clientId, // ক্লায়েন্ট UUID
+        createdBy: formData.createdBy, // ব্যবহারকারীর UUID
+      };
 
- 
+      if (editingEstimate) {
+        // EDIT MODE
+        await updateEstimate(editingEstimate.id, estimateData);
+        toast.success("Estimate updated successfully");
+      } else {
+        // CREATE MODE
+        await createEstimate(estimateData);
+        toast.success("Estimate created successfully");
+      }
 
+      // এস্টিমেট রিফ্রেশ
+      const response = await fetchEstimates({ page: 1, limit: 50 });
+      if (response && response.data) {
+        setEstimates(response.data);
+      }
+      handleCloseForm();
+    } catch (error) {
+      console.error("Error saving estimate:", error);
+      toast.error(
+        editingEstimate
+          ? "Failed to update estimate."
+          : "Failed to create estimate.",
+        {
+          position: "bottom-right",
+          duration: 5000,
+          icon: "❌",
+        }
+      );
+    }
+  };
 
   return (
     <Box>
@@ -215,15 +243,14 @@ const EstimatesPage = () => {
         </Tabs>
       </Box>
 
-     <CreateEstimateForm
+      <CreateEstimateForm
         open={openForm}
         handleCloseForm={handleCloseForm}
         handleFormChange={handleFormChange}
         handleFormSubmit={handleFormSubmit}
         formData={formData}
-        editingEstimate={editingEstimate} // ✅ pass this prop
+        editingEstimate={editingEstimate}
       />
-
 
       {loading ? (
         <Box
@@ -325,7 +352,7 @@ const EstimatesPage = () => {
                           (e) => e.status === ESTIMATE_STATUS.ACCEPTED
                         ).length /
                           estimates.length) *
-                          hundred
+                          100
                       )
                     : 0}
                   %
