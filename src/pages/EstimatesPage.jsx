@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   Box,
   Typography,
@@ -9,11 +9,13 @@ import {
   Button,
   CircularProgress,
 } from "@mui/material";
-import { fetchEstimates } from "../services/api";
+import { fetchEstimates, createEstimate, updateEstimate } from "../services/api";
 import PageHeader from "../components/common/PageHeader";
 import EstimateCard from "../components/estimates/EstimateCard";
+import { toast } from "sonner";
+import { AuthContext } from "../contexts/AuthContext";
+import CreateEstimateForm from "../components/estimates/CreateEstimateForm";
 
-// Constants matching backend
 const ESTIMATE_STATUS = {
   PENDING: "pending",
   ACCEPTED: "accepted",
@@ -21,22 +23,38 @@ const ESTIMATE_STATUS = {
 };
 
 const EstimatesPage = () => {
+  const { user } = useContext(AuthContext);
+  console.log(user)
   const [activeTab, setActiveTab] = useState("active");
+  const [editingEstimate, setEditingEstimate] = useState(null);
   const [estimates, setEstimates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [openForm, setOpenForm] = useState(false);
+  const [formData, setFormData] = useState({
+    leadName: "",
+    address: "",
+    scope: "",
+    bidAmount: "",
+    startDate: "",
+    notes: "",
+    client: {
+      name: "",
+      phoneNumber: "",
+      email: "",
+    },
+  });
 
   useEffect(() => {
     const loadEstimates = async () => {
       try {
         setLoading(true);
-        // Add pagination and any necessary filters
         const response = await fetchEstimates({
           page: 1,
-          limit: 50, // Get a decent number of estimates
+          limit: 50,
         });
 
-        console.log("Estimates API response:", response); // For debugging
+        console.log("Estimates API response:", response);
 
         if (response && response.data) {
           setEstimates(response.data);
@@ -59,7 +77,6 @@ const EstimatesPage = () => {
     setActiveTab(newValue);
   };
 
-  // Map status values for filtering
   const getStatusFilters = () => {
     switch (activeTab) {
       case "active":
@@ -73,19 +90,108 @@ const EstimatesPage = () => {
     }
   };
 
-  // Filter estimates based on active tab
   const filteredEstimates = estimates.filter((estimate) => {
     if (activeTab === "reports") return true;
-
     const statusFilters = getStatusFilters();
     return statusFilters.includes(estimate.status);
   });
 
-  console.log("estimate status:", filteredEstimates);
-
   const handleViewEstimate = (estimate) => {
     console.log("View estimate:", estimate.id);
   };
+
+  const handleOpenForm = () => {
+    setEditingEstimate(null);
+    setOpenForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setOpenForm(false);
+    setFormData({
+      leadName: "",
+      address: "",
+      scope: "",
+      bidAmount: "",
+      startDate: "",
+      notes: "",
+      client: {
+        name: "",
+        phoneNumber: "",
+        email: "",
+      },
+    });
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    if (name.startsWith("client.")) {
+      const clientField = name.split(".")[1];
+      setFormData((prev) => ({
+        ...prev,
+        client: {
+          ...prev.client,
+          [clientField]: value,
+        },
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+ const handleFormSubmit = async () => {
+  try {
+    const estimateData = {
+      leadName: formData.leadName,
+      address: formData.address,
+      scope: formData.scope,
+      bidAmount: parseFloat(formData.bidAmount) || 0,
+      startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
+      notes: formData.notes,
+      client: {
+        [editingEstimate ? "update" : "create"]: {
+          name: formData.client.name,
+          phoneNumber: formData.client.phoneNumber,
+          email: formData.client.email,
+        },
+      },
+      user: {
+        connect: {
+          id: user.id,
+        },
+      },
+    };
+
+    if (editingEstimate) {
+      // EDIT MODE
+      await updateEstimate(editingEstimate.id, estimateData);
+      toast.success("Estimate updated successfully");
+    } else {
+      // CREATE MODE
+      await createEstimate(estimateData);
+      toast.success("Estimate added successfully");
+    }
+
+    const response = await fetchEstimates({ page: 1, limit: 50 });
+    if (response && response.data) {
+      setEstimates(response.data);
+    }
+    handleCloseForm();
+  } catch (error) {
+    console.error("Error saving estimate:", error);
+    toast.error(
+      editingEstimate ? "Failed to update estimate." : "Failed to create estimate.",
+      {
+        position: "bottom-right",
+        duration: 5000,
+        icon: "❌",
+      }
+    );
+  }
+};
+
+
+ 
+
 
   return (
     <Box>
@@ -93,7 +199,7 @@ const EstimatesPage = () => {
         title="Estimates"
         action={true}
         actionText="Add Estimate"
-        onAction={() => console.log("Add estimate clicked")}
+        onAction={handleOpenForm}
       />
 
       <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
@@ -108,6 +214,16 @@ const EstimatesPage = () => {
           <Tab label="Reports" value="reports" />
         </Tabs>
       </Box>
+
+     <CreateEstimateForm
+        open={openForm}
+        handleCloseForm={handleCloseForm}
+        handleFormChange={handleFormChange}
+        handleFormSubmit={handleFormSubmit}
+        formData={formData}
+        editingEstimate={editingEstimate} // ✅ pass this prop
+      />
+
 
       {loading ? (
         <Box
@@ -134,9 +250,6 @@ const EstimatesPage = () => {
         </Box>
       ) : activeTab !== "reports" ? (
         <>
-          {/* For debugging */}
-          {/* <pre>{JSON.stringify(filteredEstimates, null, 2)}</pre> */}
-
           <Grid container spacing={3}>
             {filteredEstimates.length === 0 ? (
               <Grid item xs={12}>
@@ -212,7 +325,7 @@ const EstimatesPage = () => {
                           (e) => e.status === ESTIMATE_STATUS.ACCEPTED
                         ).length /
                           estimates.length) *
-                          100
+                          hundred
                       )
                     : 0}
                   %
@@ -231,7 +344,7 @@ const EstimatesPage = () => {
                   $
                   {estimates
                     .filter((e) => e.status === ESTIMATE_STATUS.ACCEPTED)
-                    .reduce((sum, e) => sum + (e.amount || 0), 0)
+                    .reduce((sum, e) => sum + (e.bidAmount || 0), 0)
                     .toLocaleString()}
                 </Typography>
                 <Typography variant="body2" color="success.main" mt={0.5}>

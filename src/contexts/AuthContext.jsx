@@ -27,6 +27,8 @@ export const AuthProvider = ({ children }) => {
         
         // Restore auth state from storage
         const { remembered, token, isLoggedIn: storedIsLoggedIn, userProfile } = restoreAuthState();
+
+        console.log("auth-context",userProfile)
         
         setRememberMe(remembered);
         

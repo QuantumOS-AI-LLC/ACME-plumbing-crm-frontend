@@ -17,6 +17,7 @@ import {
 import { fetchJobs } from "../services/api";
 import PageHeader from "../components/common/PageHeader";
 import JobCard from "../components/jobs/JobCard";
+import AddJobModal from "../components/jobs/AddJobModal"; // Import the new modal
 
 // Constants matching backend
 const JOB_STATUS = {
@@ -31,33 +32,31 @@ const JobsPage = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false); // State for modal
+
+  const loadJobs = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchJobs({
+        page: 1,
+        limit: 50,
+      });
+      console.log("Jobs API response:", response);
+      if (response && response.data) {
+        setJobs(response.data);
+      } else {
+        console.error("Unexpected API response format:", response);
+        setJobs([]);
+      }
+    } catch (error) {
+      console.error("Error loading jobs:", error);
+      setError("Failed to load jobs. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadJobs = async () => {
-      try {
-        setLoading(true);
-        // Add pagination and any necessary filters
-        const response = await fetchJobs({
-          page: 1,
-          limit: 50, // Get a decent number of jobs
-        });
-
-        console.log("Jobs API response:", response); // For debugging
-
-        if (response && response.data) {
-          setJobs(response.data);
-        } else {
-          console.error("Unexpected API response format:", response);
-          setJobs([]);
-        }
-      } catch (error) {
-        console.error("Error loading jobs:", error);
-        setError("Failed to load jobs. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadJobs();
   }, []);
 
@@ -65,7 +64,6 @@ const JobsPage = () => {
     setActiveTab(newValue);
   };
 
-  // Map status values for filtering
   const getStatusFilters = () => {
     switch (activeTab) {
       case "current":
@@ -79,17 +77,16 @@ const JobsPage = () => {
     }
   };
 
-  // Filter jobs based on active tab
   const filteredJobs = jobs.filter((job) => {
     if (activeTab === "reports") return true;
-
     const statusFilters = getStatusFilters();
     return statusFilters.includes(job.status);
   });
 
-  console.log('jobs',jobs);
-  console.log("active tab:", activeTab);
-  console.log("filtered jobs:", filteredJobs);
+  // Handle job creation
+  const handleJobCreated = () => {
+    loadJobs(); // Refresh jobs list
+  };
 
   return (
     <Box>
@@ -97,7 +94,7 @@ const JobsPage = () => {
         title="Jobs"
         action={true}
         actionText="Add Job"
-        onAction={() => console.log("Add job clicked")}
+        onAction={() => setIsModalOpen(true)} // Open modal
       />
 
       <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
@@ -138,9 +135,6 @@ const JobsPage = () => {
         </Box>
       ) : activeTab !== "reports" ? (
         <>
-          {/* For debugging */}
-          {/* <pre>{JSON.stringify(filteredJobs, null, 2)}</pre> */}
-
           <Grid container spacing={3}>
             {filteredJobs.length === 0 ? (
               <Grid item xs={12}>
@@ -254,6 +248,13 @@ const JobsPage = () => {
           </Paper>
         </Box>
       )}
+
+      {/* Add Job Modal */}
+      <AddJobModal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onJobCreated={handleJobCreated}
+      />
     </Box>
   );
 };
