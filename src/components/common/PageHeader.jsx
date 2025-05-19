@@ -1,9 +1,19 @@
 import React from 'react';
 import { Box, Typography, Button, IconButton } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import EditIcon from '@mui/icons-material/Edit';
 import { useNavigate } from 'react-router-dom';
 
-const PageHeader = ({ title, subtitle, action, actionText, onAction, showBackButton = false }) => {
+const PageHeader = ({ 
+  title, 
+  subtitle, 
+  action, 
+  actionText, 
+  onAction, 
+  showBackButton = false,
+  showEditButton = false,
+  onEdit 
+}) => {
   const navigate = useNavigate();
 
   const handleBack = () => {
@@ -29,11 +39,32 @@ const PageHeader = ({ title, subtitle, action, actionText, onAction, showBackBut
           )}
         </Box>
       </Box>
-      {action && (
-        <Button variant="contained" color="primary" onClick={onAction}>
-          {actionText || 'Action'}
-        </Button>
-      )}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {showEditButton && (
+           <Button
+            variant="outlined"
+            color="primary"
+            onClick={onEdit}
+            startIcon={<EditIcon />}
+            sx={{
+              textTransform: 'none',
+              borderRadius: 1,
+              px: 2,
+              '&:hover': {
+                backgroundColor: 'primary.light',
+                color: 'primary.contrastText'
+              }
+            }}
+          >
+            Edit
+          </Button>
+        )}
+        {action && (
+          <Button variant="contained" color="primary" onClick={onAction}>
+            {actionText || 'Action'}
+          </Button>
+        )}
+      </Box>
     </Box>
   );
 };

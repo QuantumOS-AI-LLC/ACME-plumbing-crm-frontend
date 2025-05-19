@@ -16,12 +16,13 @@ import SearchIcon from "@mui/icons-material/Search";
 import { fetchContacts } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/common/PageHeader";
+import CreateContactModalForm from "../components/contacts/CreateContactModalForm";
+
 
 const ContactsPage = () => {
   const [contacts, setContacts] = useState([]);
   const [filteredContacts, setFilteredContacts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -30,6 +31,7 @@ const ContactsPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [openModal, setOpenModal] = useState(false); // State to control modal visibility
   const navigate = useNavigate();
 
   const pages = [...Array(pagination.totalPages).keys()];
@@ -96,11 +98,20 @@ const ContactsPage = () => {
   };
 
   const handleAddContact = () => {
-    // Implement the add contact functionality
-    console.log("Add contact clicked");
+    setOpenModal(true); // Open the modal
   };
 
-  //for pagination
+  const handleCloseModal = () => {
+    setOpenModal(false); // Close the modal
+  };
+
+  const handleContactCreated = (newContact) => {
+    // Update contacts list with the new contact
+    setContacts((prev) => [newContact, ...prev]);
+    setFilteredContacts((prev) => [newContact, ...prev]);
+  };
+
+  // For pagination
   const handlePageChange = (newPage) => {
     if (newPage !== pagination.page) {
       setPagination((prevState) => ({
@@ -234,8 +245,7 @@ const ContactsPage = () => {
         </Grid>
       )}
 
-      {/* pagination controller */}
-
+      {/* Pagination controller */}
       <Box sx={{ textAlign: "center", mt: 4 }}>
         <Button
           variant="outlined"
@@ -265,6 +275,13 @@ const ContactsPage = () => {
           Next
         </Button>
       </Box>
+
+      {/* Render the CreateContactModalForm */}
+      <CreateContactModalForm
+        open={openModal}
+        onClose={handleCloseModal}
+        onContactCreated={handleContactCreated}
+      />
     </Box>
   );
 };
