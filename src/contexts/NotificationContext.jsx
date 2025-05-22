@@ -27,10 +27,8 @@ export const NotificationProvider = ({ children }) => {
       if (response.success) {
         setNotifications(response.data);
         setPagination(response.pagination);
-        // Note: This sets unreadCount based on the current page's data.
-        // If 'isRead: true' filter is active, this will set unreadCount to 0,
-        // which might not be desired for a global unread count.
-        setUnreadCount(response.data.filter(n => !n.isRead).length);
+        // Global unreadCount is no longer set here to avoid inaccuracies.
+        // It's set on initial load and updated by specific actions.
       }
     } catch (err) {
       setError('Failed to load notifications');
@@ -100,13 +98,31 @@ export const NotificationProvider = ({ children }) => {
     }
   }, []); // Setters are stable
 
-  // Initial load
+  // Initial load for total unread count
   useEffect(() => {
-    // loadNotifications is now memoized, so this effect is stable if loadNotifications' own deps are stable.
-    // If loadNotifications had dependencies, it should be in this useEffect's dep array.
-    // Since loadNotifications is useCallback(..., []), it's fine.
-    loadNotifications();
-  }, [loadNotifications]); // Added loadNotifications to dependency array for correctness
+    const fetchInitialUnreadCount = async () => {
+      try {
+        // Fetching with isRead: false and limit: 1 to get the total unread count
+        // from pagination.total, which reflects the count for the 'where' clause.
+        const response = await fetchNotifications(1, 1, false);
+        if (response.success && response.pagination) {
+          setUnreadCount(response.pagination.total);
+        } else {
+          // Fallback or error handling if initial count fetch fails
+          console.error('Failed to fetch initial unread count:', response);
+          setUnreadCount(0); // Default to 0 on failure
+        }
+      } catch (err) {
+        console.error('Error fetching initial unread count:', err);
+        setUnreadCount(0); // Default to 0 on error
+        // Optionally set a specific error state for this
+      }
+    };
+
+    fetchInitialUnreadCount();
+    // Note: The NotificationsPage.jsx will call loadNotifications() itself for its initial display.
+    // This useEffect is only for the global unread count.
+  }, []); // Empty dependency array to run once on mount
 
   const value = {
     notifications,

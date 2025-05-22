@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Create an axios instance
 const api = axios.create({
-  baseURL: "https://get-connected-backend.dev.quantumos.ai/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -400,7 +400,7 @@ export const updateTimeZone = async (timeZoneData) => {
 // Notification Settings API
 export const fetchNotificationSettings = async () => {
   try {
-    const response = await api.get("/users/notifications/settings");
+    const response = await api.get("/notifications/settings");
     return response.data;
   } catch (error) {
     console.error("Error fetching notification settings:", error);
@@ -409,10 +409,11 @@ export const fetchNotificationSettings = async () => {
 };
 
 export const updateNotificationSettings = async (settingsData) => {
+  // settingsData is expected to be an array of setting objects
   try {
     const response = await api.put(
-      "/users/notifications/settings",
-      settingsData
+      "/notifications/settings",
+      { settings: settingsData } // Wrap settingsData in an object with a 'settings' key
     );
     return response.data;
   } catch (error) {
