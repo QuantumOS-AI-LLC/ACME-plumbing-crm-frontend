@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from '../services/api';
 
 const NotificationContext = createContext();
@@ -18,7 +18,7 @@ export const NotificationProvider = ({ children }) => {
   });
 
   // Load notifications
-  const loadNotifications = async (page = 1, limit = 10, isRead) => {
+  const loadNotifications = useCallback(async (page = 1, limit = 10, isRead) => {
     try {
       setLoading(true);
       setError(null);
@@ -27,6 +27,9 @@ export const NotificationProvider = ({ children }) => {
       if (response.success) {
         setNotifications(response.data);
         setPagination(response.pagination);
+        // Note: This sets unreadCount based on the current page's data.
+        // If 'isRead: true' filter is active, this will set unreadCount to 0,
+        // which might not be desired for a global unread count.
         setUnreadCount(response.data.filter(n => !n.isRead).length);
       }
     } catch (err) {
@@ -35,10 +38,10 @@ export const NotificationProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Assuming fetchNotifications and setters are stable
 
   // Mark notification as read
-  const markAsRead = async (id) => {
+  const markAsRead = useCallback(async (id) => {
     try {
       const response = await markNotificationAsRead(id);
       if (response.success) {
@@ -52,10 +55,10 @@ export const NotificationProvider = ({ children }) => {
       console.error(err);
       throw err;
     }
-  };
+  }, []); // Assuming markNotificationAsRead and setters are stable
 
   // Mark all notifications as read
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
     try {
       const response = await markAllNotificationsAsRead();
       if (response.success) {
@@ -67,14 +70,15 @@ export const NotificationProvider = ({ children }) => {
       console.error(err);
       throw err;
     }
-  };
+  }, []); // Assuming markAllNotificationsAsRead and setters are stable
 
   // Delete notification
-  const removeNotification = async (id) => {
+  const removeNotification = useCallback(async (id) => {
     try {
       const response = await deleteNotification(id);
       if (response.success) {
-        const notificationToRemove = notifications.find(n => n.id === id);
+        // 'notifications' state is used here, so it must be a dependency
+        const notificationToRemove = notifications.find(n => n.id === id); 
         setNotifications(prev => prev.filter(n => n.id !== id));
         
         if (notificationToRemove && !notificationToRemove.isRead) {
@@ -86,20 +90,23 @@ export const NotificationProvider = ({ children }) => {
       console.error(err);
       throw err;
     }
-  };
+  }, [notifications]); // Added 'notifications' to dependency array
 
   // Add a new notification (used with WebSocket)
-  const addNotification = (notification) => {
+  const addNotification = useCallback((notification) => {
     setNotifications(prev => [notification, ...prev]);
     if (!notification.isRead) {
       setUnreadCount(prev => prev + 1);
     }
-  };
+  }, []); // Setters are stable
 
   // Initial load
   useEffect(() => {
+    // loadNotifications is now memoized, so this effect is stable if loadNotifications' own deps are stable.
+    // If loadNotifications had dependencies, it should be in this useEffect's dep array.
+    // Since loadNotifications is useCallback(..., []), it's fine.
     loadNotifications();
-  }, []);
+  }, [loadNotifications]); // Added loadNotifications to dependency array for correctness
 
   const value = {
     notifications,
