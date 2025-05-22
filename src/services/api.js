@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Create an axios instance
 const api = axios.create({
-  baseURL: "https://get-connected-backend.dev.quantumos.ai/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -391,7 +391,7 @@ export const updateTimeZone = async (timeZoneData) => {
 // Notification Settings API
 export const fetchNotificationSettings = async () => {
   try {
-    const response = await api.get("/users/notifications/settings");
+    const response = await api.get("/notifications/settings");
     return response.data;
   } catch (error) {
     console.error("Error fetching notification settings:", error);
@@ -400,10 +400,11 @@ export const fetchNotificationSettings = async () => {
 };
 
 export const updateNotificationSettings = async (settingsData) => {
+  // settingsData is expected to be an array of setting objects
   try {
     const response = await api.put(
-      "/users/notifications/settings",
-      settingsData
+      "/notifications/settings",
+      { settings: settingsData } // Wrap settingsData in an object with a 'settings' key
     );
     return response.data;
   } catch (error) {
@@ -488,6 +489,51 @@ export const sendMessageToAI = async (
     return response.data;
   } catch (error) {
     console.error("Error sending message via /ai/reply:", error);
+    throw error;
+  }
+};
+
+// Notifications APIs
+export const fetchNotifications = async (page = 1, limit = 10, isRead) => {
+  try {
+    let url = `/notifications?page=${page}&limit=${limit}`;
+    if (isRead !== undefined) {
+      url += `&isRead=${isRead}`;
+    }
+    const response = await api.get(url);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    throw error;
+  }
+};
+
+export const markNotificationAsRead = async (id) => {
+  try {
+    const response = await api.put(`/notifications/${id}/read`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error marking notification ${id} as read:`, error);
+    throw error;
+  }
+};
+
+export const markAllNotificationsAsRead = async () => {
+  try {
+    const response = await api.put('/notifications/read-all');
+    return response.data;
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    throw error;
+  }
+};
+
+export const deleteNotification = async (id) => {
+  try {
+    const response = await api.delete(`/notifications/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error deleting notification ${id}:`, error);
     throw error;
   }
 };

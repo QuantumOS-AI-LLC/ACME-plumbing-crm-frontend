@@ -18,6 +18,7 @@ import {
   VpnKey as PasswordIcon,
   AccessTime as TimeZoneIcon,
   Notifications as NotificationsIcon,
+  NotificationsActive as NotificationsActiveIcon,
   Logout as LogoutIcon,
   Close as CloseIcon,
 } from "@mui/icons-material";
@@ -72,6 +73,11 @@ const Sidebar = ({ onClose }) => {
       text: "Notifications",
       icon: <NotificationsIcon />,
       path: "/notifications",
+    },
+    {
+      text: "Notification Settings",
+      icon: <NotificationsActiveIcon />,
+      path: "/notification-settings",
     },
   ];
 

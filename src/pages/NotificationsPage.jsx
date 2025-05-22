@@ -3,192 +3,187 @@ import {
   Box,
   Typography,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Switch,
+  Tabs,
+  Tab,
   Button,
-  Alert,
-  CircularProgress
+  Divider,
+  CircularProgress,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Pagination
 } from '@mui/material';
-import { fetchNotificationSettings, updateNotificationSettings } from '../services/api';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PageHeader from '../components/common/PageHeader';
+import { useNotifications } from '../contexts/NotificationContext';
 
 const NotificationsPage = () => {
-  const [settings, setSettings] = useState({
-    email: {
-      newEstimate: true,
-      estimateAccepted: true,
-      jobComplete: true,
-      paymentReceived: true,
-      dailySummary: false
-    },
-    sms: {
-      newEstimate: false,
-      estimateAccepted: true,
-      jobComplete: false,
-      paymentReceived: true,
-      dailySummary: false
-    },
-    app: {
-      newEstimate: true,
-      estimateAccepted: true,
-      jobComplete: true,
-      paymentReceived: true,
-      dailySummary: true
-    }
-  });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
+  const { 
+    notifications, 
+    loading, 
+    pagination, 
+    loadNotifications, 
+    markAsRead,
+    markAllAsRead,
+    removeNotification
+  } = useNotifications();
   
   useEffect(() => {
-    const loadNotificationSettings = async () => {
-      try {
-        setLoading(true);
-        const response = await fetchNotificationSettings();
-        if (response && response.data) {
-          setSettings(response.data);
-        }
-      } catch (error) {
-        console.error('Error loading notification settings:', error);
-        setError('Failed to load notification settings. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadNotificationSettings();
-  }, []);
+    // Load notifications based on tab value
+    const isRead = tabValue === 0 ? undefined : tabValue === 1 ? false : true;
+    loadNotifications(1, 10, isRead);
+  }, [tabValue, loadNotifications]);
   
-  const handleToggle = (channel, notification) => {
-    setSettings(prev => ({
-      ...prev,
-      [channel]: {
-        ...prev[channel],
-        [notification]: !prev[channel][notification]
-      }
-    }));
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
   };
   
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    try {
-      setSaving(true);
-      setError(null);
-      setSuccess(false);
-      
-      await updateNotificationSettings(settings);
-      setSuccess(true);
-      
-      // Auto-hide success message after 3 seconds
-      setTimeout(() => {
-        setSuccess(false);
-      }, 3000);
-    } catch (error) {
-      console.error('Error updating notification settings:', error);
-      setError('Failed to update notification settings. Please try again.');
-    } finally {
-      setSaving(false);
-    }
+  const handlePageChange = (event, page) => {
+    const isRead = tabValue === 0 ? undefined : tabValue === 1 ? false : true;
+    loadNotifications(page, 10, isRead);
   };
   
-  const notificationTypes = [
-    { id: 'newEstimate', label: 'New Estimate Request' },
-    { id: 'estimateAccepted', label: 'Estimate Accepted' },
-    { id: 'jobComplete', label: 'Job Complete' },
-    { id: 'paymentReceived', label: 'Payment Received' },
-    { id: 'dailySummary', label: 'Daily Summary' }
-  ];
+  const handleMarkAsRead = async (id) => {
+    await markAsRead(id);
+  };
+  
+  const handleMarkAllAsRead = async () => {
+    await markAllAsRead();
+  };
+  
+  const handleDelete = async (id) => {
+    await removeNotification(id);
+  };
+  
+  // Format relative time (e.g., "2 hours ago")
+  const formatRelativeTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+    
+    if (diffSec < 60) return 'just now';
+    if (diffMin < 60) return `${diffMin} minute${diffMin > 1 ? 's' : ''} ago`;
+    if (diffHour < 24) return `${diffHour} hour${diffHour > 1 ? 's' : ''} ago`;
+    if (diffDay < 7) return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString();
+  };
 
   return (
     <Box>
-      <PageHeader title="Notification Settings" />
+      <PageHeader title="Notifications" />
       
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-          <CircularProgress />
+      <Paper sx={{ mb: 3 }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange}
+            aria-label="notification tabs"
+          >
+            <Tab label="All" />
+            <Tab label="Unread" />
+            <Tab label="Read" />
+          </Tabs>
         </Box>
-      ) : (
-        <Paper sx={{ p: 3 }}>
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
-            </Alert>
-          )}
-          
-          {success && (
-            <Alert severity="success" sx={{ mb: 3 }}>
-              Notification settings updated successfully!
-            </Alert>
-          )}
-          
-          <Typography variant="body1" paragraph>
-            Choose how you want to be notified about different events:
-          </Typography>
-          
-          <form onSubmit={handleSubmit}>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Notification</TableCell>
-                    <TableCell align="center">Email</TableCell>
-                    <TableCell align="center">SMS</TableCell>
-                    <TableCell align="center">App</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {notificationTypes.map((type) => (
-                    <TableRow key={type.id}>
-                      <TableCell component="th" scope="row">
-                        {type.label}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Switch
-                          checked={settings.email[type.id]}
-                          onChange={() => handleToggle('email', type.id)}
-                          color="primary"
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <Switch
-                          checked={settings.sms[type.id]}
-                          onChange={() => handleToggle('sms', type.id)}
-                          color="primary"
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <Switch
-                          checked={settings.app[type.id]}
-                          onChange={() => handleToggle('app', type.id)}
-                          color="primary"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : 'Save Settings'}
-              </Button>
-            </Box>
-          </form>
-        </Paper>
-      )}
+        
+        <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button 
+            variant="outlined" 
+            onClick={handleMarkAllAsRead}
+            disabled={loading || !notifications.some(n => !n.isRead)}
+          >
+            Mark all as read
+          </Button>
+        </Box>
+        
+        <Divider />
+        
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : notifications.length > 0 ? (
+          <List disablePadding>
+            {notifications.map((notification) => (
+              <React.Fragment key={notification.id}>
+                <ListItem
+                  sx={{ 
+                    bgcolor: notification.isRead ? 'transparent' : 'action.hover',
+                    py: 1.5
+                  }}
+                  secondaryAction={
+                    <Box>
+                      {!notification.isRead && (
+                        <IconButton 
+                          edge="end" 
+                          aria-label="mark as read"
+                          onClick={() => handleMarkAsRead(notification.id)}
+                          sx={{ mr: 1 }}
+                        >
+                          <CheckCircleIcon />
+                        </IconButton>
+                      )}
+                      <IconButton 
+                        edge="end" 
+                        aria-label="delete"
+                        onClick={() => handleDelete(notification.id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  }
+                >
+                  <ListItemText
+                    primary={
+                      <Typography 
+                        variant="subtitle2" 
+                        fontWeight={notification.isRead ? 400 : 600}
+                      >
+                        {notification.title}
+                      </Typography>
+                    }
+                    secondary={
+                      <>
+                        <Typography variant="body2" color="text.secondary">
+                          {notification.message}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatRelativeTime(notification.createdAt)}
+                        </Typography>
+                      </>
+                    }
+                  />
+                </ListItem>
+                <Divider component="li" />
+              </React.Fragment>
+            ))}
+          </List>
+        ) : (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="body1" color="text.secondary">
+              No notifications found
+            </Typography>
+          </Box>
+        )}
+        
+        {!loading && pagination.pages > 1 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+            <Pagination 
+              count={pagination.pages} 
+              page={pagination.page} 
+              onChange={handlePageChange} 
+              color="primary" 
+            />
+          </Box>
+        )}
+      </Paper>
     </Box>
   );
 };

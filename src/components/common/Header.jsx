@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -6,12 +6,18 @@ import {
   Typography,
   IconButton,
   Avatar,
-  Badge
+  Badge,
+  Menu,
+  MenuItem,
+  Divider,
+  Button
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { styled } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useNotifications } from '../../contexts/NotificationContext';
 
 const StyledAppBar = styled(AppBar)(({ theme, ismobile }) => ({
   background: 'linear-gradient(to right, #873ECE, #FF1493)',
@@ -27,6 +33,36 @@ const StyledAppBar = styled(AppBar)(({ theme, ismobile }) => ({
 
 const Header = ({ isMobile, onMenuClick }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { unreadCount, notifications, markAsRead, markAllAsRead } = useNotifications();
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+  
+  const handleNotificationClick = (event) => {
+    setNotificationAnchorEl(event.currentTarget);
+  };
+  
+  const handleNotificationClose = () => {
+    setNotificationAnchorEl(null);
+  };
+  
+  const handleNotificationItemClick = (notification) => {
+    if (!notification.isRead) {
+      markAsRead(notification.id);
+    }
+    handleNotificationClose();
+    // Navigate based on notification type if needed
+    // navigate(`/some-path/${notification.relatedId}`);
+  };
+  
+  const handleMarkAllAsRead = () => {
+    markAllAsRead();
+  };
+  
+  const handleViewAll = () => {
+    handleNotificationClose();
+    navigate('/notifications');
+  };
+  
   const getInitials = (name) => {
     if (!name) return 'G';
     return name
@@ -34,6 +70,24 @@ const Header = ({ isMobile, onMenuClick }) => {
       .map(n => n[0])
       .join('')
       .toUpperCase();
+  };
+  
+  // Format relative time (e.g., "2 hours ago")
+  const formatRelativeTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+    
+    if (diffSec < 60) return 'just now';
+    if (diffMin < 60) return `${diffMin} minute${diffMin > 1 ? 's' : ''} ago`;
+    if (diffHour < 24) return `${diffHour} hour${diffHour > 1 ? 's' : ''} ago`;
+    if (diffDay < 7) return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString();
   };
   
   return (
@@ -57,8 +111,12 @@ const Header = ({ isMobile, onMenuClick }) => {
           Get Connected
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton color="inherit" size="large">
-            <Badge badgeContent={3} color="error">
+          <IconButton 
+            color="inherit" 
+            size="large"
+            onClick={handleNotificationClick}
+          >
+            <Badge badgeContent={unreadCount} color="error">
               <NotificationsIcon />
             </Badge>
           </IconButton>
@@ -71,6 +129,72 @@ const Header = ({ isMobile, onMenuClick }) => {
           </IconButton>
         </Box>
       </Toolbar>
+      
+      {/* Simple Menu for Notifications */}
+      <Menu
+        anchorEl={notificationAnchorEl}
+        open={Boolean(notificationAnchorEl)}
+        onClose={handleNotificationClose}
+        PaperProps={{
+          sx: { width: 320, maxHeight: 400 }
+        }}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="subtitle1" fontWeight={500}>
+            Notifications
+          </Typography>
+          {unreadCount > 0 && (
+            <Button size="small" onClick={handleMarkAllAsRead}>
+              Mark all as read
+            </Button>
+          )}
+        </Box>
+        <Divider />
+        
+        {notifications.length === 0 ? (
+          <MenuItem disabled>
+            <Typography variant="body2" color="text.secondary">
+              No notifications
+            </Typography>
+          </MenuItem>
+        ) : (
+          <>
+            {notifications.slice(0, 5).map((notification) => (
+              <MenuItem 
+                key={notification.id}
+                onClick={() => handleNotificationItemClick(notification)}
+                sx={{ 
+                  whiteSpace: 'normal',
+                  bgcolor: notification.isRead ? 'transparent' : 'action.hover'
+                }}
+              >
+                <Box sx={{ width: '100%' }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    fontWeight={notification.isRead ? 400 : 600}
+                  >
+                    {notification.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {notification.message}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {formatRelativeTime(notification.createdAt)}
+                  </Typography>
+                </Box>
+              </MenuItem>
+            ))}
+            <Divider />
+            <MenuItem onClick={handleViewAll}>
+              <Typography variant="body2" color="primary" sx={{ width: '100%', textAlign: 'center' }}>
+                View All
+              </Typography>
+            </MenuItem>
+          </>
+        )}
+      </Menu>
     </StyledAppBar>
   );
 };
