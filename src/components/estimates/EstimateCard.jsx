@@ -4,105 +4,47 @@ import {
     CardContent,
     Box,
     Typography,
+    Chip,
     Grid,
     Button,
     FormControl,
     Select,
     MenuItem,
     Divider,
+    IconButton,
+    Tooltip,
     CircularProgress,
 } from "@mui/material";
+import {
+    Edit as EditIcon,
+    Visibility as ViewIcon,
+    AttachMoney as MoneyIcon,
+    Schedule as ScheduleIcon,
+    LocationOn as LocationIcon,
+    Person as PersonIcon,
+    Assignment as AssignmentIcon,
+} from "@mui/icons-material";
 import { format } from "date-fns";
-import axios from "axios";
+import { updateEstimate } from "../../services/api";
 import CreateEstimateForm from "./CreateEstimateForm";
+import { toast } from "sonner";
 
-// Status values aligned with Prisma schema
 const ESTIMATE_STATUS = {
     PENDING: "pending",
     ACCEPTED: "accepted",
     REJECTED: "rejected",
 };
 
-// Function to get user-friendly labels for statuses
-const getStatusLabel = (status) => {
+const getStatusChip = (status) => {
     switch (status) {
         case ESTIMATE_STATUS.PENDING:
-            return "Pending";
+            return { label: "Pending", color: "warning", bgColor: "#fff3e0" };
         case ESTIMATE_STATUS.ACCEPTED:
-            return "Accepted";
+            return { label: "Accepted", color: "success", bgColor: "#e8f5e8" };
         case ESTIMATE_STATUS.REJECTED:
-            return "Rejected";
+            return { label: "Rejected", color: "error", bgColor: "#ffebee" };
         default:
-            return "Unknown";
-    }
-};
-
-// Define the updateEstimate function with Prisma-compatible data structure
-export const updateEstimate = async (id, estimateData) => {
-    try {
-        // Validate input ID
-        if (!id) {
-            throw new Error("Estimate ID is required");
-        }
-
-        // Filter out fields that are not in the Prisma schema
-        const {
-            client, // Remove nested client object
-            clientId,
-            createdAt,
-            createdBy,
-            price, // Not in schema
-            name, // Not in schema
-            ...validFields
-        } = estimateData;
-
-        // Create a proper Prisma-compatible update object
-        const updateData = {
-            ...validFields,
-            updatedAt: new Date().toISOString(), // Add updatedAt timestamp
-            bidAmount:
-                estimateData.bidAmount !== undefined
-                    ? Number(estimateData.bidAmount)
-                    : undefined, // Ensure bidAmount is a number
-            status: estimateData.status || ESTIMATE_STATUS.PENDING, // Default to pending
-        };
-
-        // Remove undefined fields to prevent Prisma errors
-        Object.keys(updateData).forEach((key) => {
-            if (updateData[key] === undefined) {
-                delete updateData[key];
-            }
-        });
-
-        // Log the data being sent to the API for debugging
-        console.log(`Updating estimate ${id} with data:`, updateData);
-
-        // Make the API call
-        const response = await axios.put(
-            `http://localhost:5000/api/estimates/${id}`,
-            updateData,
-            {
-                headers: {
-                    "Content-Type": "application/json",
-                    // Uncomment and modify if authentication is required
-                    // "Authorization": `Bearer ${localStorage.getItem("token") || ""}`,
-                },
-            }
-        );
-
-        console.log(`Update successful for estimate ${id}:`, response.data);
-        return response.data;
-    } catch (error) {
-        const errorMessage =
-            error.response?.data?.message ||
-            error.message ||
-            "Failed to update estimate";
-        console.error(`Error updating estimate ${id}:`, {
-            message: errorMessage,
-            status: error.response?.status,
-            data: error.response?.data,
-        });
-        throw new Error(errorMessage);
+            return { label: "Unknown", color: "default", bgColor: "#f5f5f5" };
     }
 };
 
@@ -110,19 +52,40 @@ const formatDate = (dateStr) => {
     return dateStr ? format(new Date(dateStr), "MMM dd, yyyy") : "N/A";
 };
 
+const formatCurrency = (amount) => {
+    if (!amount && amount !== 0) return "N/A";
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
+};
+
 const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
     const [openEdit, setOpenEdit] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    // Transform estimate data for consistency with Prisma schema
     const transformedEstimate = {
         ...estimate,
-        name: estimate.client?.name || estimate.leadName || "Untitled Estimate",
-        price: estimate.bidAmount || 0, // Map to bidAmount for display
-        address: estimate.address || "N/A",
-        client: estimate.client || { name: "N/A", phoneNumber: "", email: "" },
-        status: estimate.status || ESTIMATE_STATUS.PENDING, // Align with schema
+        name:
+            estimate?.leadName || estimate?.client?.name || "Untitled Estimate",
+        price: estimate?.bidAmount || 0,
+        address: estimate?.address || "N/A",
+        client: estimate?.client || {
+            id: "",
+            name: estimate?.leadName || "N/A",
+            phoneNumber: "",
+            email: "",
+        },
+        status: estimate?.status || ESTIMATE_STATUS.PENDING,
     };
+
+    const {
+        label: statusLabel,
+        color: statusColor,
+        bgColor,
+    } = getStatusChip(transformedEstimate.status);
 
     const handleOpenEdit = () => setOpenEdit(true);
     const handleCloseEdit = () => setOpenEdit(false);
@@ -146,70 +109,25 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
 
         try {
             const newStatus = event.target.value;
-
-            // Create minimal update object with only necessary fields
-            const updatedEstimate = {
-                status: newStatus,
-            };
-
-            // Call the API to update the estimate
+            const updatedEstimate = { status: newStatus };
             const result = await updateEstimate(
                 transformedEstimate.id,
                 updatedEstimate
             );
-
-            // Call the onUpdate function to update UI
-            if (onUpdate) {
-                onUpdate(result);
-            }
+            onUpdate(result.data);
+            toast.success("Status updated successfully");
         } catch (error) {
             console.error("Error updating estimate status:", error.message);
-            // Show error notification to user
-            alert(`Failed to update estimate status: ${error.message}`);
+            toast.error(`Failed to update status: ${error.message}`);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleFormSubmit = async (updatedEstimate) => {
-        setLoading(true);
-        try {
-            // Create minimal update object with only necessary fields
-            const fieldUpdates = {
-                leadName: updatedEstimate.leadName || undefined,
-                address: updatedEstimate.address || undefined,
-                scope: updatedEstimate.scope || undefined,
-                bidAmount: updatedEstimate.bidAmount
-                    ? Number(updatedEstimate.bidAmount)
-                    : undefined,
-                startDate: updatedEstimate.startDate || undefined,
-                notes: updatedEstimate.notes || undefined,
-                status: updatedEstimate.status || ESTIMATE_STATUS.PENDING,
-            };
-
-            // Call the API to update the estimate
-            const result = await updateEstimate(
-                transformedEstimate.id,
-                fieldUpdates
-            );
-
-            // Update UI
-            if (onUpdate) {
-                onUpdate(result);
-            }
-
-            handleCloseEdit();
-        } catch (error) {
-            console.error("Error updating estimate:", error.message);
-            // Show error notification to user
-            alert(`Failed to update estimate: ${error.message}`);
-        } finally {
-            setLoading(false);
-        }
+    const handleFormSubmit = (updatedEstimate) => {
+        onUpdate(updatedEstimate);
+        handleCloseEdit();
     };
-
-    const displayName = transformedEstimate.name;
-    const displayAmount = transformedEstimate.price?.toLocaleString() || "N/A";
 
     return (
         <>
@@ -217,151 +135,264 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                 sx={{
                     cursor: "pointer",
                     transition: "all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)",
-                    borderRadius: 3,
-                    boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                    borderRadius: 4,
+                    boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
                     backgroundColor: "background.paper",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    position: "relative",
+                    overflow: "hidden",
                     "&:hover": {
-                        transform: "translateY(-8px)",
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+                        transform: "translateY(-4px)",
+                        boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+                        borderColor: "primary.light",
                     },
-                    margin: 2,
-                    overflow: "visible",
+                    "&::before": {
+                        content: '""',
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 4,
+                        background: `linear-gradient(90deg, ${bgColor}, transparent)`,
+                    },
                 }}
                 onClick={handleCardClick}
             >
-                <CardContent sx={{ padding: 3 }}>
-                    {/* Card Header */}
+                <CardContent sx={{ padding: 3, paddingTop: 4 }}>
                     <Box
                         sx={{
                             display: "flex",
                             justifyContent: "space-between",
-                            alignItems: "center",
+                            alignItems: "flex-start",
                             mb: 3,
+                            gap: 2,
                         }}
                     >
-                        <Typography
-                            variant="h5"
-                            sx={{
-                                fontWeight: 600,
-                                color: "text.primary",
-                                letterSpacing: "-0.5px",
-                            }}
-                        >
-                            {displayName}
-                        </Typography>
-                        <Button
-                            variant="outlined"
-                            size="medium"
-                            onClick={handleViewClick}
-                            sx={{
-                                minWidth: 120,
-                                borderRadius: 2,
-                                textTransform: "none",
-                                fontWeight: 500,
-                            }}
-                        >
-                            See Bid
-                        </Button>
-                    </Box>
-
-                    {/* Main Content Grid */}
-                    <Grid container spacing={3}>
-                        <Grid item xs={12} sm={6}>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Typography
-                                variant="caption"
-                                color="text.secondary"
+                                variant="h5"
                                 sx={{
-                                    fontWeight: 500,
-                                    mb: 0.5,
-                                    display: "block",
+                                    fontWeight: 700,
+                                    color: "text.primary",
+                                    letterSpacing: "-0.5px",
+                                    lineHeight: 1.2,
+                                    mb: 1,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
                                 }}
                             >
-                                Client
+                                {transformedEstimate.name}
                             </Typography>
+                        </Box>
+                        <Chip
+                            label={statusLabel}
+                            color={statusColor}
+                            size="medium"
+                            sx={{
+                                fontWeight: 600,
+                                borderRadius: 2,
+                                padding: "8px 12px",
+                                height: "auto",
+                                "& .MuiChip-label": {
+                                    fontSize: "0.875rem",
+                                },
+                            }}
+                        />
+                    </Box>
+
+                    <Grid container spacing={3} sx={{ mb: 3 }}>
+                        <Grid item xs={12} sm={6}>
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mb: 1,
+                                }}
+                            >
+                                <PersonIcon
+                                    sx={{
+                                        fontSize: 18,
+                                        color: "text.secondary",
+                                    }}
+                                />
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{
+                                        fontWeight: 600,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 1,
+                                    }}
+                                >
+                                    Client
+                                </Typography>
+                            </Box>
                             <Typography
                                 variant="body1"
-                                sx={{ color: "text.primary", fontWeight: 500 }}
+                                sx={{
+                                    color: "text.primary",
+                                    fontWeight: 500,
+                                    pl: 3,
+                                }}
                             >
                                 {transformedEstimate.client?.name || "N/A"}
                             </Typography>
                         </Grid>
+
                         <Grid item xs={12} sm={6}>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
+                            <Box
                                 sx={{
-                                    fontWeight: 500,
-                                    mb: 0.5,
-                                    display: "block",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mb: 1,
                                 }}
                             >
-                                Address
-                            </Typography>
+                                <LocationIcon
+                                    sx={{
+                                        fontSize: 18,
+                                        color: "text.secondary",
+                                    }}
+                                />
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{
+                                        fontWeight: 600,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 1,
+                                    }}
+                                >
+                                    Address
+                                </Typography>
+                            </Box>
                             <Typography
                                 variant="body1"
-                                sx={{ color: "text.primary" }}
+                                sx={{
+                                    color: "text.primary",
+                                    pl: 3,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                }}
                             >
                                 {transformedEstimate.address}
                             </Typography>
                         </Grid>
+
                         <Grid item xs={12} sm={6}>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
+                            <Box
                                 sx={{
-                                    fontWeight: 500,
-                                    mb: 0.5,
-                                    display: "block",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mb: 1,
                                 }}
                             >
-                                Start Date
-                            </Typography>
+                                <ScheduleIcon
+                                    sx={{
+                                        fontSize: 18,
+                                        color: "text.secondary",
+                                    }}
+                                />
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{
+                                        fontWeight: 600,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 1,
+                                    }}
+                                >
+                                    Start Date
+                                </Typography>
+                            </Box>
                             <Typography
                                 variant="body1"
-                                sx={{ color: "text.primary" }}
+                                sx={{ color: "text.primary", pl: 3 }}
                             >
                                 {formatDate(transformedEstimate.startDate)}
                             </Typography>
                         </Grid>
+
                         <Grid item xs={12} sm={6}>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
+                            <Box
                                 sx={{
-                                    fontWeight: 500,
-                                    mb: 0.5,
-                                    display: "block",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mb: 1,
                                 }}
                             >
-                                Amount
-                            </Typography>
+                                <MoneyIcon
+                                    sx={{ fontSize: 18, color: "primary.main" }}
+                                />
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{
+                                        fontWeight: 600,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 1,
+                                    }}
+                                >
+                                    Bid Amount
+                                </Typography>
+                            </Box>
                             <Typography
-                                variant="body1"
+                                variant="h6"
                                 sx={{
-                                    fontWeight: 600,
+                                    fontWeight: 700,
                                     color: "primary.main",
+                                    pl: 3,
                                 }}
                             >
-                                ${displayAmount}
+                                {formatCurrency(transformedEstimate.price)}
                             </Typography>
                         </Grid>
 
                         {transformedEstimate.scope && (
                             <Grid item xs={12}>
-                                <Typography
-                                    variant="caption"
-                                    color="text.secondary"
+                                <Box
                                     sx={{
-                                        fontWeight: 500,
-                                        mb: 0.5,
-                                        display: "block",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 1,
+                                        mb: 1,
                                     }}
                                 >
-                                    Scope
-                                </Typography>
+                                    <AssignmentIcon
+                                        sx={{
+                                            fontSize: 18,
+                                            color: "text.secondary",
+                                        }}
+                                    />
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{
+                                            fontWeight: 600,
+                                            textTransform: "uppercase",
+                                            letterSpacing: 1,
+                                        }}
+                                    >
+                                        Scope
+                                    </Typography>
+                                </Box>
                                 <Typography
                                     variant="body1"
-                                    sx={{ color: "text.primary" }}
+                                    sx={{
+                                        color: "text.primary",
+                                        pl: 3,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        display: "-webkit-box",
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: "vertical",
+                                    }}
                                 >
                                     {transformedEstimate.scope}
                                 </Typography>
@@ -369,27 +400,28 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                         )}
                     </Grid>
 
-                    <Divider sx={{ my: 3, backgroundColor: "grey.200" }} />
+                    <Divider sx={{ mb: 3, backgroundColor: "divider" }} />
 
-                    {/* Actions Footer */}
                     <Box
                         sx={{
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
                             gap: 2,
+                            flexWrap: "wrap",
                         }}
                     >
                         <FormControl
                             size="small"
                             onClick={(e) => e.stopPropagation()}
-                            sx={{ minWidth: 180 }}
+                            sx={{ minWidth: 140 }}
                         >
                             <Select
                                 value={transformedEstimate.status}
                                 onChange={handleStatusChange}
                                 size="small"
                                 disabled={loading}
+                                displayEmpty
                                 sx={{
                                     borderRadius: 2,
                                     backgroundColor: "background.default",
@@ -400,6 +432,9 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                                         {
                                             borderColor: "primary.main",
                                         },
+                                    "& .MuiSelect-select": {
+                                        fontWeight: 500,
+                                    },
                                 }}
                                 startAdornment={
                                     loading ? (
@@ -417,62 +452,71 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                             </Select>
                         </FormControl>
 
-                        <Box sx={{ display: "flex", gap: 2 }}>
-                            <Button
-                                variant="contained"
-                                size="medium"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenEdit();
-                                }}
-                                disabled={loading}
-                                sx={{
-                                    minWidth: 120,
-                                    borderRadius: 2,
-                                    textTransform: "none",
-                                    fontWeight: 500,
-                                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                                    "&:hover": {
-                                        boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
-                                    },
-                                }}
-                            >
-                                {loading ? (
-                                    <CircularProgress
-                                        size={20}
-                                        color="inherit"
-                                    />
-                                ) : (
-                                    "Edit Estimate"
-                                )}
-                            </Button>
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                            <Tooltip title="View Details">
+                                <IconButton
+                                    onClick={handleViewClick}
+                                    sx={{
+                                        backgroundColor: "grey.100",
+                                        "&:hover": {
+                                            backgroundColor: "grey.200",
+                                        },
+                                    }}
+                                >
+                                    <ViewIcon />
+                                </IconButton>
+                            </Tooltip>
+                            {transformedEstimate.status ===
+                                ESTIMATE_STATUS.PENDING && (
+                                <Button
+                                    variant="contained"
+                                    size="medium"
+                                    startIcon={<EditIcon />}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenEdit();
+                                    }}
+                                    disabled={loading}
+                                    sx={{
+                                        minWidth: 100,
+                                        borderRadius: 2,
+                                        textTransform: "none",
+                                        fontWeight: 600,
+                                        boxShadow:
+                                            "0 2px 8px rgba(25, 118, 210, 0.15)",
+                                        background:
+                                            "linear-gradient(135deg, #1976d2, #1565c0)",
+                                        "&:hover": {
+                                            boxShadow:
+                                                "0 4px 16px rgba(25, 118, 210, 0.25)",
+                                            background:
+                                                "linear-gradient(135deg, #1565c0, #0d47a1)",
+                                        },
+                                    }}
+                                >
+                                    {loading ? (
+                                        <CircularProgress
+                                            size={20}
+                                            color="inherit"
+                                        />
+                                    ) : (
+                                        "Edit"
+                                    )}
+                                </Button>
+                            )}
                         </Box>
                     </Box>
                 </CardContent>
             </Card>
 
-            <CreateEstimateForm
-                open={openEdit}
-                handleCloseForm={handleCloseEdit}
-                handleFormSubmit={handleFormSubmit}
-                formData={{
-                    leadName: transformedEstimate.leadName || "",
-                    address: transformedEstimate.address || "",
-                    scope: transformedEstimate.scope || "",
-                    bidAmount: transformedEstimate.bidAmount || "",
-                    startDate: transformedEstimate.startDate || "",
-                    notes: transformedEstimate.notes || "",
-                    status:
-                        transformedEstimate.status || ESTIMATE_STATUS.PENDING,
-                    client: transformedEstimate.client || {
-                        name: "",
-                        phoneNumber: "",
-                        email: "",
-                    },
-                }}
-                editingEstimate={openEdit ? transformedEstimate : null}
-                isLoading={loading}
-            />
+            {openEdit && (
+                <CreateEstimateForm
+                    open={true}
+                    handleCloseForm={handleCloseEdit}
+                    handleFormSubmit={handleFormSubmit}
+                    estimate={estimate}
+                />
+            )}
         </>
     );
 };

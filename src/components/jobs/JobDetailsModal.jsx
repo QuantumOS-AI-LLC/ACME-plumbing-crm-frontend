@@ -20,7 +20,7 @@ const JobDetailsModal = ({ handleClose, open, job }) => {
         return date ? format(new Date(date), "MMM dd, yyyy") : "Not set";
     };
 
-    const displayName = job?.leadName || job?.client?.name || "Job Details";
+    const displayName = job.name;
 
     const viewInvoice = () => {
         // Open invoice in new tab
