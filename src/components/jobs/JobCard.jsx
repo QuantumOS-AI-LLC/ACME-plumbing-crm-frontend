@@ -43,6 +43,16 @@ const LEAD_STATUS = {
     REQUEST_REVIEW: "request_review",
 };
 
+const ACTIVITY_OPTIONS = [
+    { value: "on_the_way", label: "On the Way" },
+    { value: "has_arrived", label: "Has Arrived" },
+    { value: "job_started", label: "Job Started" },
+    { value: "job_completed", label: "Job Completed" },
+    { value: "invoice_sent", label: "Invoice Sent" },
+    { value: "invoice_paid", label: "Invoice Paid" },
+    { value: "request_review", label: "Request Review" },
+];
+
 const getStatusChip = (status) => {
     switch (status) {
         case JOB_STATUS.OPEN:
@@ -63,24 +73,8 @@ const getStatusChip = (status) => {
 };
 
 const getLeadStatusLabel = (status) => {
-    switch (status) {
-        case LEAD_STATUS.ON_THE_WAY:
-            return "On the Way";
-        case LEAD_STATUS.HAS_ARRIVED:
-            return "Has Arrived";
-        case LEAD_STATUS.JOB_STARTED:
-            return "Job Started";
-        case LEAD_STATUS.JOB_COMPLETED:
-            return "Job Completed";
-        case LEAD_STATUS.INVOICE_SENT:
-            return "Invoice Sent";
-        case LEAD_STATUS.INVOICE_PAID:
-            return "Invoice Paid";
-        case LEAD_STATUS.REQUEST_REVIEW:
-            return "Request Review";
-        default:
-            return "Unknown";
-    }
+    const activity = ACTIVITY_OPTIONS.find((option) => option.value === status);
+    return activity ? activity.label : "Unknown";
 };
 
 const formatDate = (dateStr) => {
@@ -146,11 +140,39 @@ const JobCard = ({
         }
     };
 
-    const handleLeadStatusChange = (event) => {
+    const handleActivityChange = async (event) => {
         event.stopPropagation();
-        const newLeadStatus = event.target.value;
+        const newActivityValue = event.target.value;
+        const activityLabel = getLeadStatusLabel(newActivityValue);
+
+        const activityData = {
+            activity: activityLabel,
+            jobId: job.id || transformedJob.id || "N/A",
+            clientId: job.clientId || job.client?.id || "N/A",
+            createdBy: job.createdBy || job.createdById || "N/A",
+        };
+
+        // Console log the activity object with jobId, clientId and createdBy
+        console.log(activityData);
+
+        // Send data to webhook using no-cors mode to bypass CORS restrictions
+        try {
+            await fetch(import.meta.env.N8N_API_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(activityData),
+            });
+            console.log("Activity data sent to webhook (no-cors mode)");
+        } catch (error) {
+            console.error("Error sending activity data to webhook:", error);
+            // Continue execution even if webhook fails
+        }
+
         if (onLeadStatusChange) {
-            onLeadStatusChange(transformedJob.id, newLeadStatus);
+            onLeadStatusChange(transformedJob.id, newActivityValue);
         }
     };
 
@@ -494,55 +516,64 @@ const JobCard = ({
                                     </MenuItem>
                                 </Select>
                             </FormControl>
-
-                            <FormControl
-                                size="small"
-                                onClick={(e) => e.stopPropagation()}
-                                sx={{ minWidth: 160 }}
+                            {/* Activity Dropdown Section */}
+                            <Box
+                                sx={{
+                                    mb: 3,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 2,
+                                    flexWrap: "wrap",
+                                }}
                             >
-                                <Select
-                                    value={transformedJob.leadStatus}
-                                    onChange={handleLeadStatusChange}
-                                    size="small"
-                                    displayEmpty
+                                <Typography
+                                    variant="subtitle2"
                                     sx={{
-                                        borderRadius: 2,
-                                        backgroundColor: "background.default",
-                                        "& .MuiOutlinedInput-notchedOutline": {
-                                            borderColor: "grey.300",
-                                        },
-                                        "&:hover .MuiOutlinedInput-notchedOutline":
-                                            {
-                                                borderColor: "primary.main",
-                                            },
-                                        "& .MuiSelect-select": {
-                                            fontWeight: 500,
-                                        },
+                                        fontWeight: 600,
+                                        color: "text.primary",
+                                        minWidth: 60,
                                     }}
                                 >
-                                    <MenuItem value="on_the_way">
-                                        On the Way
-                                    </MenuItem>
-                                    <MenuItem value="has_arrived">
-                                        Has Arrived
-                                    </MenuItem>
-                                    <MenuItem value="job_started">
-                                        Job Started
-                                    </MenuItem>
-                                    <MenuItem value="job_completed">
-                                        Job Completed
-                                    </MenuItem>
-                                    <MenuItem value="invoice_sent">
-                                        Invoice Sent
-                                    </MenuItem>
-                                    <MenuItem value="invoice_paid">
-                                        Invoice Paid
-                                    </MenuItem>
-                                    <MenuItem value="request_review">
-                                        Request Review
-                                    </MenuItem>
-                                </Select>
-                            </FormControl>
+                                    Activity
+                                </Typography>
+                                <FormControl
+                                    size="small"
+                                    onClick={(e) => e.stopPropagation()}
+                                    sx={{ minWidth: 180, flex: 1 }}
+                                >
+                                    <Select
+                                        value={transformedJob.leadStatus}
+                                        onChange={handleActivityChange}
+                                        size="small"
+                                        displayEmpty
+                                        sx={{
+                                            borderRadius: 2,
+                                            backgroundColor:
+                                                "background.default",
+                                            "& .MuiOutlinedInput-notchedOutline":
+                                                {
+                                                    borderColor: "grey.300",
+                                                },
+                                            "&:hover .MuiOutlinedInput-notchedOutline":
+                                                {
+                                                    borderColor: "primary.main",
+                                                },
+                                            "& .MuiSelect-select": {
+                                                fontWeight: 500,
+                                            },
+                                        }}
+                                    >
+                                        {ACTIVITY_OPTIONS.map((activity) => (
+                                            <MenuItem
+                                                key={activity.value}
+                                                value={activity.value}
+                                            >
+                                                {activity.label}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Box>
                         </Box>
 
                         <Box sx={{ display: "flex", gap: 1 }}>
