@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
+import { SocketProvider } from './contexts/SocketContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import CssBaseline from '@mui/material/CssBaseline';
 
@@ -44,8 +45,9 @@ const App = () => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <NotificationProvider>
-        <BrowserRouter>
+      <SocketProvider>
+        <NotificationProvider>
+          <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             
@@ -157,8 +159,9 @@ const App = () => {
             {/* Redirect any unknown routes to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </BrowserRouter>
-      </NotificationProvider>
+          </BrowserRouter>
+        </NotificationProvider>
+      </SocketProvider>
     </ThemeProvider>
   );
 };

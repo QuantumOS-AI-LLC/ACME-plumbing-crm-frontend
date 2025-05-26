@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from '../services/api';
+import { useSocketNotifications } from '../hooks/useSocketNotifications';
 
 const NotificationContext = createContext();
 
@@ -16,6 +17,9 @@ export const NotificationProvider = ({ children }) => {
     limit: 10,
     pages: 0
   });
+
+  // Socket.IO real-time notifications
+  const socketNotifications = useSocketNotifications();
 
   // Load notifications
   const loadNotifications = useCallback(async (page = 1, limit = 10, isRead) => {
@@ -38,9 +42,15 @@ export const NotificationProvider = ({ children }) => {
     }
   }, []); // Assuming fetchNotifications and setters are stable
 
-  // Mark notification as read
+  // Mark notification as read (enhanced with Socket.IO)
   const markAsRead = useCallback(async (id) => {
     try {
+      // Use Socket.IO for real-time update
+      if (socketNotifications.markAsRead) {
+        socketNotifications.markAsRead(id);
+      }
+      
+      // Also call API for persistence
       const response = await markNotificationAsRead(id);
       if (response.success) {
         setNotifications(prev => 
@@ -53,7 +63,7 @@ export const NotificationProvider = ({ children }) => {
       console.error(err);
       throw err;
     }
-  }, []); // Assuming markNotificationAsRead and setters are stable
+  }, [socketNotifications]); // Added socketNotifications dependency
 
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
