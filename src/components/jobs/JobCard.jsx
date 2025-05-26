@@ -101,10 +101,12 @@ const JobCard = ({
     const [openDetails, setOpenDetails] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
 
+    console.log("JobCard job", job);
+
     // Transform job data to match JobDetailsModal expectations
     const transformedJob = {
         ...job,
-        name: job.leadName || job.client?.name || job.name || "Untitled Job",
+        name: job.name,
         price: job.bidAmount || job.price || 0,
         progress: job.progress || null,
         dueDate: job.dueDate || null,
@@ -115,6 +117,8 @@ const JobCard = ({
         status: job.status || "unknown",
         leadStatus: job.leadStatus || LEAD_STATUS.ON_THE_WAY,
     };
+
+    console.log("Transformed job", transformedJob);
 
     const {
         label: statusLabel,
@@ -154,18 +158,16 @@ const JobCard = ({
 
         // Console log the activity object with jobId, clientId and createdBy
         console.log(activityData);
-
+        console.log("env", import.meta.env.VITE_N8N_API_URL);
         // Send data to webhook using no-cors mode to bypass CORS restrictions
         try {
-            await fetch(import.meta.env.N8N_API_URL, {
+            await fetch(import.meta.env.VITE_N8N_API_URL, {
                 method: "POST",
-                mode: "no-cors",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(activityData),
             });
-            console.log("Activity data sent to webhook (no-cors mode)");
         } catch (error) {
             console.error("Error sending activity data to webhook:", error);
             // Continue execution even if webhook fails

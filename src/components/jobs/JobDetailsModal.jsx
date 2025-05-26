@@ -16,18 +16,17 @@ const isDueDateApproaching = (dueDate) => {
 };
 
 const JobDetailsModal = ({ handleClose, open, job }) => {
+    console.log("Job Details Modal", job.invoiceUrl);
+
     const formatDate = (date) => {
         return date ? format(new Date(date), "MMM dd, yyyy") : "Not set";
     };
 
-    const displayName = job?.leadName || job?.client?.name || "Job Details";
+    const displayName = job.name;
 
     const viewInvoice = () => {
         // Open invoice in new tab
-        window.open(
-            "https://i.ibb.co/39nJNNh5/Invoice-Aarav-Patel-20250522.jpg",
-            "_blank"
-        );
+        window.open(`${job.invoiceUrl}`, "_blank");
     };
 
     return (
