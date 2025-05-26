@@ -1,89 +1,48 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Tabs,
-  Tab,
-  Grid,
-  CircularProgress,
-  MenuItem,
-  Select,
-  InputLabel,
-  FormControl,
+    Modal,
+    Box,
+    Typography,
+    TextField,
+    Button,
+    MenuItem,
+    CircularProgress,
+    Alert,
+    Grid,
+    Paper,
+    Divider,
+    InputAdornment,
 } from "@mui/material";
-import { createEstimate, updateEstimate } from "../../services/api";
+import {
+    createEstimate,
+    updateEstimate,
+    fetchContacts,
+} from "../../services/api";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import AttachMoneyOutlinedIcon from "@mui/icons-material/AttachMoneyOutlined";
+import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
+import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
+import { AuthContext } from "../../contexts/AuthContext";
+import { toast } from "sonner";
 
 const ESTIMATE_STATUS = {
-  PENDING: "pending",
-  ACCEPTED: "accepted",
-  REJECTED: "rejected",
+    PENDING: "pending",
+    ACCEPTED: "accepted",
+    REJECTED: "rejected",
 };
 
-const statusOptions = [
-  { value: ESTIMATE_STATUS.PENDING, label: "Pending" },
-  { value: ESTIMATE_STATUS.ACCEPTED, label: "Accepted" },
-  { value: ESTIMATE_STATUS.REJECTED, label: "Rejected" },
-];
+const CreateEstimateForm = ({
+    open,
+    handleCloseForm,
+    handleFormSubmit,
+    estimate,
+}) => {
+    const { user } = useContext(AuthContext);
 
-export default function CreateEstimateForm({
-  open = false,
-  handleCloseForm,
-  handleFormSubmit,
-  editingEstimate,
-  user,
-}) {
-  const [formData, setFormData] = useState({
-    leadName: "",
-    address: "",
-    scope: "",
-    bidAmount: "",
-    startDate: "",
-    status: ESTIMATE_STATUS.PENDING,
-    notes: "",
-    clientId: "",
-    createdBy: user?.id || "",
-    client: {
-      id: "",
-      name: "",
-      phoneNumber: "",
-      email: "",
-    },
-  });
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [activeTab, setActiveTab] = useState(0);
-
-
-  // Sync formData with editingEstimate
-  useEffect(() => {
-    if (editingEstimate) {
-      setFormData({
-        leadName: editingEstimate.leadName || "",
-        address: editingEstimate.address || "",
-        scope: editingEstimate.scope || "",
-        bidAmount: editingEstimate.bidAmount?.toString() || "",
-        startDate: editingEstimate.startDate
-          ? new Date(editingEstimate.startDate).toISOString().slice(0, 10)
-          : "",
-        status: editingEstimate.status || ESTIMATE_STATUS.PENDING,
-        notes: editingEstimate.notes || "",
-        clientId: editingEstimate.clientId || "",
-        createdBy: editingEstimate.createdBy || user?.id || "",
-        client: {
-          id: editingEstimate.client?.id || "",
-          name: editingEstimate.client?.name || "",
-          phoneNumber: editingEstimate.client?.phoneNumber || "",
-          email: editingEstimate.client?.email || "",
-        },
-      });
-    } else {
-      setFormData({
+    const [formData, setFormData] = useState({
         leadName: "",
         address: "",
         scope: "",
@@ -93,685 +52,576 @@ export default function CreateEstimateForm({
         notes: "",
         clientId: "",
         createdBy: user?.id || "",
-        client: {
-          id: "",
-          name: "",
-          phoneNumber: "",
-          email: "",
+    });
+    const [clients, setClients] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [clientLoading, setClientLoading] = useState(true);
+    const [selectedClient, setSelectedClient] = useState(null);
+
+    // Update createdBy when user changes
+    useEffect(() => {
+        if (user?.id) {
+            setFormData((prev) => ({ ...prev, createdBy: user.id }));
+        }
+    }, [user]);
+
+    // Load clients when component mounts
+    useEffect(() => {
+        const loadClients = async () => {
+            try {
+                setClientLoading(true);
+                const response = await fetchContacts();
+                setClients(response.data || []);
+            } catch (err) {
+                console.error("Error loading clients:", err);
+                setError("Failed to load clients.");
+                toast.error("Failed to load clients");
+            } finally {
+                setClientLoading(false);
+            }
+        };
+
+        if (open) {
+            loadClients();
+        }
+    }, [open]);
+
+    // Initialize form data when editing or creating
+    useEffect(() => {
+        if (estimate) {
+            setFormData({
+                leadName: estimate.leadName || "",
+                address: estimate.address || "",
+                scope: estimate.scope || "",
+                bidAmount: estimate.bidAmount?.toString() || "",
+                startDate: estimate.startDate
+                    ? new Date(estimate.startDate).toISOString().slice(0, 10)
+                    : "",
+                status: estimate.status || ESTIMATE_STATUS.PENDING,
+                notes: estimate.notes || "",
+                clientId: estimate.clientId || "",
+                createdBy: estimate.createdBy || user?.id || "",
+            });
+            setSelectedClient(estimate.client || null);
+        } else {
+            setFormData({
+                leadName: "",
+                address: "",
+                scope: "",
+                bidAmount: "",
+                startDate: "",
+                status: ESTIMATE_STATUS.PENDING,
+                notes: "",
+                clientId: "",
+                createdBy: user?.id || "",
+            });
+            setSelectedClient(null);
+        }
+        setError(null);
+    }, [estimate, user, open]);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+
+        if (name === "clientId") {
+            const client = clients.find((c) => c.id === value);
+            setSelectedClient(client || null);
+        }
+    };
+
+    const validateForm = () => {
+        const bidAmountValue = parseFloat(formData.bidAmount);
+
+        if (!formData.leadName.trim()) {
+            setError("Lead name is required.");
+            return false;
+        }
+
+        if (!formData.address.trim()) {
+            setError("Address is required.");
+            return false;
+        }
+
+        if (!formData.scope.trim()) {
+            setError("Scope is required.");
+            return false;
+        }
+
+        if (!formData.clientId) {
+            setError("Please select a client.");
+            return false;
+        }
+
+        if (isNaN(bidAmountValue) || bidAmountValue < 0) {
+            setError("Please enter a valid bid amount.");
+            return false;
+        }
+
+        if (!formData.startDate) {
+            setError("Start date is required.");
+            return false;
+        }
+
+        return true;
+    };
+
+    const handleSubmit = useCallback(
+        async (e) => {
+            e.preventDefault();
+            setError(null);
+
+            if (!validateForm()) {
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                const estimateData = {
+                    leadName: formData.leadName.trim(),
+                    address: formData.address.trim(),
+                    scope: formData.scope.trim(),
+                    bidAmount: parseFloat(formData.bidAmount),
+                    startDate: formData.startDate
+                        ? new Date(formData.startDate).toISOString()
+                        : null,
+                    status: formData.status,
+                    notes: formData.notes.trim() || null,
+                    clientId: formData.clientId,
+                    createdBy: formData.createdBy,
+                };
+
+                let response;
+                if (estimate) {
+                    response = await updateEstimate(estimate.id, estimateData);
+                    toast.success("Estimate updated successfully");
+                } else {
+                    response = await createEstimate(estimateData);
+                    toast.success("Estimate created successfully");
+                }
+
+                // Notify parent component - it will handle refetching
+                if (handleFormSubmit) {
+                    handleFormSubmit(response.data);
+                }
+
+                // Reset form if creating new estimate
+                if (!estimate) {
+                    setFormData({
+                        leadName: "",
+                        address: "",
+                        scope: "",
+                        bidAmount: "",
+                        startDate: "",
+                        status: ESTIMATE_STATUS.PENDING,
+                        notes: "",
+                        clientId: "",
+                        createdBy: user?.id || "",
+                    });
+                    setSelectedClient(null);
+                }
+            } catch (err) {
+                console.error("Error saving estimate:", err);
+                const errorMessage =
+                    err.response?.data?.message ||
+                    err.response?.data?.error ||
+                    err.message ||
+                    "Failed to save estimate. Please try again.";
+                setError(errorMessage);
+                toast.error(errorMessage);
+            } finally {
+                setLoading(false);
+            }
         },
-      });
-    }
-    setErrors({});
-  }, [editingEstimate, user]);
+        [formData, estimate, user, handleFormSubmit, validateForm]
+    );
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    if (name.includes("client.")) {
-      const clientField = name.split(".")[1];
-      setFormData((prev) => ({
-        ...prev,
-        client: { ...prev.client, [clientField]: value },
-      }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
-    setErrors((prev) => ({ ...prev, [name]: "" }));
-  };
+    const handleClose = () => {
+        if (!loading) {
+            setError(null);
+            handleCloseForm();
+        }
+    };
 
-  const handleClientSelect = (clientId) => {
-    const selectedClient = clients.find((client) => client.id === clientId);
-    setFormData((prev) => ({
-      ...prev,
-      clientId,
-      client: {
-        id: selectedClient?.id || "",
-        name: selectedClient?.name || "",
-        phoneNumber: selectedClient?.phoneNumber || "",
-        email: selectedClient?.email || "",
-      },
-    }));
-    setErrors((prev) => ({ ...prev, clientId: "" }));
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.leadName) newErrors.leadName = "Lead Name is required";
-    if (!formData.address) newErrors.address = "Address is required";
-    if (!formData.scope) newErrors.scope = "Scope is required";
-    if (!formData.bidAmount || parseFloat(formData.bidAmount) <= 0)
-      newErrors.bidAmount = "Valid bid amount is required";
-    if (!formData.startDate) newErrors.startDate = "Start Date is required";
-    if (!formData.clientId) newErrors.clientId = "Client is required";
-    return newErrors;
-  };
-
-  const handleSubmit = async () => {
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setErrors({});
-
-      const estimateData = {
-        leadName: formData.leadName,
-        address: formData.address,
-        scope: formData.scope,
-        bidAmount: parseFloat(formData.bidAmount) || 0,
-        startDate: formData.startDate
-          ? new Date(formData.startDate).toISOString()
-          : null,
-        status: formData.status,
-        notes: formData.notes || null,
-        clientId: formData.clientId,
-        createdBy: formData.createdBy,
-      };
-
-      if (editingEstimate) {
-        await updateEstimate(editingEstimate.id, estimateData);
-      } else {
-        await createEstimate(estimateData);
-      }
-      handleFormSubmit();
-    } catch (err) {
-      setErrors({ general: "Failed to save estimate. Please try again." });
-      console.error("Error saving estimate:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onClose={handleCloseForm}
-      maxWidth="md"
-      fullWidth
-      sx={{
-        "& .MuiDialog-paper": {
-          borderRadius: "20px",
-          background: "#ffffff",
-          maxWidth: "600px",
-          width: "calc(100% - 32px)",
-          mx: 2,
-          my: 2,
-          overflow: "hidden",
-          border: "2px solid #8A2BE2",
-          animation: "slideInBounce 0.5s ease-out",
-          "@keyframes slideInBounce": {
-            "0%": { transform: "translateY(100%)", opacity: 0 },
-            "80%": { transform: "translateY(-10px)", opacity: 1 },
-            "100%": { transform: "translateY(0)", opacity: 1 },
-          },
-        },
-      }}
-    >
-      <DialogTitle
-        sx={{
-          bgcolor: "transparent",
-          color: "#8A2BE2",
-          fontWeight: 800,
-          fontSize: "1.5rem",
-          py: 2,
-          px: 2.5,
-          textAlign: "center",
-          textTransform: "uppercase",
-          letterSpacing: "1px",
-        }}
-      >
-        {editingEstimate ? "Edit Estimate" : "Add New Estimate"}
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 2.5, overflowY: "auto" }}>
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          centered
-          sx={{
-            mb: 3,
-            "& .MuiTab-root": {
-              color: "#4b5563",
-              fontWeight: 600,
-              textTransform: "none",
-              "&:hover": {
-                color: "#8A2BE2",
-              },
-            },
-            "& .Mui-selected": {
-              color: "#8A2BE2 !important",
-            },
-            "& .MuiTabs-indicator": {
-              backgroundColor: "#8A2BE2",
-              height: "3px",
-            },
-          }}
-        >
-          <Tab label="Estimate Details" />
-          <Tab label="Client Info" />
-        </Tabs>
-
-        {activeTab === 0 && (
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                label="Lead Name"
-                name="leadName"
-                value={formData.leadName || ""}
-                onChange={handleChange}
-                fullWidth
-                required
-                error={!!errors.leadName}
-                helperText={errors.leadName}
+    return (
+        <Modal open={open} onClose={handleClose} disableEscapeKeyDown={loading}>
+            <Box
                 sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "12px",
-                    bgcolor: "#f8fafc",
-                    "& fieldset": {
-                      borderColor: "#d1d5db",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "#8A2BE2",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#8A2BE2",
-                      boxShadow: "0 0 8px rgba(138, 43, 226, 0.3)",
-                    },
-                  },
-                  "& .MuiInputLabel-root": {
-                    color: "#4b5563",
-                    fontSize: "0.875rem",
-                    "&.Mui-focused": {
-                      color: "#8A2BE2",
-                    },
-                  },
-                  "& .MuiFormHelperText-root": {
-                    color: "#dc2626",
-                    fontSize: "0.8rem",
-                  },
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: { xs: "90%", sm: "80%", md: "700px" },
+                    maxHeight: "90vh",
+                    overflowY: "auto",
+                    bgcolor: "background.paper",
+                    boxShadow: 24,
+                    borderRadius: 2,
+                    p: 0,
                 }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Address"
-                name="address"
-                value={formData.address || ""}
-                onChange={handleChange}
-                fullWidth
-                required
-                error={!!errors.address}
-                helperText={errors.address}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "12px",
-                    bgcolor: "#f8fafc",
-                    "& fieldset": {
-                      borderColor: "#d1d5db",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "#8A2BE2",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#8A2BE2",
-                      boxShadow: "0 0 8px rgba(138, 43, 226, 0.3)",
-                    },
-                  },
-                  "& .MuiInputLabel-root": {
-                    color: "#4b5563",
-                    fontSize: "0.875rem",
-                    "&.Mui-focused": {
-                      color: "#8A2BE2",
-                    },
-                  },
-                  "& .MuiFormHelperText-root": {
-                    color: "#dc2626",
-                    fontSize: "0.8rem",
-                  },
-                }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Scope"
-                name="scope"
-                value={formData.scope || ""}
-                onChange={handleChange}
-                fullWidth
-                required
-                multiline
-                rows={3}
-                error={!!errors.scope}
-                helperText={errors.scope}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "12px",
-                    bgcolor: "#f8fafc",
-                    "& fieldset": {
-                      borderColor: "#d1d5db",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "#8A2BE2",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#8A2BE2",
-                      boxShadow: "0 0 8px rgba(138, 43, 226, 0.3)",
-                    },
-                  },
-                  "& .MuiInputLabel-root": {
-                    color: "#4b5563",
-                    fontSize: "0.875rem",
-                    "&.Mui-focused": {
-                      color: "#8A2BE2",
-                    },
-                  },
-                  "& .MuiFormHelperText-root": {
-                    color: "#dc2626",
-                    fontSize: "0.8rem",
-                  },
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Bid Amount"
-                name="bidAmount"
-                type="number"
-                value={formData.bidAmount || ""}
-                onChange={handleChange}
-                fullWidth
-                required
-                error={!!errors.bidAmount}
-                helperText={errors.bidAmount}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "12px",
-                    bgcolor: "#f8fafc",
-                    "& fieldset": {
-                      borderColor: "#d1d5db",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "#8A2BE2",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#8A2BE2",
-                      boxShadow: "0 0 8px rgba(138, 43, 226, 0.3)",
-                    },
-                  },
-                  "& .MuiInputLabel-root": {
-                    color: "#4b5563",
-                    fontSize: "0.875rem",
-                    "&.Mui-focused": {
-                      color: "#8A2BE2",
-                    },
-                  },
-                  "& .MuiFormHelperText-root": {
-                    color: "#dc2626",
-                    fontSize: "0.8rem",
-                  },
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl
-                fullWidth
-                required
-                error={!!errors.status}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "12px",
-                    bgcolor: "#f8fafc",
-                    "& fieldset": {
-                      borderColor: "#d1d5db",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "#8A2BE2",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#8A2BE2",
-                      boxShadow: "0 0 8px rgba(138, 43, 226, 0.3)",
-                    },
-                  },
-                  "& .MuiInputLabel-root": {
-                    color: "#4b5563",
-                    fontSize: "0.875rem",
-                    "&.Mui-focused": {
-                      color: "#8A2BE2",
-                    },
-                  },
-                }}
-              >
-                <InputLabel id="status-label">Status</InputLabel>
-                <Select
-                  labelId="status-label"
-                  name="status"
-                  value={formData.status || ESTIMATE_STATUS.PENDING}
-                  onChange={handleChange}
-                  label="Status"
-                >
-                  {statusOptions.map((option) => (
-                    <MenuItem
-                      key={option.value}
-                      value={option.value}
-                      sx={{
-                        "&:hover": {
-                          bgcolor: "#f3e8ff",
-                          color: "#8A2BE2",
-                        },
-                      }}
-                    >
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Start Date"
-                name="startDate"
-                type="date"
-                value={formData.startDate || ""}
-                onChange={handleChange}
-                fullWidth
-                required
-                InputLabelProps={{ shrink: true }}
-                error={!!errors.startDate}
-                helperText={errors.startDate}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "12px",
-                    bgcolor: "#f8fafc",
-                    "& fieldset": {
-                      borderColor: "#d1d5db",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "#8A2BE2",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#8A2BE2",
-                      boxShadow: "0 0 8px rgba(138, 43, 226, 0.3)",
-                    },
-                  },
-                  "& .MuiInputLabel-root": {
-                    color: "#4b5563",
-                    fontSize: "0.875rem",
-                    "&.Mui-focused": {
-                      color: "#8A2BE2",
-                    },
-                  },
-                  "& .MuiFormHelperText-root": {
-                    color: "#dc2626",
-                    fontSize: "0.8rem",
-                  },
-                }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Notes"
-                name="notes"
-                value={formData.notes || ""}
-                onChange={handleChange}
-                fullWidth
-                multiline
-                rows={3}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "12px",
-                    bgcolor: "#f8fafc",
-                    "& fieldset": {
-                      borderColor: "#d1d5db",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "#8A2BE2",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#8A2BE2",
-                      boxShadow: "0 0 8px rgba(138, 43, 226, 0.3)",
-                    },
-                  },
-                  "& .MuiInputLabel-root": {
-                    color: "#4b5563",
-                    fontSize: "0.875rem",
-                    "&.Mui-focused": {
-                      color: "#8A2BE2",
-                    },
-                  },
-                }}
-              />
-            </Grid>
-          </Grid>
-        )}
-
-        {activeTab === 1 && (
-          <Box
-            sx={{
-              p: 2,
-              bgcolor: "#f1f5f9",
-              borderRadius: "12px",
-              boxShadow: "inset 0 2px 4px rgba(0, 0, 0, 0.05)",
-            }}
-          >
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <FormControl
-                  fullWidth
-                  required
-                  error={!!errors.clientId}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: "12px",
-                      bgcolor: editingEstimate ? "#e5e7eb" : "#f8fafc",
-                      "& fieldset": {
-                        borderColor: "#d1d5db",
-                      },
-                      "&:hover fieldset": {
-                        borderColor: "#8A2BE2",
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: "#8A2BE2",
-                        boxShadow: "0 0 8px rgba(138, 43, 226, 0.3)",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "#4b5563",
-                      fontSize: "0.875rem",
-                      "&.Mui-focused": {
-                        color: "#8A2BE2",
-                      },
-                    },
-                    "& .MuiFormHelperText-root": {
-                      color: "#dc2626",
-                      fontSize: "0.8rem",
-                    },
-                  }}
-                >
-                  <InputLabel id="client-label">Select Client</InputLabel>
-                  <Select
-                    labelId="client-label"
-                    name="clientId"
-                    value={formData.clientId || ""}
-                    onChange={(e) => handleClientSelect(e.target.value)}
-                    label="Select Client"
-                    disabled={!!editingEstimate}
-                  >
-                    {clients.map((client) => (
-                      <MenuItem
-                        key={client.id}
-                        value={client.id}
+            >
+                <Paper elevation={0} sx={{ p: 3 }}>
+                    <Box
                         sx={{
-                          "&:hover": {
-                            bgcolor: "#f3e8ff",
-                            color: "#8A2BE2",
-                          },
+                            display: "flex",
+                            alignItems: "center",
+                            mb: 3,
+                            borderBottom: "1px solid",
+                            borderColor: "divider",
+                            pb: 2,
                         }}
-                      >
-                        {client.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {errors.clientId && (
-                    <Typography
-                      variant="caption"
-                      color="error"
-                      sx={{ mt: 0.5, fontSize: "0.8rem" }}
                     >
-                      {errors.clientId}
-                    </Typography>
-                  )}
-                </FormControl>
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  label="Client Name"
-                  name="client.name"
-                  value={formData.client.name || ""}
-                  onChange={handleChange}
-                  fullWidth
-                  disabled
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: "12px",
-                      bgcolor: "#e5e7eb",
-                      "& fieldset": {
-                        borderColor: "#d1d5db",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "#4b5563",
-                      fontSize: "0.875rem",
-                    },
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  label="Phone Number"
-                  name="client.phoneNumber"
-                  value={formData.client.phoneNumber || ""}
-                  onChange={handleChange}
-                  fullWidth
-                  disabled
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: "12px",
-                      bgcolor: "#e5e7eb",
-                      "& fieldset": {
-                        borderColor: "#d1d5db",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "#4b5563",
-                      fontSize: "0.875rem",
-                    },
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  label="Email"
-                  name="client.email"
-                  type="email"
-                  value={formData.client.email || ""}
-                  onChange={handleChange}
-                  fullWidth
-                  disabled
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: "12px",
-                      bgcolor: "#e5e7eb",
-                      "& fieldset": {
-                        borderColor: "#d1d5db",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "#4b5563",
-                      fontSize: "0.875rem",
-                    },
-                  }}
-                />
-              </Grid>
-            </Grid>
-          </Box>
-        )}
+                        <AssignmentOutlinedIcon
+                            color="primary"
+                            sx={{ mr: 2, fontSize: 32 }}
+                        />
+                        <Typography
+                            color="primary"
+                            variant="h5"
+                            component="h2"
+                            sx={{ fontWeight: 600 }}
+                        >
+                            {estimate ? "Edit Estimate" : "Create New Estimate"}
+                        </Typography>
+                    </Box>
 
-        {errors.general && (
-          <Typography
-            variant="body2"
-            sx={{
-              mt: 2,
-              p: 1.5,
-              bgcolor: "#fee2e2",
-              color: "#dc2626",
-              borderRadius: "8px",
-              textAlign: "center",
-              fontWeight: 500,
-            }}
-          >
-            {errors.general}
-          </Typography>
-        )}
-      </DialogContent>
+                    {error && (
+                        <Alert severity="error" sx={{ mb: 3 }}>
+                            {error}
+                        </Alert>
+                    )}
 
-      <DialogActions sx={{ p: 2, bgcolor: "#f1f5f9", justifyContent: "flex-end" }}>
-        <Button
-          onClick={handleCloseForm}
-          disabled={loading}
-          sx={{
-            flex: 1,
-            py: 1.5,
-            borderRadius: "12px",
-            color: "#ffffff",
-            bgcolor: "#6b7280",
-            textTransform: "none",
-            fontWeight: 600,
-            "&:hover": {
-              bgcolor: "#4b5563",
-              transform: "scale(1.05)",
-            },
-            "&:disabled": {
-              bgcolor: "#d1d5db",
-              color: "#9ca3af",
-            },
-            transition: "all 0.2s",
-          }}
-        >
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={loading}
-          startIcon={loading && <CircularProgress size={20} />}
-          sx={{
-            flex: 1,
-            py: 1.5,
-            borderRadius: "12px",
-            backgroundColor: "#8A2BE2",
-            color: "#ffffff",
-            textTransform: "none",
-            fontWeight: 600,
-            "&:hover": {
-              backgroundColor: "#7a1fd9",
-              transform: "scale(1.05)",
-            },
-            "&:disabled": {
-              backgroundColor: "#d1d5db",
-              color: "#9ca3af",
-            },
-            transition: "all 0.2s",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-          }}
-        >
-          {editingEstimate ? "Update Estimate" : "Create Estimate"}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
+                    <form onSubmit={handleSubmit}>
+                        <Grid container spacing={3}>
+                            <Grid item xs={12} md={6}>
+                                <TextField
+                                    label="Lead Name"
+                                    name="leadName"
+                                    value={formData.leadName}
+                                    onChange={handleChange}
+                                    fullWidth
+                                    required
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={loading}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <AssignmentOutlinedIcon
+                                                    fontSize="small"
+                                                    color="action"
+                                                />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <TextField
+                                    label="Status"
+                                    name="status"
+                                    select
+                                    value={formData.status}
+                                    onChange={handleChange}
+                                    fullWidth
+                                    required
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={loading}
+                                >
+                                    <MenuItem value="pending">Pending</MenuItem>
+                                    <MenuItem value="accepted">
+                                        Accepted
+                                    </MenuItem>
+                                    <MenuItem value="rejected">
+                                        Rejected
+                                    </MenuItem>
+                                </TextField>
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Address"
+                                    name="address"
+                                    value={formData.address}
+                                    onChange={handleChange}
+                                    fullWidth
+                                    required
+                                    multiline
+                                    rows={2}
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={loading}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <LocationOnOutlinedIcon
+                                                    fontSize="small"
+                                                    color="action"
+                                                />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Scope"
+                                    name="scope"
+                                    value={formData.scope}
+                                    onChange={handleChange}
+                                    fullWidth
+                                    required
+                                    multiline
+                                    rows={3}
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={loading}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <DescriptionOutlinedIcon
+                                                    fontSize="small"
+                                                    color="action"
+                                                />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <TextField
+                                    label="Bid Amount"
+                                    name="bidAmount"
+                                    type="number"
+                                    value={formData.bidAmount}
+                                    onChange={handleChange}
+                                    fullWidth
+                                    required
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={loading}
+                                    inputProps={{ min: 0, step: "0.01" }}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <AttachMoneyOutlinedIcon
+                                                    fontSize="small"
+                                                    color="action"
+                                                />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <TextField
+                                    label="Start Date"
+                                    name="startDate"
+                                    type="date"
+                                    value={formData.startDate}
+                                    onChange={handleChange}
+                                    fullWidth
+                                    required
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={loading}
+                                    InputLabelProps={{ shrink: true }}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <CalendarTodayOutlinedIcon
+                                                    fontSize="small"
+                                                    color="action"
+                                                />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Client"
+                                    name="clientId"
+                                    select
+                                    value={formData.clientId}
+                                    onChange={handleChange}
+                                    fullWidth
+                                    required
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={clientLoading || loading}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <PersonOutlineOutlinedIcon
+                                                    fontSize="small"
+                                                    color="action"
+                                                />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                >
+                                    {clientLoading ? (
+                                        <MenuItem value="">
+                                            Loading clients...
+                                        </MenuItem>
+                                    ) : clients.length === 0 ? (
+                                        <MenuItem value="">
+                                            No clients available
+                                        </MenuItem>
+                                    ) : (
+                                        clients.map((client) => (
+                                            <MenuItem
+                                                key={client.id}
+                                                value={client.id}
+                                            >
+                                                {client.name}
+                                            </MenuItem>
+                                        ))
+                                    )}
+                                </TextField>
+                            </Grid>
+
+                            {selectedClient && (
+                                <Grid item xs={12}>
+                                    <Paper
+                                        elevation={1}
+                                        sx={{
+                                            p: 2,
+                                            bgcolor: "grey.50",
+                                            border: "1px solid",
+                                            borderColor: "grey.200",
+                                        }}
+                                    >
+                                        <Typography
+                                            variant="subtitle2"
+                                            sx={{ mb: 1, fontWeight: 600 }}
+                                        >
+                                            Selected Client Information
+                                        </Typography>
+                                        <Grid container spacing={2}>
+                                            <Grid item xs={12} sm={4}>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    Name
+                                                </Typography>
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{ fontWeight: 500 }}
+                                                >
+                                                    {selectedClient.name}
+                                                </Typography>
+                                            </Grid>
+                                            <Grid item xs={12} sm={4}>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    Phone
+                                                </Typography>
+                                                <Typography variant="body2">
+                                                    {selectedClient.phoneNumber ||
+                                                        "Not provided"}
+                                                </Typography>
+                                            </Grid>
+                                            <Grid item xs={12} sm={4}>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    Email
+                                                </Typography>
+                                                <Typography variant="body2">
+                                                    {selectedClient.email ||
+                                                        "Not provided"}
+                                                </Typography>
+                                            </Grid>
+                                        </Grid>
+                                    </Paper>
+                                </Grid>
+                            )}
+
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Notes (Optional)"
+                                    name="notes"
+                                    value={formData.notes}
+                                    onChange={handleChange}
+                                    fullWidth
+                                    multiline
+                                    rows={3}
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={loading}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <NotesOutlinedIcon
+                                                    fontSize="small"
+                                                    color="action"
+                                                />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Grid>
+                        </Grid>
+
+                        <Divider sx={{ my: 3 }} />
+
+                        <Box
+                            sx={{
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                gap: 2,
+                                mt: 2,
+                            }}
+                        >
+                            <Button
+                                onClick={handleClose}
+                                disabled={loading}
+                                variant="outlined"
+                                color="inherit"
+                                sx={{ minWidth: 100 }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                color="primary"
+                                disabled={loading || clientLoading || !user?.id}
+                                sx={{ minWidth: 120 }}
+                                startIcon={
+                                    loading ? (
+                                        <CircularProgress size={20} />
+                                    ) : null
+                                }
+                            >
+                                {loading
+                                    ? estimate
+                                        ? "Updating..."
+                                        : "Creating..."
+                                    : estimate
+                                    ? "Update Estimate"
+                                    : "Create Estimate"}
+                            </Button>
+                        </Box>
+                    </form>
+                </Paper>
+            </Box>
+        </Modal>
+    );
+};
+
+export default CreateEstimateForm;
