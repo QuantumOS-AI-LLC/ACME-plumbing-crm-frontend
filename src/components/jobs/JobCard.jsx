@@ -178,7 +178,7 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
             const updatedActivityValue = getLeadStatusValue(updatedAction);
             setCurrentActivity(updatedActivityValue || newActivityValue);
 
-            // 4. Send to N8N webhook (if URL is configured)
+            // 4. Send to N8N webhook (if URL is configured..............)
             if (import.meta.env.VITE_N8N_API_URL) {
                 try {
                     const response = await fetch(
