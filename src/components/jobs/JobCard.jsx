@@ -99,7 +99,7 @@ const formatCurrency = (amount) => {
     }).format(amount);
 };
 
-const JobCard = ({ job, onClick, onUpdate, onStatusChange }) => {
+const JobCard = ({ job, onClick, onStatusChange }) => {
     const [openDetails, setOpenDetails] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
     const [isUpdatingActivity, setIsUpdatingActivity] = useState(false);
@@ -177,13 +177,6 @@ const JobCard = ({ job, onClick, onUpdate, onStatusChange }) => {
             // 2. Update local state with the response from API
             const updatedActivityValue = getLeadStatusValue(updatedAction);
             setCurrentActivity(updatedActivityValue || newActivityValue);
-
-            // 3. Call onUpdate callback if provided to refresh parent component
-            if (onUpdate) {
-                onUpdate(job.id, {
-                    activity: updatedAction,
-                });
-            }
 
             // 4. Send to N8N webhook (if URL is configured)
             if (import.meta.env.VITE_N8N_API_URL) {
@@ -750,7 +743,6 @@ const JobCard = ({ job, onClick, onUpdate, onStatusChange }) => {
                 job={transformedJob}
                 open={openEdit}
                 onClose={handleCloseEdit}
-                onUpdate={onUpdate}
             />
         </>
     );
