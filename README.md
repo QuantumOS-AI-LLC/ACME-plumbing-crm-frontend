@@ -1,4 +1,10 @@
+## Frontend Live URLs
 
+### Main Branch
+-   **Frontend URL:** `https://get-connected-frontend-react.pages.dev`
+
+### Development Branch
+-   **Frontend URL:** `https://get-connected-frontend-react-dev.pages.dev`
 
 ## Backend API Endpoints
 
