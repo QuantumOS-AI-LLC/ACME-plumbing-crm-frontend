@@ -1,53 +1,39 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Box,
     Typography,
-    Paper,
     List,
     ListItem,
     ListItemButton,
     ListItemText,
-    TextField,
     Button,
-    Avatar,
     Divider,
     IconButton,
     Badge,
 } from "@mui/material";
-import SendIcon from "@mui/icons-material/Send";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PageHeader from "../components/common/PageHeader";
+import AIChat from "../components/ai-assistant/AIChat";
 import {
-    getConversationMessages,
     getConversations,
-    sendMessageToAI,
     createConversation,
 } from "../services/api";
+import { useSocket } from "../contexts/SocketContext";
 
 const AIAssistantPage = () => {
     const [conversations, setConversations] = useState([]);
     const [activeConversation, setActiveConversation] = useState(null);
-    const [message, setMessage] = useState("");
-    const [messages, setMessages] = useState([]);
     const [unreadCounts, setUnreadCounts] = useState({});
-    const messagesEndRef = useRef(null);
-    const wsRef = useRef(null);
-    const activeConversationRef = useRef(activeConversation);
     const [isConversationListVisible, setConversationListVisible] =
         useState(false);
+    const { isConnected } = useSocket();
 
     const showConversationList = () => setConversationListVisible(true);
     const hideConversationList = () => setConversationListVisible(false);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
     useEffect(() => {
-        scrollToBottom();
         hideConversationList();
-        activeConversationRef.current = activeConversation;
     }, [activeConversation]);
 
     useEffect(() => {
@@ -68,98 +54,6 @@ const AIAssistantPage = () => {
         fetchAllConversations();
     }, []);
 
-    useEffect(() => {
-        const fetchMessages = async () => {
-            if (
-                activeConversation?.contactId &&
-                activeConversation.contactId !== 0
-            ) {
-                try {
-                    const data = await getConversationMessages(
-                        activeConversation.contactId
-                    );
-                    setMessages(data?.data || []);
-                } catch (error) {
-                    console.error("Failed to fetch messages:", error);
-                }
-            } else {
-                setMessages([]);
-            }
-        };
-
-        fetchMessages();
-    }, [activeConversation]);
-
-    useEffect(() => {
-        const wsUrl = "wss://get-connected-backend.dev.quantumos.ai";
-        wsRef.current = new WebSocket(wsUrl);
-
-        wsRef.current.onopen = () => {
-            console.log("WebSocket connected");
-        };
-
-        wsRef.current.onmessage = (event) => {
-            try {
-                const parsedData = JSON.parse(event.data);
-
-                if (
-                    parsedData.type === "newMessage" &&
-                    parsedData.data &&
-                    parsedData.data.senderType === "AI"
-                ) {
-                    const incomingContactId = parsedData.data.contactId;
-                    const newAiMessage = {
-                        id: parsedData.data.id,
-                        senderType: parsedData.data.senderType,
-                        message: parsedData.data.message,
-                        createdAt: parsedData.data.createdAt,
-                    };
-
-                    if (
-                        incomingContactId ===
-                        activeConversationRef.current?.contactId
-                    ) {
-                        setMessages((prev) => {
-                            if (
-                                !prev.some((msg) => msg.id === newAiMessage.id)
-                            ) {
-                                return [...prev, newAiMessage];
-                            }
-                            return prev;
-                        });
-                    } else {
-                        setUnreadCounts((prevCounts) => ({
-                            ...prevCounts,
-                            [incomingContactId]:
-                                (prevCounts[incomingContactId] || 0) + 1,
-                        }));
-                    }
-                }
-            } catch (error) {
-                console.error("WebSocket message error:", error);
-            }
-        };
-
-        wsRef.current.onerror = (event) => {
-            console.error("WebSocket error:", event);
-        };
-
-        wsRef.current.onclose = (event) => {
-            console.log("WebSocket closed:", event.reason);
-            wsRef.current = null;
-        };
-
-        return () => {
-            if (wsRef.current) {
-                wsRef.current.close();
-                wsRef.current = null;
-            }
-        };
-    }, []);
-
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
 
     const selectConversation = (contactId) => {
         if (contactId === 0) {
@@ -167,7 +61,6 @@ const AIAssistantPage = () => {
                 contactId: 0,
                 contactName: "Alli",
             });
-            setMessages([]);
             return;
         }
 
@@ -209,34 +102,6 @@ const AIAssistantPage = () => {
         }
     };
 
-    const handleSendMessage = async () => {
-        if (
-            !message.trim() ||
-            !activeConversation ||
-            activeConversation.contactId === 0
-        )
-            return;
-
-        const newUserMessage = {
-            id: crypto.randomUUID(),
-            senderType: "USER",
-            message: message,
-        };
-
-        setMessages((prev) => [...prev, newUserMessage]);
-        setMessage("");
-
-        try {
-            await sendMessageToAI(
-                message,
-                activeConversation?.contactId,
-                activeConversation?.estimateId,
-                activeConversation?.lastMessage?.userId
-            );
-        } catch (error) {
-            console.error("Failed to send message:", error);
-        }
-    };
 
     return (
         <Box>
@@ -336,7 +201,7 @@ const AIAssistantPage = () => {
                     </List>
                 </Box>
 
-                {/* Chat Area */}
+                {/* Chat Area - Using Socket.IO AIChat Component */}
                 <Box
                     sx={{
                         flexGrow: 1,
@@ -351,6 +216,7 @@ const AIAssistantPage = () => {
                 >
                     {activeConversation ? (
                         <>
+                            {/* Header */}
                             <Box
                                 sx={{
                                     p: 2,
@@ -376,111 +242,12 @@ const AIAssistantPage = () => {
                                 </Typography>
                             </Box>
 
-                            <Box
-                                sx={{
-                                    flexGrow: 1,
-                                    p: 2,
-                                    overflow: "auto",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    bgcolor: "background.default",
-                                }}
-                            >
-                                {messages.map((msg) => (
-                                    <Box
-                                        key={msg.id}
-                                        sx={{
-                                            display: "flex",
-                                            justifyContent:
-                                                msg.senderType === "USER"
-                                                    ? "flex-end"
-                                                    : "flex-start",
-                                            mb: 2,
-                                        }}
-                                    >
-                                        {msg.senderType === "AI" && (
-                                            <Avatar
-                                                sx={{
-                                                    bgcolor: "primary.main",
-                                                    mr: 1,
-                                                }}
-                                            >
-                                                AI
-                                            </Avatar>
-                                        )}
-                                        <Paper
-                                            sx={{
-                                                px: 2,
-                                                py: 1.5,
-                                                maxWidth: "70%",
-                                                bgcolor:
-                                                    msg.senderType === "USER"
-                                                        ? "primary.main"
-                                                        : "background.paper",
-                                                color:
-                                                    msg.senderType === "USER"
-                                                        ? "white"
-                                                        : "text.primary",
-                                                borderRadius:
-                                                    msg.senderType === "USER"
-                                                        ? "20px 0 20px 20px"
-                                                        : "0px 20px 20px 20px",
-                                            }}
-                                        >
-                                            <Typography variant="body1">
-                                                {msg.message}
-                                            </Typography>
-                                        </Paper>
-                                        {msg.senderType === "USER" && (
-                                            <Avatar
-                                                sx={{
-                                                    bgcolor: "secondary.main",
-                                                    ml: 1,
-                                                }}
-                                            >
-                                                U
-                                            </Avatar>
-                                        )}
-                                    </Box>
-                                ))}
-                                <div ref={messagesEndRef} />
-                            </Box>
-
-                            {/* Message Input */}
-                            <Box
-                                sx={{
-                                    p: 2,
-                                    bgcolor: "background.paper",
-                                    borderTop: 1,
-                                    borderColor: "divider",
-                                    display: "flex",
-                                }}
-                            >
-                                <TextField
-                                    fullWidth
-                                    placeholder="Type your message..."
-                                    value={message}
-                                    onChange={(e) => setMessage(e.target.value)}
-                                    onKeyDown={(e) =>
-                                        e.key === "Enter" && handleSendMessage()
-                                    }
-                                    variant="outlined"
-                                    size="small"
-                                    sx={{ mr: 1 }}
-                                    disabled={
-                                        activeConversation?.contactId === 0
-                                    }
+                            {/* Socket.IO Chat Component */}
+                            <Box sx={{ flexGrow: 1, p: 2 }}>
+                                <AIChat 
+                                    contactId={activeConversation.contactId}
+                                    estimateId={activeConversation.estimateId}
                                 />
-                                <IconButton
-                                    color="primary"
-                                    onClick={handleSendMessage}
-                                    disabled={
-                                        !message.trim() ||
-                                        activeConversation?.contactId === 0
-                                    }
-                                >
-                                    <SendIcon />
-                                </IconButton>
                             </Box>
                         </>
                     ) : (

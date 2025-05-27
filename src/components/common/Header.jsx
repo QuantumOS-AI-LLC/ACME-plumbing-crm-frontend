@@ -18,6 +18,7 @@ import { styled } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../contexts/NotificationContext';
+import { useSocket } from '../../contexts/SocketContext';
 
 const StyledAppBar = styled(AppBar)(({ theme, ismobile }) => ({
   background: 'linear-gradient(to right, #873ECE, #FF1493)',
@@ -35,6 +36,7 @@ const Header = ({ isMobile, onMenuClick }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { unreadCount, notifications, markAsRead, markAllAsRead } = useNotifications();
+  const { isConnected, connectionError } = useSocket();
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   
   const handleNotificationClick = (event) => {
@@ -108,7 +110,7 @@ const Header = ({ isMobile, onMenuClick }) => {
           </IconButton>
         )}
         <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 500 }}>
-          Get Connected
+          ACME PLUMBING SOLUTION
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <IconButton 

@@ -41,7 +41,7 @@ const JobsPage = () => {
                 page: 1,
                 limit: 50,
             });
-            console.log("Jobs API response:", response);
+
             if (response && response.data) {
                 setJobs(response.data);
             } else {

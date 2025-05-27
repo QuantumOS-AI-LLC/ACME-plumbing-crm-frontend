@@ -111,6 +111,7 @@ const AddJobModal = ({ open, onClose, onJobCreated }) => {
                     : null,
                 clientId: formData.clientId,
                 createdBy: formData.createdBy,
+                activity: "",
             };
 
             console.log("Job Data being sent:", jobData);
