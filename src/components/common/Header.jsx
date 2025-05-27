@@ -110,7 +110,7 @@ const Header = ({ isMobile, onMenuClick }) => {
           </IconButton>
         )}
         <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 500 }}>
-          Get Connected
+          ACME PLUMBING SOLUTION
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <IconButton 

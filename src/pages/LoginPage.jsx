@@ -125,7 +125,7 @@ const LoginPage = () => {
         <StyledPaper elevation={3} sx={{mx:'auto'}}>
           <Box sx={{ mb: 4, textAlign: 'center' }}>
             <Typography component="h1" variant="h5" color="primary" fontWeight={600} sx={{ mb: 1 }}>
-              Get Connected
+              ACME PLUMBING SOLUTION
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Your business management solution
