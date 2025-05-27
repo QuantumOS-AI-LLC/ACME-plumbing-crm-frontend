@@ -16,8 +16,6 @@ const isDueDateApproaching = (dueDate) => {
 };
 
 const JobDetailsModal = ({ handleClose, open, job }) => {
-    console.log("Job Details Modal", job.invoiceUrl);
-
     const formatDate = (date) => {
         return date ? format(new Date(date), "MMM dd, yyyy") : "Not set";
     };

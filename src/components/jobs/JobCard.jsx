@@ -25,6 +25,8 @@ import {
 } from "@mui/icons-material";
 import JobDetailsModal from "./JobDetailsModal";
 import JobEditModal from "./JobEditModal";
+import { toast } from "sonner";
+import { updateJob } from "../../services/api";
 
 const JOB_STATUS = {
     OPEN: "open",
@@ -44,6 +46,7 @@ const LEAD_STATUS = {
 };
 
 const ACTIVITY_OPTIONS = [
+    { value: "", label: "-- Select Activity --" },
     { value: "on_the_way", label: "On the Way" },
     { value: "has_arrived", label: "Has Arrived" },
     { value: "job_started", label: "Job Started" },
@@ -77,6 +80,11 @@ const getLeadStatusLabel = (status) => {
     return activity ? activity.label : "Unknown";
 };
 
+const getLeadStatusValue = (label) => {
+    const activity = ACTIVITY_OPTIONS.find((option) => option.label === label);
+    return activity ? activity.value : "";
+};
+
 const formatDate = (dateStr) => {
     return dateStr ? new Date(dateStr).toLocaleDateString() : "N/A";
 };
@@ -91,17 +99,14 @@ const formatCurrency = (amount) => {
     }).format(amount);
 };
 
-const JobCard = ({
-    job,
-    onClick,
-    onUpdate,
-    onStatusChange,
-    onLeadStatusChange,
-}) => {
+const JobCard = ({ job, onClick, onUpdate, onStatusChange }) => {
     const [openDetails, setOpenDetails] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
-
-    console.log("JobCard job", job);
+    const [isUpdatingActivity, setIsUpdatingActivity] = useState(false);
+    // Add local state to track current activity
+    const [currentActivity, setCurrentActivity] = useState(
+        job.leadStatus || getLeadStatusValue(job.activity) || ""
+    );
 
     // Transform job data to match JobDetailsModal expectations
     const transformedJob = {
@@ -115,10 +120,9 @@ const JobCard = ({
         address: job.address || "N/A",
         client: job.client || { name: "N/A" },
         status: job.status || "unknown",
-        leadStatus: job.leadStatus || LEAD_STATUS.ON_THE_WAY,
+        leadStatus: currentActivity, // Use local state instead
+        activity: getLeadStatusLabel(currentActivity), // Use local state
     };
-
-    console.log("Transformed job", transformedJob);
 
     const {
         label: statusLabel,
@@ -149,6 +153,11 @@ const JobCard = ({
         const newActivityValue = event.target.value;
         const activityLabel = getLeadStatusLabel(newActivityValue);
 
+        // Store previous value for rollback
+        const previousValue = currentActivity;
+
+        setIsUpdatingActivity(true);
+
         const activityData = {
             activity: activityLabel,
             jobId: job.id || transformedJob.id || "N/A",
@@ -156,25 +165,74 @@ const JobCard = ({
             createdBy: job.createdBy || job.createdById || "N/A",
         };
 
-        // Console log the activity object with jobId, clientId and createdBy
-        console.log(activityData);
-        console.log("env", import.meta.env.VITE_N8N_API_URL);
-        // Send data to webhook using no-cors mode to bypass CORS restrictions
         try {
-            await fetch(import.meta.env.VITE_N8N_API_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(activityData),
+            // 1. Update job in database
+            const result = await updateJob(job.id, {
+                activity: activityLabel,
             });
-        } catch (error) {
-            console.error("Error sending activity data to webhook:", error);
-            // Continue execution even if webhook fails
-        }
 
-        if (onLeadStatusChange) {
-            onLeadStatusChange(transformedJob.id, newActivityValue);
+            console.log(result.data.activity);
+            const updatedAction = result.data.activity;
+
+            // 2. Update local state with the response from API
+            const updatedActivityValue = getLeadStatusValue(updatedAction);
+            setCurrentActivity(updatedActivityValue || newActivityValue);
+
+            // 3. Call onUpdate callback if provided to refresh parent component
+            if (onUpdate) {
+                onUpdate(job.id, {
+                    activity: updatedAction,
+                });
+            }
+
+            // 4. Send to N8N webhook (if URL is configured)
+            if (import.meta.env.VITE_N8N_API_URL) {
+                try {
+                    const response = await fetch(
+                        import.meta.env.VITE_N8N_API_URL,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                                ...activityData,
+                                activity: updatedAction, // Use the updated action from API
+                            }),
+                        }
+                    );
+
+                    if (!response.ok) {
+                        console.warn(
+                            "N8N webhook failed:",
+                            response.status,
+                            response.statusText
+                        );
+                    }
+                } catch (webhookError) {
+                    console.warn(
+                        "N8N webhook error (non-critical):",
+                        webhookError
+                    );
+                }
+            }
+
+            // Show success message with the actual updated action
+            toast.success(`Activity updated to "${updatedAction}"`);
+        } catch (error) {
+            console.error("Error updating activity:", error);
+
+            // Show user-friendly error message
+            const errorMessage =
+                error.response?.data?.message ||
+                error.message ||
+                "Failed to update activity. Please try again.";
+            toast.error(errorMessage);
+
+            // Reset to previous value since update failed
+            setCurrentActivity(previousValue);
+        } finally {
+            setIsUpdatingActivity(false);
         }
     };
 
@@ -544,21 +602,60 @@ const JobCard = ({
                                     sx={{ minWidth: 180, flex: 1 }}
                                 >
                                     <Select
-                                        value={transformedJob.leadStatus}
+                                        value={currentActivity} // Use local state directly
                                         onChange={handleActivityChange}
                                         size="small"
                                         displayEmpty
+                                        disabled={isUpdatingActivity}
+                                        renderValue={(selected) => {
+                                            if (isUpdatingActivity) {
+                                                return (
+                                                    <em
+                                                        style={{
+                                                            color: "#666",
+                                                            fontStyle: "normal",
+                                                            fontSize:
+                                                                "0.875rem",
+                                                        }}
+                                                    >
+                                                        Updating...
+                                                    </em>
+                                                );
+                                            }
+                                            if (!selected) {
+                                                return (
+                                                    <em
+                                                        style={{
+                                                            color: "#999",
+                                                            fontStyle: "normal",
+                                                            fontSize:
+                                                                "0.875rem",
+                                                        }}
+                                                    >
+                                                        -- Select Activity --
+                                                    </em>
+                                                );
+                                            }
+                                            return getLeadStatusLabel(selected);
+                                        }}
                                         sx={{
                                             borderRadius: 2,
-                                            backgroundColor:
-                                                "background.default",
+                                            backgroundColor: isUpdatingActivity
+                                                ? "grey.50"
+                                                : "background.default",
+                                            opacity: isUpdatingActivity
+                                                ? 0.7
+                                                : 1,
                                             "& .MuiOutlinedInput-notchedOutline":
                                                 {
                                                     borderColor: "grey.300",
                                                 },
                                             "&:hover .MuiOutlinedInput-notchedOutline":
                                                 {
-                                                    borderColor: "primary.main",
+                                                    borderColor:
+                                                        isUpdatingActivity
+                                                            ? "grey.300"
+                                                            : "primary.main",
                                                 },
                                             "& .MuiSelect-select": {
                                                 fontWeight: 500,
@@ -569,6 +666,18 @@ const JobCard = ({
                                             <MenuItem
                                                 key={activity.value}
                                                 value={activity.value}
+                                                disabled={activity.value === ""}
+                                                sx={{
+                                                    fontStyle:
+                                                        activity.value === ""
+                                                            ? "italic"
+                                                            : "normal",
+                                                    color:
+                                                        activity.value === ""
+                                                            ? "text.secondary"
+                                                            : "text.primary",
+                                                    fontSize: "0.875rem",
+                                                }}
                                             >
                                                 {activity.label}
                                             </MenuItem>
