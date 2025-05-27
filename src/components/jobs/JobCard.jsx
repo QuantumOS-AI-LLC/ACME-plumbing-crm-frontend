@@ -25,6 +25,8 @@ import {
 } from "@mui/icons-material";
 import JobDetailsModal from "./JobDetailsModal";
 import JobEditModal from "./JobEditModal";
+import { updateJob } from "../../services/api";
+// Import updateJob function
 
 const JOB_STATUS = {
     OPEN: "open",
@@ -44,6 +46,7 @@ const LEAD_STATUS = {
 };
 
 const ACTIVITY_OPTIONS = [
+    { value: "", label: "-- Select Activity --" },
     { value: "on_the_way", label: "On the Way" },
     { value: "has_arrived", label: "Has Arrived" },
     { value: "job_started", label: "Job Started" },
@@ -77,6 +80,11 @@ const getLeadStatusLabel = (status) => {
     return activity ? activity.label : "Unknown";
 };
 
+const getLeadStatusValue = (label) => {
+    const activity = ACTIVITY_OPTIONS.find((option) => option.label === label);
+    return activity ? activity.value : "";
+};
+
 const formatDate = (dateStr) => {
     return dateStr ? new Date(dateStr).toLocaleDateString() : "N/A";
 };
@@ -100,6 +108,7 @@ const JobCard = ({
 }) => {
     const [openDetails, setOpenDetails] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
+    const [isUpdatingActivity, setIsUpdatingActivity] = useState(false);
 
     console.log("JobCard job", job);
 
@@ -115,7 +124,8 @@ const JobCard = ({
         address: job.address || "N/A",
         client: job.client || { name: "N/A" },
         status: job.status || "unknown",
-        leadStatus: job.leadStatus || LEAD_STATUS.ON_THE_WAY,
+        leadStatus: job.leadStatus || "",
+        activity: job.activity || "",
     };
 
     console.log("Transformed job", transformedJob);
@@ -147,6 +157,19 @@ const JobCard = ({
     const handleActivityChange = async (event) => {
         event.stopPropagation();
         const newActivityValue = event.target.value;
+
+        // Don't proceed if empty value selected
+        if (!newActivityValue) {
+            return;
+        }
+
+        // Don't proceed if already updating
+        if (isUpdatingActivity) {
+            return;
+        }
+
+        setIsUpdatingActivity(true);
+
         const activityLabel = getLeadStatusLabel(newActivityValue);
 
         const activityData = {
@@ -159,8 +182,18 @@ const JobCard = ({
         // Console log the activity object with jobId, clientId and createdBy
         console.log(activityData);
         console.log("env", import.meta.env.VITE_N8N_API_URL);
-        // Send data to webhook using no-cors mode to bypass CORS restrictions
+
         try {
+            // 1. Update job in database with new activity
+            const jobUpdateData = {
+                activity: activityLabel,
+                leadStatus: newActivityValue,
+            };
+
+            await updateJob(transformedJob.id, jobUpdateData);
+            console.log("Job activity updated in database successfully");
+
+            // 2. Send data to webhook using no-cors mode to bypass CORS restrictions
             await fetch(import.meta.env.VITE_N8N_API_URL, {
                 method: "POST",
                 headers: {
@@ -168,13 +201,32 @@ const JobCard = ({
                 },
                 body: JSON.stringify(activityData),
             });
-        } catch (error) {
-            console.error("Error sending activity data to webhook:", error);
-            // Continue execution even if webhook fails
-        }
+            console.log("Activity data sent to webhook successfully");
 
-        if (onLeadStatusChange) {
-            onLeadStatusChange(transformedJob.id, newActivityValue);
+            // 3. Update local state if callback provided
+            if (onLeadStatusChange) {
+                onLeadStatusChange(transformedJob.id, newActivityValue);
+            }
+
+            // 4. Update local state if onUpdate callback provided
+            if (onUpdate) {
+                onUpdate(transformedJob.id, jobUpdateData);
+            }
+        } catch (error) {
+            console.error("Error updating activity:", error);
+
+            // Show user-friendly error message (you can customize this)
+            alert("Failed to update activity. Please try again.");
+
+            // Reset the select to previous value if update fails
+            // This prevents UI from showing updated value when database update failed
+            const previousValue =
+                transformedJob.leadStatus ||
+                getLeadStatusValue(transformedJob.activity) ||
+                "";
+            event.target.value = previousValue;
+        } finally {
+            setIsUpdatingActivity(false);
         }
     };
 
@@ -544,21 +596,66 @@ const JobCard = ({
                                     sx={{ minWidth: 180, flex: 1 }}
                                 >
                                     <Select
-                                        value={transformedJob.leadStatus}
+                                        value={
+                                            transformedJob.leadStatus ||
+                                            getLeadStatusValue(
+                                                transformedJob.activity
+                                            ) ||
+                                            ""
+                                        }
                                         onChange={handleActivityChange}
                                         size="small"
                                         displayEmpty
+                                        disabled={isUpdatingActivity}
+                                        renderValue={(selected) => {
+                                            if (isUpdatingActivity) {
+                                                return (
+                                                    <em
+                                                        style={{
+                                                            color: "#666",
+                                                            fontStyle: "normal",
+                                                            fontSize:
+                                                                "0.875rem",
+                                                        }}
+                                                    >
+                                                        Updating...
+                                                    </em>
+                                                );
+                                            }
+                                            if (!selected) {
+                                                return (
+                                                    <em
+                                                        style={{
+                                                            color: "#999",
+                                                            fontStyle: "normal",
+                                                            fontSize:
+                                                                "0.875rem",
+                                                        }}
+                                                    >
+                                                        -- Select Activity --
+                                                    </em>
+                                                );
+                                            }
+                                            return getLeadStatusLabel(selected);
+                                        }}
                                         sx={{
                                             borderRadius: 2,
-                                            backgroundColor:
-                                                "background.default",
+                                            backgroundColor: isUpdatingActivity
+                                                ? "grey.50"
+                                                : "background.default",
+                                            opacity: isUpdatingActivity
+                                                ? 0.7
+                                                : 1,
                                             "& .MuiOutlinedInput-notchedOutline":
                                                 {
                                                     borderColor: "grey.300",
                                                 },
                                             "&:hover .MuiOutlinedInput-notchedOutline":
                                                 {
-                                                    borderColor: "primary.main",
+                                                    borderColor:
+                                                        isUpdatingActivity
+                                                            ? "grey.300"
+                                                            : "primary.main",
                                                 },
                                             "& .MuiSelect-select": {
                                                 fontWeight: 500,
@@ -569,6 +666,18 @@ const JobCard = ({
                                             <MenuItem
                                                 key={activity.value}
                                                 value={activity.value}
+                                                disabled={activity.value === ""}
+                                                sx={{
+                                                    fontStyle:
+                                                        activity.value === ""
+                                                            ? "italic"
+                                                            : "normal",
+                                                    color:
+                                                        activity.value === ""
+                                                            ? "text.secondary"
+                                                            : "text.primary",
+                                                    fontSize: "0.875rem",
+                                                }}
                                             >
                                                 {activity.label}
                                             </MenuItem>
