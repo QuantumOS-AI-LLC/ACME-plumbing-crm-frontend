@@ -38,51 +38,77 @@ const ContactsPage = () => {
 
   const pages = [...Array(pagination.totalPages).keys()];
 
-  useEffect(() => {
-    const loadContacts = async () => {
-      try {
-        setLoading(true);
-        const response = await fetchContacts({
-          page: pagination.page,
-          limit: pagination.limit,
+  const loadContacts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchContacts({
+        page: pagination.page,
+        limit: pagination.limit,
+      });
+      if (response && response.data) {
+        setContacts(response.data);
+        setFilteredContacts(response.data);
+        setPagination({
+          page: response.pagination.page,
+          limit: response.pagination.limit,
+          totalPages: response.pagination.pages,
+          totalItems: response.pagination.total,
         });
-        console.log("get all contacts", response);
-        if (response && response.data) {
-          setContacts(response.data);
-          setFilteredContacts(response.data);
-          setPagination({
-            page: response.pagination.page,
-            limit: response.pagination.limit,
-            totalPages: response.pagination.pages,
-            totalItems: response.pagination.total,
-          });
-        }
-      } catch (error) {
-        console.error("Error loading contacts:", error);
-        setError("Failed to load contacts. Please try again.");
-      } finally {
-        setLoading(false);
       }
-    };
-
+    } catch (error) {
+      console.error("Error loading contacts:", error);
+      setError("Failed to load contacts. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
     loadContacts();
   }, [pagination.page]);
 
+
+  const searchContacts = async (searchInp) => {
+    try {
+      setLoading(true);
+      const response = await fetchContacts({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: searchInp
+      });
+      if (response && response.data) {
+        setFilteredContacts(response.data);
+        setPagination({
+          page: response.pagination.page,
+          limit: response.pagination.limit,
+          totalPages: response.pagination.pages,
+          totalItems: response.pagination.total,
+        });
+      }
+    } catch (error) {
+      console.error("Error loading contacts:", error);
+      setError("Failed to load contacts. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredContacts(contacts);
     } else {
-      const filtered = contacts.filter((contact) => {
-        const searchTermLower = searchTerm.toLowerCase();
-        return (
-          (contact.name &&
-            contact.name.toLowerCase().includes(searchTermLower)) ||
-          (contact.email &&
-            contact.email.toLowerCase().includes(searchTermLower)) ||
-          (contact.phone && contact.phone.includes(searchTerm))
-        );
-      });
-      setFilteredContacts(filtered);
+      // const filtered = contacts.filter((contact) => {
+      //   const searchTermLower = searchTerm.toLowerCase();
+      //   return (
+      //     (contact.name &&
+      //       contact.name.toLowerCase().includes(searchTermLower)) ||
+      //     (contact.email &&
+      //       contact.email.toLowerCase().includes(searchTermLower)) ||
+      //     (contact.phone && contact.phone.includes(searchTerm))
+      //   );
+      // });
+      // setFilteredContacts(filtered);
+
+      const searchTermLower = searchTerm.trim().toLowerCase();
+      searchContacts(searchTermLower);
     }
   }, [searchTerm, contacts]);
 
