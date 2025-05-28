@@ -20,11 +20,12 @@ import {
     createConversation,
 } from "../services/api";
 import { useSocket } from "../contexts/SocketContext";
+import { useAuth } from "../hooks/useAuth"; // Corrected import path for useAuth
 
-// Get the bot contact ID from environment variables
-const BOT_CONTACT_ID = import.meta.env.VITE_BOT_CONTACT_ID;
+// BOT_CONTACT_ID will now come from AuthContext
 
 const AIAssistantPage = () => {
+    const { user, loading: authLoading } = useAuth(); // Get user and auth loading state
     const [conversations, setConversations] = useState([]);
     const [activeConversation, setActiveConversation] = useState(null);
     const [unreadCounts, setUnreadCounts] = useState({});
@@ -40,25 +41,41 @@ const AIAssistantPage = () => {
     }, [activeConversation]);
 
     useEffect(() => {
-        const fetchAllConversations = async () => {
+        const getBotContactIdFromUser = () => {
+            if (user) {
+                if (user.botContactId) { // Path if user object is directly the user details
+                    return user.botContactId;
+                } else if (user.data && user.data.user && user.data.user.botContactId) { // Path if user object is the full API response from localStorage
+                    return user.data.user.botContactId;
+                }
+            }
+            return null; // Return null if not found
+        };
+
+        const fetchAllConversations = async (currentBotContactId) => {
+            if (!currentBotContactId) {
+                console.warn("Bot Contact ID not available yet. Skipping conversation load.");
+                // Optionally, set conversations to empty or show a specific state
+                setConversations([]);
+                setActiveConversation(null);
+                return;
+            }
+
             let finalConvos = [];
             try {
                 const res = await getConversations();
                 const apiConvos = res?.data || [];
 
-                // Check if Alli (with BOT_CONTACT_ID) is already in the API response
-                const alliFromApi = apiConvos.find(convo => convo.contactId === BOT_CONTACT_ID);
+                const alliFromApi = apiConvos.find(convo => convo.contactId === currentBotContactId);
 
                 if (alliFromApi) {
-                    // If Alli is from API, ensure it's at the top and named correctly
-                    alliFromApi.contactName = "Alli"; // Ensure consistent naming
-                    finalConvos = [alliFromApi, ...apiConvos.filter(convo => convo.contactId !== BOT_CONTACT_ID)];
+                    alliFromApi.contactName = "Alli";
+                    finalConvos = [alliFromApi, ...apiConvos.filter(convo => convo.contactId !== currentBotContactId)];
                 } else {
-                    // If Alli is not from API, create it locally and prepend
                     const localAlliConversation = {
-                        contactId: BOT_CONTACT_ID,
+                        contactId: currentBotContactId,
                         contactName: "Alli",
-                        lastMessage: null, // Or fetch its last message if needed
+                        lastMessage: null,
                         estimateId: null
                     };
                     finalConvos = [localAlliConversation, ...apiConvos];
@@ -66,14 +83,13 @@ const AIAssistantPage = () => {
                 
                 setConversations(finalConvos);
                 if (finalConvos.length > 0) {
-                    setActiveConversation(finalConvos[0]); // This should be Alli
+                    setActiveConversation(finalConvos[0]);
                 }
 
             } catch (error) {
                 console.error("Error loading conversations:", error);
-                // API failed, create a local Alli as a fallback
                 const localAlliConversation = {
-                    contactId: BOT_CONTACT_ID,
+                    contactId: currentBotContactId, // Use currentBotContactId even in error
                     contactName: "Alli",
                     lastMessage: null,
                     estimateId: null
@@ -84,8 +100,23 @@ const AIAssistantPage = () => {
             }
         };
 
-        fetchAllConversations();
-    }, []);
+        if (!authLoading) {
+            const botId = getBotContactIdFromUser();
+            if (botId) {
+                fetchAllConversations(botId);
+            } else {
+                 // Handle case where botId is still not available after auth loading
+                console.warn("Bot Contact ID could not be determined from user profile.");
+                // Fallback or show error, for now, we'll load an empty state or a default Alli.
+                // This part depends on desired behavior if botContactId is missing from user profile.
+                // For now, let's ensure Alli is still created with a placeholder if needed,
+                // or rely on the error handling within fetchAllConversations if it's passed null.
+                // To be safe, we can call fetchAllConversations with a null/undefined botId
+                // and let its internal logic handle the fallback if currentBotContactId is null.
+                 fetchAllConversations(null); // Or handle this state more explicitly
+            }
+        }
+    }, [authLoading, user]); // Rerun when authLoading or user changes
 
     const selectConversation = (contactId) => {
         const selected = conversations.find((c) => c.contactId === contactId);
