@@ -445,6 +445,7 @@ const CreateContactModalForm = ({ open, onClose, onContactCreated }) => {
                                     },
                                 }}
                             >
+                                {/* pipeline section */}
                                 <InputLabel>Pipeline Stage</InputLabel>
                                 <Select
                                     name="pipelineStage"
