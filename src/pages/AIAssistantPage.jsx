@@ -41,36 +41,46 @@ const AIAssistantPage = () => {
 
     useEffect(() => {
         const fetchAllConversations = async () => {
+            let finalConvos = [];
             try {
                 const res = await getConversations();
                 const apiConvos = res?.data || [];
-                
-                // Create Alli conversation object
-                const alliConversation = {
-                    contactId: BOT_CONTACT_ID,
-                    contactName: "Alli",
-                    lastMessage: null,
-                    estimateId: null
-                };
-                
-                // Add Alli at the beginning of conversations list
-                const allConversations = [alliConversation, ...apiConvos];
-                setConversations(allConversations);
 
-                if (allConversations.length > 0) {
-                    setActiveConversation(allConversations[0]);
+                // Check if Alli (with BOT_CONTACT_ID) is already in the API response
+                const alliFromApi = apiConvos.find(convo => convo.contactId === BOT_CONTACT_ID);
+
+                if (alliFromApi) {
+                    // If Alli is from API, ensure it's at the top and named correctly
+                    alliFromApi.contactName = "Alli"; // Ensure consistent naming
+                    finalConvos = [alliFromApi, ...apiConvos.filter(convo => convo.contactId !== BOT_CONTACT_ID)];
+                } else {
+                    // If Alli is not from API, create it locally and prepend
+                    const localAlliConversation = {
+                        contactId: BOT_CONTACT_ID,
+                        contactName: "Alli",
+                        lastMessage: null, // Or fetch its last message if needed
+                        estimateId: null
+                    };
+                    finalConvos = [localAlliConversation, ...apiConvos];
                 }
+                
+                setConversations(finalConvos);
+                if (finalConvos.length > 0) {
+                    setActiveConversation(finalConvos[0]); // This should be Alli
+                }
+
             } catch (error) {
                 console.error("Error loading conversations:", error);
-                // Even if API fails, still show Alli
-                const alliConversation = {
+                // API failed, create a local Alli as a fallback
+                const localAlliConversation = {
                     contactId: BOT_CONTACT_ID,
                     contactName: "Alli",
                     lastMessage: null,
                     estimateId: null
                 };
-                setConversations([alliConversation]);
-                setActiveConversation(alliConversation);
+                finalConvos = [localAlliConversation];
+                setConversations(finalConvos);
+                setActiveConversation(localAlliConversation);
             }
         };
 
