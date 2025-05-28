@@ -13,6 +13,8 @@ import {
   CircularProgress,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { fetchContacts } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/common/PageHeader";
@@ -36,51 +38,77 @@ const ContactsPage = () => {
 
   const pages = [...Array(pagination.totalPages).keys()];
 
-  useEffect(() => {
-    const loadContacts = async () => {
-      try {
-        setLoading(true);
-        const response = await fetchContacts({
-          page: pagination.page,
-          limit: pagination.limit,
+  const loadContacts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetchContacts({
+        page: pagination.page,
+        limit: pagination.limit,
+      });
+      if (response && response.data) {
+        setContacts(response.data);
+        setFilteredContacts(response.data);
+        setPagination({
+          page: response.pagination.page,
+          limit: response.pagination.limit,
+          totalPages: response.pagination.pages,
+          totalItems: response.pagination.total,
         });
-        console.log("get all contacts", response);
-        if (response && response.data) {
-          setContacts(response.data);
-          setFilteredContacts(response.data);
-          setPagination({
-            page: response.pagination.page,
-            limit: response.pagination.limit,
-            totalPages: response.pagination.pages,
-            totalItems: response.pagination.total,
-          });
-        }
-      } catch (error) {
-        console.error("Error loading contacts:", error);
-        setError("Failed to load contacts. Please try again.");
-      } finally {
-        setLoading(false);
       }
-    };
-
+    } catch (error) {
+      console.error("Error loading contacts:", error);
+      setError("Failed to load contacts. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
     loadContacts();
   }, [pagination.page]);
 
+
+  const searchContacts = async (searchInp) => {
+    try {
+      setLoading(true);
+      const response = await fetchContacts({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: searchInp
+      });
+      if (response && response.data) {
+        setFilteredContacts(response.data);
+        setPagination({
+          page: response.pagination.page,
+          limit: response.pagination.limit,
+          totalPages: response.pagination.pages,
+          totalItems: response.pagination.total,
+        });
+      }
+    } catch (error) {
+      console.error("Error loading contacts:", error);
+      setError("Failed to load contacts. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredContacts(contacts);
     } else {
-      const filtered = contacts.filter((contact) => {
-        const searchTermLower = searchTerm.toLowerCase();
-        return (
-          (contact.name &&
-            contact.name.toLowerCase().includes(searchTermLower)) ||
-          (contact.email &&
-            contact.email.toLowerCase().includes(searchTermLower)) ||
-          (contact.phone && contact.phone.includes(searchTerm))
-        );
-      });
-      setFilteredContacts(filtered);
+      // const filtered = contacts.filter((contact) => {
+      //   const searchTermLower = searchTerm.toLowerCase();
+      //   return (
+      //     (contact.name &&
+      //       contact.name.toLowerCase().includes(searchTermLower)) ||
+      //     (contact.email &&
+      //       contact.email.toLowerCase().includes(searchTermLower)) ||
+      //     (contact.phone && contact.phone.includes(searchTerm))
+      //   );
+      // });
+      // setFilteredContacts(filtered);
+
+      const searchTermLower = searchTerm.trim().toLowerCase();
+      searchContacts(searchTermLower);
     }
   }, [searchTerm, contacts]);
 
@@ -251,8 +279,9 @@ const ContactsPage = () => {
           variant="outlined"
           onClick={() => handlePageChange(pagination.page - 1)}
           disabled={pagination.page === 1}
+          sx={{px: 1, mr:0.5, minWidth:'32px' }}
         >
-          Previous
+          <ChevronLeftIcon/>
         </Button>
 
         {pages.map((page) => (
@@ -261,7 +290,7 @@ const ContactsPage = () => {
             variant="outlined"
             onClick={() => handlePageChange(page + 1)}
             disabled={pagination.page === page + 1}
-            sx={{ mx: 1 }}
+            sx={{px:1, mx:0.5, minWidth:'32px' }}
           >
             {page + 1}
           </Button>
@@ -271,8 +300,9 @@ const ContactsPage = () => {
           variant="outlined"
           onClick={() => handlePageChange(pagination.page + 1)}
           disabled={pagination.page === pagination.totalPages}
+          sx={{px: 1, ml:0.5, minWidth:'32px' }}
         >
-          Next
+          <ChevronRightIcon/>
         </Button>
       </Box>
 
