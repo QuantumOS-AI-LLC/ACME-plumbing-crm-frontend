@@ -12,6 +12,7 @@ import {
 
 import PageHeader from "../components/common/PageHeader";
 import EstimateCard from "../components/estimates/EstimateCard";
+import EstimateDetailsModal from "../components/estimates/EstimateDetailsModal"; // ADD THIS IMPORT
 import { toast } from "sonner";
 import { AuthContext } from "../contexts/AuthContext";
 import CreateEstimateForm from "../components/estimates/CreateEstimateForm";
@@ -31,6 +32,10 @@ const EstimatesPage = () => {
     const [error, setError] = useState(null);
     const [openForm, setOpenForm] = useState(false);
     const [editingEstimate, setEditingEstimate] = useState(null);
+
+    // ADD THESE MODAL STATES
+    const [selectedEstimate, setSelectedEstimate] = useState(null);
+    const [detailsModalOpen, setDetailsModalOpen] = useState(false);
 
     // Memoized function to load estimates
     const loadEstimates = useCallback(async () => {
@@ -89,8 +94,17 @@ const EstimatesPage = () => {
         return statusFilters.includes(estimate.status);
     });
 
+    // UPDATE THIS FUNCTION TO OPEN THE MODAL
     const handleViewEstimate = (estimate) => {
         console.log("View estimate:", estimate.id);
+        setSelectedEstimate(estimate);
+        setDetailsModalOpen(true);
+    };
+
+    // ADD THIS FUNCTION TO CLOSE THE MODAL
+    const handleCloseDetailsModal = () => {
+        setDetailsModalOpen(false);
+        setSelectedEstimate(null);
     };
 
     const handleOpenForm = (estimate = null) => {
@@ -175,6 +189,13 @@ const EstimatesPage = () => {
                 handleCloseForm={handleCloseForm}
                 handleFormSubmit={handleFormSubmit}
                 estimate={editingEstimate}
+            />
+
+            {/* ADD THIS MODAL COMPONENT */}
+            <EstimateDetailsModal
+                open={detailsModalOpen}
+                onClose={handleCloseDetailsModal}
+                estimate={selectedEstimate}
             />
 
             {loading ? (
