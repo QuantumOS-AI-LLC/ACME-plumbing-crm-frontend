@@ -27,6 +27,7 @@ import JobDetailsModal from "./JobDetailsModal";
 import JobEditModal from "./JobEditModal";
 import { toast } from "sonner";
 import { updateJob } from "../../services/api";
+import { useNotifications } from "../../contexts/NotificationContext"; // Add this import
 
 const JOB_STATUS = {
     OPEN: "open",
@@ -103,10 +104,16 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
     const [openDetails, setOpenDetails] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
     const [isUpdatingActivity, setIsUpdatingActivity] = useState(false);
-    // Add local state to track current activity
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+    // Add notification context
+    const { addNotification } = useNotifications();
+
+    // Add local state to track current activity and status
     const [currentActivity, setCurrentActivity] = useState(
         job.leadStatus || getLeadStatusValue(job.activity) || ""
     );
+    const [currentStatus, setCurrentStatus] = useState(job.status);
 
     // Transform job data to match JobDetailsModal expectations
     const transformedJob = {
@@ -119,9 +126,9 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
         startDate: job.startDate || null,
         address: job.address || "N/A",
         client: job.client || { name: "N/A" },
-        status: job.status || "unknown",
-        leadStatus: currentActivity, // Use local state instead
-        activity: getLeadStatusLabel(currentActivity), // Use local state
+        status: currentStatus || "unknown", // Use local state
+        leadStatus: currentActivity,
+        activity: getLeadStatusLabel(currentActivity),
     };
 
     const {
@@ -140,11 +147,60 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
         handleOpenDetails();
     };
 
-    const handleStatusChange = (event) => {
+    const handleStatusChange = async (event) => {
         event.stopPropagation();
         const newStatus = event.target.value;
-        if (onStatusChange) {
-            onStatusChange(transformedJob.id, newStatus);
+        const previousStatus = currentStatus;
+
+        setIsUpdatingStatus(true);
+        setCurrentStatus(newStatus); // Optimistic update
+
+        try {
+            // Update job status via API
+            const result = await updateJob(job.id, { status: newStatus });
+
+            if (result.success) {
+                // Create notification ONLY when status changes to COMPLETED
+                if (newStatus === JOB_STATUS.COMPLETED) {
+                    const statusNotification = {
+                        id: `status-${job.id}-${Date.now()}`,
+                        title: "Job Completed! 🎉",
+                        message: `Job "${
+                            job.name
+                        }" has been completed successfully. Client: ${
+                            transformedJob.client?.name || "N/A"
+                        }`,
+                        createdAt: new Date().toISOString(),
+                        isRead: false,
+                        relatedId: job.id,
+                    };
+
+                    // Add notification to context (this will trigger toast)
+                    addNotification(statusNotification);
+                }
+
+                // Call parent callback if provided
+                if (onStatusChange) {
+                    onStatusChange(transformedJob.id, newStatus);
+                }
+
+                toast.success(
+                    `Job status updated to "${getStatusChip(newStatus).label}"`
+                );
+            }
+        } catch (error) {
+            console.error("Error updating job status:", error);
+
+            // Rollback on error
+            setCurrentStatus(previousStatus);
+
+            const errorMessage =
+                error.response?.data?.message ||
+                error.message ||
+                "Failed to update job status. Please try again.";
+            toast.error(errorMessage);
+        } finally {
+            setIsUpdatingStatus(false);
         }
     };
 
@@ -152,8 +208,6 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
         event.stopPropagation();
         const newActivityValue = event.target.value;
         const activityLabel = getLeadStatusLabel(newActivityValue);
-
-        // Store previous value for rollback
         const previousValue = currentActivity;
 
         setIsUpdatingActivity(true);
@@ -166,19 +220,16 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
         };
 
         try {
-            // 1. Update job in database
+            // Update job in database
             const result = await updateJob(job.id, {
                 activity: activityLabel,
             });
 
-            console.log(result.data.activity);
             const updatedAction = result.data.activity;
-
-            // 2. Update local state with the response from API
             const updatedActivityValue = getLeadStatusValue(updatedAction);
             setCurrentActivity(updatedActivityValue || newActivityValue);
 
-            // 4. Send to N8N webhook (if URL is configured..............)
+            // Send to N8N webhook (if configured)
             if (import.meta.env.VITE_N8N_API_URL) {
                 try {
                     const response = await fetch(
@@ -190,7 +241,7 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                             },
                             body: JSON.stringify({
                                 ...activityData,
-                                activity: updatedAction, // Use the updated action from API
+                                activity: updatedAction,
                             }),
                         }
                     );
@@ -210,12 +261,10 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                 }
             }
 
-            // Show success message with the actual updated action
             toast.success(`Activity updated to "${updatedAction}"`);
         } catch (error) {
             console.error("Error updating activity:", error);
 
-            // Show user-friendly error message
             const errorMessage =
                 error.response?.data?.message ||
                 error.message ||
@@ -542,15 +591,36 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                                     onChange={handleStatusChange}
                                     size="small"
                                     displayEmpty
+                                    disabled={isUpdatingStatus}
+                                    renderValue={(selected) => {
+                                        if (isUpdatingStatus) {
+                                            return (
+                                                <em
+                                                    style={{
+                                                        color: "#666",
+                                                        fontStyle: "normal",
+                                                    }}
+                                                >
+                                                    Updating...
+                                                </em>
+                                            );
+                                        }
+                                        return getStatusChip(selected).label;
+                                    }}
                                     sx={{
                                         borderRadius: 2,
-                                        backgroundColor: "background.default",
+                                        backgroundColor: isUpdatingStatus
+                                            ? "grey.50"
+                                            : "background.default",
+                                        opacity: isUpdatingStatus ? 0.7 : 1,
                                         "& .MuiOutlinedInput-notchedOutline": {
                                             borderColor: "grey.300",
                                         },
                                         "&:hover .MuiOutlinedInput-notchedOutline":
                                             {
-                                                borderColor: "primary.main",
+                                                borderColor: isUpdatingStatus
+                                                    ? "grey.300"
+                                                    : "primary.main",
                                             },
                                         "& .MuiSelect-select": {
                                             fontWeight: 500,
@@ -569,6 +639,7 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                                     </MenuItem>
                                 </Select>
                             </FormControl>
+
                             {/* Activity Dropdown Section */}
                             <Box
                                 sx={{
@@ -595,7 +666,7 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                                     sx={{ minWidth: 180, flex: 1 }}
                                 >
                                     <Select
-                                        value={currentActivity} // Use local state directly
+                                        value={currentActivity}
                                         onChange={handleActivityChange}
                                         size="small"
                                         displayEmpty
@@ -697,7 +768,7 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                                     <ViewIcon />
                                 </IconButton>
                             </Tooltip>
-                            {/* Conditionally render Edit button only when job is not completed or cancelled */}
+                            {/* Conditionally render Edit button */}
                             {transformedJob.status !== JOB_STATUS.COMPLETED &&
                                 transformedJob.status !==
                                     JOB_STATUS.CANCELLED && (

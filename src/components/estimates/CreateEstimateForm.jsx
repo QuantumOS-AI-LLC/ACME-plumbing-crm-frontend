@@ -26,6 +26,7 @@ import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
 import { AuthContext } from "../../contexts/AuthContext";
+import { useNotifications } from "../../contexts/NotificationContext"; // Add this import
 import { toast } from "sonner";
 
 const ESTIMATE_STATUS = {
@@ -41,6 +42,7 @@ const CreateEstimateForm = ({
     estimate,
 }) => {
     const { user } = useContext(AuthContext);
+    const { addNotification } = useNotifications(); // Add this line
 
     const [formData, setFormData] = useState({
         leadName: "",
@@ -200,6 +202,23 @@ const CreateEstimateForm = ({
                 } else {
                     response = await createEstimate(estimateData);
                     toast.success("Estimate created successfully");
+
+                    // Create notification for new estimate
+                    const estimateNotification = {
+                        id: `estimate-${response.data.id}-${Date.now()}`,
+                        title: "New Estimate Created! 📊",
+                        message: `Estimate "${formData.leadName.trim()}" has been created for client: ${
+                            selectedClient?.name || "N/A"
+                        }. Amount: $${parseFloat(
+                            formData.bidAmount
+                        ).toLocaleString()}`,
+                        createdAt: new Date().toISOString(),
+                        isRead: false,
+                        relatedId: response.data.id,
+                    };
+
+                    // Add notification to context (this will trigger toast)
+                    addNotification(estimateNotification);
                 }
 
                 // Notify parent component - it will handle refetching
@@ -235,7 +254,15 @@ const CreateEstimateForm = ({
                 setLoading(false);
             }
         },
-        [formData, estimate, user, handleFormSubmit, validateForm]
+        [
+            formData,
+            estimate,
+            user,
+            handleFormSubmit,
+            validateForm,
+            selectedClient,
+            addNotification,
+        ]
     );
 
     const handleClose = () => {

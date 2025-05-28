@@ -1,157 +1,288 @@
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
-import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from '../services/api';
-import { useSocketNotifications } from '../hooks/useSocketNotifications';
+import React, {
+    createContext,
+    useState,
+    useEffect,
+    useContext,
+    useCallback,
+} from "react";
+import {
+    fetchNotifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    deleteNotification,
+} from "../services/api";
+import { useSocketNotifications } from "../hooks/useSocketNotifications";
 
 const NotificationContext = createContext();
 
 export const useNotifications = () => useContext(NotificationContext);
 
 export const NotificationProvider = ({ children }) => {
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState({
-    total: 0,
-    page: 1,
-    limit: 10,
-    pages: 0
-  });
+    const [notifications, setNotifications] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [pagination, setPagination] = useState({
+        total: 0,
+        page: 1,
+        limit: 10,
+        pages: 0,
+    });
 
-  // Socket.IO real-time notifications
-  const socketNotifications = useSocketNotifications();
+    // Socket.IO real-time notifications
+    const socketNotifications = useSocketNotifications();
 
-  // Load notifications
-  const loadNotifications = useCallback(async (page = 1, limit = 10, isRead) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetchNotifications(page, limit, isRead);
-      
-      if (response.success) {
-        setNotifications(response.data);
-        setPagination(response.pagination);
-        // Global unreadCount is no longer set here to avoid inaccuracies.
-        // It's set on initial load and updated by specific actions.
-      }
-    } catch (err) {
-      setError('Failed to load notifications');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []); // Assuming fetchNotifications and setters are stable
+    // Load notifications
+    const loadNotifications = useCallback(
+        async (page = 1, limit = 10, isRead) => {
+            try {
+                setLoading(true);
+                setError(null);
+                const response = await fetchNotifications(page, limit, isRead);
 
-  // Mark notification as read (enhanced with Socket.IO)
-  const markAsRead = useCallback(async (id) => {
-    try {
-      // Use Socket.IO for real-time update
-      if (socketNotifications.markAsRead) {
-        socketNotifications.markAsRead(id);
-      }
-      
-      // Also call API for persistence
-      const response = await markNotificationAsRead(id);
-      if (response.success) {
-        setNotifications(prev => 
-          prev.map(n => n.id === id ? { ...n, isRead: true } : n)
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      }
-      return response;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  }, [socketNotifications]); // Added socketNotifications dependency
+                if (response.success) {
+                    setNotifications(response.data);
+                    setPagination(response.pagination);
+                    // Update unreadCount only if fetching unread notifications
+                    if (isRead === false) {
+                        setUnreadCount(response.pagination.total);
+                    }
+                }
+            } catch (err) {
+                setError("Failed to load notifications");
+                console.error("Error loading notifications:", err);
+            } finally {
+                setLoading(false);
+            }
+        },
+        []
+    );
 
-  // Mark all notifications as read
-  const markAllAsRead = useCallback(async () => {
-    try {
-      const response = await markAllNotificationsAsRead();
-      if (response.success) {
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-        setUnreadCount(0);
-      }
-      return response;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  }, []); // Assuming markAllNotificationsAsRead and setters are stable
+    // Mark notification as read
+    const markAsRead = useCallback(
+        async (id) => {
+            try {
+                // Optimistically update UI
+                setNotifications((prev) =>
+                    prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+                );
+                setUnreadCount((prev) => Math.max(0, prev - 1));
 
-  // Delete notification
-  const removeNotification = useCallback(async (id) => {
-    try {
-      const response = await deleteNotification(id);
-      if (response.success) {
-        // 'notifications' state is used here, so it must be a dependency
-        const notificationToRemove = notifications.find(n => n.id === id); 
-        setNotifications(prev => prev.filter(n => n.id !== id));
-        
-        if (notificationToRemove && !notificationToRemove.isRead) {
-          setUnreadCount(prev => Math.max(0, prev - 1));
+                // Emit WebSocket event for real-time update
+                if (socketNotifications?.markAsRead) {
+                    socketNotifications.markAsRead(id);
+                }
+
+                // Persist to server via API
+                const response = await markNotificationAsRead(id);
+                if (!response.success) {
+                    // Rollback on failure
+                    setNotifications((prev) =>
+                        prev.map((n) =>
+                            n.id === id ? { ...n, isRead: false } : n
+                        )
+                    );
+                    setUnreadCount((prev) => prev + 1);
+                    throw new Error("Failed to mark notification as read");
+                }
+                return response;
+            } catch (err) {
+                setError("Failed to mark notification as read");
+                console.error("Error marking notification as read:", err);
+                throw err;
+            }
+        },
+        [socketNotifications]
+    );
+
+    // Mark all notifications as read
+    const markAllAsRead = useCallback(async () => {
+        try {
+            // Optimistically update UI
+            setNotifications((prev) =>
+                prev.map((n) => ({ ...n, isRead: true }))
+            );
+            setUnreadCount(0);
+
+            // Emit WebSocket event
+            if (socketNotifications?.markAllAsRead) {
+                socketNotifications.markAllAsRead();
+            }
+
+            // Persist to server via API
+            const response = await markAllNotificationsAsRead();
+            if (!response.success) {
+                // Rollback on failure (reload notifications)
+                await loadNotifications(1, pagination.limit, false);
+                throw new Error("Failed to mark all notifications as read");
+            }
+            return response;
+        } catch (err) {
+            setError("Failed to mark all notifications as read");
+            console.error("Error marking all notifications as read:", err);
+            throw err;
         }
-      }
-      return response;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  }, [notifications]); // Added 'notifications' to dependency array
+    }, [socketNotifications, loadNotifications, pagination.limit]);
 
-  // Add a new notification (used with WebSocket)
-  const addNotification = useCallback((notification) => {
-    setNotifications(prev => [notification, ...prev]);
-    if (!notification.isRead) {
-      setUnreadCount(prev => prev + 1);
-    }
-  }, []); // Setters are stable
+    // Delete notification
+    const removeNotification = useCallback(
+        async (id) => {
+            try {
+                // Optimistically update UI
+                const notificationToRemove = notifications.find(
+                    (n) => n.id === id
+                );
+                setNotifications((prev) => prev.filter((n) => n.id !== id));
+                if (notificationToRemove && !notificationToRemove.isRead) {
+                    setUnreadCount((prev) => Math.max(0, prev - 1));
+                }
 
-  // Initial load for total unread count
-  useEffect(() => {
-    const fetchInitialUnreadCount = async () => {
-      try {
-        // Fetching with isRead: false and limit: 1 to get the total unread count
-        // from pagination.total, which reflects the count for the 'where' clause.
-        const response = await fetchNotifications(1, 1, false);
-        if (response.success && response.pagination) {
-          setUnreadCount(response.pagination.total);
-        } else {
-          // Fallback or error handling if initial count fetch fails
-          console.error('Failed to fetch initial unread count:', response);
-          setUnreadCount(0); // Default to 0 on failure
+                // Emit WebSocket event
+                if (socketNotifications?.removeNotification) {
+                    socketNotifications.removeNotification(id);
+                }
+
+                // Persist to server via API
+                const response = await deleteNotification(id);
+                if (!response.success) {
+                    // Rollback on failure
+                    setNotifications((prev) => [notificationToRemove, ...prev]);
+                    if (notificationToRemove && !notificationToRemove.isRead) {
+                        setUnreadCount((prev) => prev + 1);
+                    }
+                    throw new Error("Failed to delete notification");
+                }
+                return response;
+            } catch (err) {
+                setError("Failed to delete notification");
+                console.error("Error deleting notification:", err);
+                throw err;
+            }
+        },
+        [notifications, socketNotifications]
+    );
+
+    // Add a new notification (used with WebSocket)
+    const addNotification = useCallback((notification) => {
+        setNotifications((prev) => [notification, ...prev]);
+        if (!notification.isRead) {
+            setUnreadCount((prev) => prev + 1);
         }
-      } catch (err) {
-        console.error('Error fetching initial unread count:', err);
-        setUnreadCount(0); // Default to 0 on error
-        // Optionally set a specific error state for this
-      }
+    }, []);
+
+    // Handle WebSocket notifications
+    useEffect(() => {
+        if (!socketNotifications?.socket || !socketNotifications?.isConnected)
+            return;
+
+        const { socket } = socketNotifications;
+
+        // Listen for new notifications
+        socket.on("newNotification", (notification) => {
+            addNotification({
+                id: notification.id,
+                title: notification.title,
+                message: notification.message,
+                createdAt: notification.createdAt || new Date().toISOString(),
+                isRead: false,
+                relatedId: notification.relatedId || null,
+            });
+        });
+
+        // Handle server confirmation of read status
+        socket.on("notificationMarkedAsRead", ({ notificationId }) => {
+            setNotifications((prev) =>
+                prev.map((n) =>
+                    n.id === notificationId ? { ...n, isRead: true } : n
+                )
+            );
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+        });
+
+        // Handle server confirmation of all notifications marked as read
+        socket.on("allNotificationsMarkedAsRead", () => {
+            setNotifications((prev) =>
+                prev.map((n) => ({ ...n, isRead: true }))
+            );
+            setUnreadCount(0);
+        });
+
+        // Handle server confirmation of deleted notification
+        socket.on("notificationDeleted", ({ notificationId }) => {
+            setNotifications((prev) =>
+                prev.filter((n) => n.id !== notificationId)
+            );
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+        });
+
+        // Handle WebSocket reconnection
+        socket.on("connect", () => {
+            // Reload notifications to sync with server
+            loadNotifications(1, pagination.limit, false);
+        });
+
+        // Handle WebSocket errors
+        socket.on("connect_error", (err) => {
+            setError("WebSocket connection failed");
+            console.error("WebSocket connection error:", err);
+        });
+
+        // Clean up listeners on unmount
+        return () => {
+            socket.off("newNotification");
+            socket.off("notificationMarkedAsRead");
+            socket.off("allNotificationsMarkedAsRead");
+            socket.off("notificationDeleted");
+            socket.off("connect");
+            socket.off("connect_error");
+        };
+    }, [
+        socketNotifications,
+        addNotification,
+        loadNotifications,
+        pagination.limit,
+    ]);
+
+    // Initial load for total unread count and notifications
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            try {
+                // Fetch unread notifications to set initial unreadCount
+                const response = await fetchNotifications(1, 1, false);
+                if (response.success && response.pagination) {
+                    setUnreadCount(response.pagination.total);
+                } else {
+                    setUnreadCount(0);
+                }
+                // Load initial notifications
+                await loadNotifications(1, pagination.limit, undefined);
+            } catch (err) {
+                setError("Failed to fetch initial data");
+                console.error("Error fetching initial data:", err);
+            }
+        };
+
+        fetchInitialData();
+    }, [loadNotifications, pagination.limit]);
+
+    const value = {
+        notifications,
+        unreadCount,
+        loading,
+        error,
+        pagination,
+        loadNotifications,
+        markAsRead,
+        markAllAsRead,
+        removeNotification,
+        addNotification,
     };
 
-    fetchInitialUnreadCount();
-    // Note: The NotificationsPage.jsx will call loadNotifications() itself for its initial display.
-    // This useEffect is only for the global unread count.
-  }, []); // Empty dependency array to run once on mount
-
-  const value = {
-    notifications,
-    unreadCount,
-    loading,
-    error,
-    pagination,
-    loadNotifications,
-    markAsRead,
-    markAllAsRead,
-    removeNotification,
-    addNotification
-  };
-
-  return (
-    <NotificationContext.Provider value={value}>
-      {children}
-    </NotificationContext.Provider>
-  );
+    return (
+        <NotificationContext.Provider value={value}>
+            {children}
+        </NotificationContext.Provider>
+    );
 };
 
 export default NotificationContext;
