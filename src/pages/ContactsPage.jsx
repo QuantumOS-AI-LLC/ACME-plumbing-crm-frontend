@@ -264,7 +264,7 @@ const ContactsPage = () => {
             variant="outlined"
             onClick={() => handlePageChange(page + 1)}
             disabled={pagination.page === page + 1}
-            sx={{px:1, mx:0.5, mw:2, minWidth:'32px' }}
+            sx={{px:1, mx:0.5, minWidth:'32px' }}
           >
             {page + 1}
           </Button>
@@ -274,7 +274,7 @@ const ContactsPage = () => {
           variant="outlined"
           onClick={() => handlePageChange(pagination.page + 1)}
           disabled={pagination.page === pagination.totalPages}
-          sx={{px: 1, ml:0.5 , minWidth:'32px' }}
+          sx={{px: 1, ml:0.5, minWidth:'32px' }}
         >
           <ChevronRightIcon/>
         </Button>
