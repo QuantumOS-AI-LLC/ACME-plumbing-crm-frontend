@@ -20,8 +20,12 @@ import {
     createConversation,
 } from "../services/api";
 import { useSocket } from "../contexts/SocketContext";
+import { useAuth } from "../hooks/useAuth"; // Corrected import path for useAuth
+
+// BOT_CONTACT_ID will now come from AuthContext
 
 const AIAssistantPage = () => {
+    const { user, loading: authLoading } = useAuth(); // Get user and auth loading state
     const [conversations, setConversations] = useState([]);
     const [activeConversation, setActiveConversation] = useState(null);
     const [unreadCounts, setUnreadCounts] = useState({});
@@ -37,33 +41,84 @@ const AIAssistantPage = () => {
     }, [activeConversation]);
 
     useEffect(() => {
-        const fetchAllConversations = async () => {
+        const getBotContactIdFromUser = () => {
+            if (user) {
+                if (user.botContactId) { // Path if user object is directly the user details
+                    return user.botContactId;
+                } else if (user.data && user.data.user && user.data.user.botContactId) { // Path if user object is the full API response from localStorage
+                    return user.data.user.botContactId;
+                }
+            }
+            return null; // Return null if not found
+        };
+
+        const fetchAllConversations = async (currentBotContactId) => {
+            if (!currentBotContactId) {
+                console.warn("Bot Contact ID not available yet. Skipping conversation load.");
+                // Optionally, set conversations to empty or show a specific state
+                setConversations([]);
+                setActiveConversation(null);
+                return;
+            }
+
+            let finalConvos = [];
             try {
                 const res = await getConversations();
-                const convos = res?.data || [];
-                setConversations(convos);
+                const apiConvos = res?.data || [];
 
-                if (convos.length > 0) {
-                    setActiveConversation(convos[0]);
+                const alliFromApi = apiConvos.find(convo => convo.contactId === currentBotContactId);
+
+                if (alliFromApi) {
+                    alliFromApi.contactName = "Alli";
+                    finalConvos = [alliFromApi, ...apiConvos.filter(convo => convo.contactId !== currentBotContactId)];
+                } else {
+                    const localAlliConversation = {
+                        contactId: currentBotContactId,
+                        contactName: "Alli",
+                        lastMessage: null,
+                        estimateId: null
+                    };
+                    finalConvos = [localAlliConversation, ...apiConvos];
                 }
+                
+                setConversations(finalConvos);
+                if (finalConvos.length > 0) {
+                    setActiveConversation(finalConvos[0]);
+                }
+
             } catch (error) {
                 console.error("Error loading conversations:", error);
+                const localAlliConversation = {
+                    contactId: currentBotContactId, // Use currentBotContactId even in error
+                    contactName: "Alli",
+                    lastMessage: null,
+                    estimateId: null
+                };
+                finalConvos = [localAlliConversation];
+                setConversations(finalConvos);
+                setActiveConversation(localAlliConversation);
             }
         };
 
-        fetchAllConversations();
-    }, []);
-
+        if (!authLoading) {
+            const botId = getBotContactIdFromUser();
+            if (botId) {
+                fetchAllConversations(botId);
+            } else {
+                 // Handle case where botId is still not available after auth loading
+                console.warn("Bot Contact ID could not be determined from user profile.");
+                // Fallback or show error, for now, we'll load an empty state or a default Alli.
+                // This part depends on desired behavior if botContactId is missing from user profile.
+                // For now, let's ensure Alli is still created with a placeholder if needed,
+                // or rely on the error handling within fetchAllConversations if it's passed null.
+                // To be safe, we can call fetchAllConversations with a null/undefined botId
+                // and let its internal logic handle the fallback if currentBotContactId is null.
+                 fetchAllConversations(null); // Or handle this state more explicitly
+            }
+        }
+    }, [authLoading, user]); // Rerun when authLoading or user changes
 
     const selectConversation = (contactId) => {
-        if (contactId === 0) {
-            setActiveConversation({
-                contactId: 0,
-                contactName: "Alli",
-            });
-            return;
-        }
-
         const selected = conversations.find((c) => c.contactId === contactId);
         setActiveConversation(selected);
 
@@ -101,7 +156,6 @@ const AIAssistantPage = () => {
             throw error;
         }
     };
-
 
     return (
         <Box>
@@ -150,20 +204,6 @@ const AIAssistantPage = () => {
                     <Divider />
 
                     <List sx={{ flexGrow: 1, overflow: "auto" }}>
-                        <ListItem>
-                            <ListItemButton
-                                selected={activeConversation?.contactId === 0}
-                                onClick={() => selectConversation(0)}
-                            >
-                                <ListItemText primary={"Alli"} />
-                                <Badge
-                                    badgeContent={0}
-                                    color="primary"
-                                    sx={{ ml: 1 }}
-                                />
-                            </ListItemButton>
-                        </ListItem>
-
                         {conversations.map((conversation) => (
                             <ListItem
                                 key={conversation.contactId}

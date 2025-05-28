@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
+import { getConversationMessages } from '../services/api'; // Adjust path if necessary
 
 export const useAIChat = (contactId, estimateId = null) => {
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   useEffect(() => {
     if (!socket) return;
@@ -54,6 +56,37 @@ export const useAIChat = (contactId, estimateId = null) => {
     };
   }, [socket, contactId, estimateId]);
 
+  // Effect to load message history
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (contactId && socket) {
+        setIsLoadingHistory(true);
+        setMessages([]); // Clear messages from previous conversation
+        try {
+          const historyResponse = await getConversationMessages(contactId);
+          // The API response has the array of messages directly in historyResponse.data
+          if (historyResponse && historyResponse.data && Array.isArray(historyResponse.data)) {
+            // Assuming API returns messages sorted, or sort here:
+            // historyResponse.data.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            setMessages(historyResponse.data);
+          } else {
+            console.log('No message history found or invalid format for contact:', contactId, historyResponse);
+            setMessages([]);
+          }
+        } catch (error) {
+          console.error('Error fetching conversation history for contact:', contactId, error);
+          setMessages([]);
+        } finally {
+          setIsLoadingHistory(false);
+        }
+      } else {
+        setMessages([]); // Clear messages if no contactId
+      }
+    };
+
+    loadHistory();
+  }, [contactId, socket]); // Rerun when contactId or socket changes
+
   const sendMessage = useCallback((message) => {
     if (!socket || !message.trim() || isSending) return;
 
@@ -82,6 +115,7 @@ export const useAIChat = (contactId, estimateId = null) => {
     messages,
     isTyping,
     isSending,
+    isLoadingHistory,
     sendMessage,
     startTyping,
     stopTyping
