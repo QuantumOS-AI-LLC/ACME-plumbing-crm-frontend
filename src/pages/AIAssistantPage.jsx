@@ -21,6 +21,9 @@ import {
 } from "../services/api";
 import { useSocket } from "../contexts/SocketContext";
 
+// Get the bot contact ID from environment variables
+const BOT_CONTACT_ID = import.meta.env.VITE_BOT_CONTACT_ID;
+
 const AIAssistantPage = () => {
     const [conversations, setConversations] = useState([]);
     const [activeConversation, setActiveConversation] = useState(null);
@@ -40,30 +43,41 @@ const AIAssistantPage = () => {
         const fetchAllConversations = async () => {
             try {
                 const res = await getConversations();
-                const convos = res?.data || [];
-                setConversations(convos);
+                const apiConvos = res?.data || [];
+                
+                // Create Alli conversation object
+                const alliConversation = {
+                    contactId: BOT_CONTACT_ID,
+                    contactName: "Alli",
+                    lastMessage: null,
+                    estimateId: null
+                };
+                
+                // Add Alli at the beginning of conversations list
+                const allConversations = [alliConversation, ...apiConvos];
+                setConversations(allConversations);
 
-                if (convos.length > 0) {
-                    setActiveConversation(convos[0]);
+                if (allConversations.length > 0) {
+                    setActiveConversation(allConversations[0]);
                 }
             } catch (error) {
                 console.error("Error loading conversations:", error);
+                // Even if API fails, still show Alli
+                const alliConversation = {
+                    contactId: BOT_CONTACT_ID,
+                    contactName: "Alli",
+                    lastMessage: null,
+                    estimateId: null
+                };
+                setConversations([alliConversation]);
+                setActiveConversation(alliConversation);
             }
         };
 
         fetchAllConversations();
     }, []);
 
-
     const selectConversation = (contactId) => {
-        if (contactId === 0) {
-            setActiveConversation({
-                contactId: 0,
-                contactName: "Alli",
-            });
-            return;
-        }
-
         const selected = conversations.find((c) => c.contactId === contactId);
         setActiveConversation(selected);
 
@@ -101,7 +115,6 @@ const AIAssistantPage = () => {
             throw error;
         }
     };
-
 
     return (
         <Box>
@@ -150,20 +163,6 @@ const AIAssistantPage = () => {
                     <Divider />
 
                     <List sx={{ flexGrow: 1, overflow: "auto" }}>
-                        <ListItem>
-                            <ListItemButton
-                                selected={activeConversation?.contactId === 0}
-                                onClick={() => selectConversation(0)}
-                            >
-                                <ListItemText primary={"Alli"} />
-                                <Badge
-                                    badgeContent={0}
-                                    color="primary"
-                                    sx={{ ml: 1 }}
-                                />
-                            </ListItemButton>
-                        </ListItem>
-
                         {conversations.map((conversation) => (
                             <ListItem
                                 key={conversation.contactId}

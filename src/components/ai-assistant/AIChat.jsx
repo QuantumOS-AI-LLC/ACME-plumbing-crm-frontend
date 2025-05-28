@@ -20,6 +20,7 @@ const AIChat = ({ contactId, estimateId = null }) => {
     messages,
     isTyping,
     isSending,
+    isLoadingHistory, // Added this
     sendMessage,
     startTyping,
     stopTyping
@@ -66,13 +67,28 @@ const AIChat = ({ contactId, estimateId = null }) => {
           mb: 2, 
           maxHeight: '500px', 
           overflowY: 'auto',
-          backgroundColor: '#f8f9fa'
+          backgroundColor: '#f8f9fa',
+          position: 'relative' // Added for loader positioning
         }}
       >
-        {messages.length === 0 ? (
+        {isLoadingHistory ? (
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              height: '100%' 
+            }}
+          >
+            <CircularProgress />
+            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+              Loading history...
+            </Typography>
+          </Box>
+        ) : messages.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography variant="body2" color="text.secondary">
-              Start a conversation with the AI assistant
+              No messages yet. Start a conversation!
             </Typography>
           </Box>
         ) : (
