@@ -27,6 +27,7 @@ import {
 import { format } from "date-fns";
 import { updateEstimate } from "../../services/api";
 import CreateEstimateForm from "./CreateEstimateForm";
+import { useNotifications } from "../../contexts/NotificationContext"; // Add this import
 import { toast } from "sonner";
 
 const ESTIMATE_STATUS = {
@@ -65,6 +66,7 @@ const formatCurrency = (amount) => {
 const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
     const [openEdit, setOpenEdit] = useState(false);
     const [loading, setLoading] = useState(false);
+    const { addNotification } = useNotifications(); // Add this line
 
     console.log("EstimateCard estimate:", estimate);
 
@@ -113,17 +115,43 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
 
     const handleStatusChange = async (event) => {
         event.stopPropagation();
+        const newStatus = event.target.value;
+        const previousStatus = transformedEstimate.status;
+
         setLoading(true);
 
         try {
-            const newStatus = event.target.value;
             const updatedEstimate = { status: newStatus };
             const result = await updateEstimate(
                 transformedEstimate.id,
                 updatedEstimate
             );
+
+            // Create notification ONLY when status changes to ACCEPTED
+            if (newStatus === ESTIMATE_STATUS.ACCEPTED) {
+                const acceptedNotification = {
+                    id: `estimate-accepted-${
+                        transformedEstimate.id
+                    }-${Date.now()}`,
+                    title: "Estimate Accepted! 🎉",
+                    message: `Estimate "${
+                        transformedEstimate.name
+                    }" has been accepted by the client. Amount: ${formatCurrency(
+                        transformedEstimate.price
+                    )}`,
+                    createdAt: new Date().toISOString(),
+                    isRead: false,
+                    relatedId: transformedEstimate.id,
+                };
+
+                // Add notification to context (this will trigger toast)
+                addNotification(acceptedNotification);
+            }
+
             onUpdate(result.data);
-            toast.success("Status updated successfully");
+            toast.success(
+                `Status updated to "${getStatusChip(newStatus).label}"`
+            );
         } catch (error) {
             console.error("Error updating estimate status:", error.message);
             toast.error(`Failed to update status: ${error.message}`);
@@ -430,15 +458,35 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                                 size="small"
                                 disabled={loading}
                                 displayEmpty
+                                renderValue={(selected) => {
+                                    if (loading) {
+                                        return (
+                                            <em
+                                                style={{
+                                                    color: "#666",
+                                                    fontStyle: "normal",
+                                                }}
+                                            >
+                                                Updating...
+                                            </em>
+                                        );
+                                    }
+                                    return getStatusChip(selected).label;
+                                }}
                                 sx={{
                                     borderRadius: 2,
-                                    backgroundColor: "background.default",
+                                    backgroundColor: loading
+                                        ? "grey.50"
+                                        : "background.default",
+                                    opacity: loading ? 0.7 : 1,
                                     "& .MuiOutlinedInput-notchedOutline": {
                                         borderColor: "grey.300",
                                     },
                                     "&:hover .MuiOutlinedInput-notchedOutline":
                                         {
-                                            borderColor: "primary.main",
+                                            borderColor: loading
+                                                ? "grey.300"
+                                                : "primary.main",
                                         },
                                     "& .MuiSelect-select": {
                                         fontWeight: 500,
