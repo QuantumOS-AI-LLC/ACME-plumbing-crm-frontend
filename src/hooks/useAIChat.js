@@ -1,11 +1,39 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
+import { getConversationMessages } from '../services/api';
 
 export const useAIChat = (contactId, estimateId = null) => {
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load conversation history when contactId changes
+  useEffect(() => {
+    const loadConversationHistory = async () => {
+      if (!contactId) {
+        setMessages([]);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        console.log('Loading conversation history for contactId:', contactId);
+        const response = await getConversationMessages(contactId);
+        const historyMessages = response?.data || [];
+        console.log('Loaded conversation history:', historyMessages);
+        setMessages(historyMessages);
+      } catch (error) {
+        console.error('Error loading conversation history:', error);
+        setMessages([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadConversationHistory();
+  }, [contactId]);
 
   useEffect(() => {
     if (!socket) return;
@@ -17,7 +45,21 @@ export const useAIChat = (contactId, estimateId = null) => {
       // Only add if it's for the current conversation
       if (messageData.contactId === contactId && 
           messageData.estimateId === estimateId) {
-        setMessages(prev => [...prev, messageData]);
+        setMessages(prev => {
+          // Check if message already exists to avoid duplicates
+          const messageExists = prev.some(msg => 
+            msg.id === messageData.id || 
+            (msg.message === messageData.message && 
+             msg.createdAt === messageData.createdAt &&
+             msg.senderType === messageData.senderType)
+          );
+          
+          if (messageExists) {
+            return prev;
+          }
+          
+          return [...prev, messageData];
+        });
       }
     });
 
@@ -29,7 +71,21 @@ export const useAIChat = (contactId, estimateId = null) => {
       // Add user message to conversation
       if (data.message.contactId === contactId && 
           data.message.estimateId === estimateId) {
-        setMessages(prev => [...prev, data.message]);
+        setMessages(prev => {
+          // Check if message already exists to avoid duplicates
+          const messageExists = prev.some(msg => 
+            msg.id === data.message.id || 
+            (msg.message === data.message.message && 
+             msg.createdAt === data.message.createdAt &&
+             msg.senderType === data.message.senderType)
+          );
+          
+          if (messageExists) {
+            return prev;
+          }
+          
+          return [...prev, data.message];
+        });
       }
     });
 
@@ -82,6 +138,7 @@ export const useAIChat = (contactId, estimateId = null) => {
     messages,
     isTyping,
     isSending,
+    isLoading,
     sendMessage,
     startTyping,
     stopTyping

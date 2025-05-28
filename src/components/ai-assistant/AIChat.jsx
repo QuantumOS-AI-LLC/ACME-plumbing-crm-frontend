@@ -20,6 +20,7 @@ const AIChat = ({ contactId, estimateId = null }) => {
     messages,
     isTyping,
     isSending,
+    isLoading,
     sendMessage,
     startTyping,
     stopTyping
@@ -69,7 +70,14 @@ const AIChat = ({ contactId, estimateId = null }) => {
           backgroundColor: '#f8f9fa'
         }}
       >
-        {messages.length === 0 ? (
+        {isLoading ? (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <CircularProgress size={24} sx={{ mb: 2 }} />
+            <Typography variant="body2" color="text.secondary">
+              Loading conversation history...
+            </Typography>
+          </Box>
+        ) : messages.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography variant="body2" color="text.secondary">
               Start a conversation with the AI assistant
@@ -146,14 +154,14 @@ const AIChat = ({ contactId, estimateId = null }) => {
               value={inputMessage}
               onChange={handleInputChange}
               placeholder="Type your message..."
-              disabled={isSending}
+              disabled={isSending || isLoading}
               variant="outlined"
               size="small"
             />
             <Button 
               type="submit" 
               variant="contained"
-              disabled={!inputMessage.trim() || isSending}
+              disabled={!inputMessage.trim() || isSending || isLoading}
               sx={{ minWidth: 'auto', px: 2 }}
             >
               {isSending ? (
@@ -172,9 +180,17 @@ const AIChat = ({ contactId, estimateId = null }) => {
             {estimateId && ` | Estimate: ${estimateId}`}
           </Typography>
           <Chip 
-            label={isSending ? "Sending..." : "Ready"} 
+            label={
+              isLoading ? "Loading..." : 
+              isSending ? "Sending..." : 
+              "Ready"
+            } 
             size="small" 
-            color={isSending ? "warning" : "success"}
+            color={
+              isLoading ? "info" :
+              isSending ? "warning" : 
+              "success"
+            }
             variant="outlined"
           />
         </Box>
