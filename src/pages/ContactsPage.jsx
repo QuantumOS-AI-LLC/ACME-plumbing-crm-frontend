@@ -13,6 +13,8 @@ import {
   CircularProgress,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { fetchContacts } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/common/PageHeader";
@@ -251,8 +253,9 @@ const ContactsPage = () => {
           variant="outlined"
           onClick={() => handlePageChange(pagination.page - 1)}
           disabled={pagination.page === 1}
+          sx={{px: 1, mr:0.5, minWidth:'32px' }}
         >
-          Previous
+          <ChevronLeftIcon/>
         </Button>
 
         {pages.map((page) => (
@@ -261,7 +264,7 @@ const ContactsPage = () => {
             variant="outlined"
             onClick={() => handlePageChange(page + 1)}
             disabled={pagination.page === page + 1}
-            sx={{ mx: 1 }}
+            sx={{px:1, mx:0.5, mw:2, minWidth:'32px' }}
           >
             {page + 1}
           </Button>
@@ -271,8 +274,9 @@ const ContactsPage = () => {
           variant="outlined"
           onClick={() => handlePageChange(pagination.page + 1)}
           disabled={pagination.page === pagination.totalPages}
+          sx={{px: 1, ml:0.5 , minWidth:'32px' }}
         >
-          Next
+          <ChevronRightIcon/>
         </Button>
       </Box>
 
