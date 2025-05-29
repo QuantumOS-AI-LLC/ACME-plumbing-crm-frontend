@@ -165,6 +165,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
 
             const webhookData = {
                 jobId: job.id,
+                createdBy: job.createdBy,
                 ...jobDataToSubmit,
             };
 
@@ -174,15 +175,18 @@ const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
             // ✅ Send data to webhook (if enabled)
             if (ENABLE_WEBHOOK) {
                 try {
-                    const response = await fetch(WEBHOOK_URL, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            Accept: "application/json",
-                        },
-                        mode: "cors", // Explicitly set CORS mode
-                        body: JSON.stringify(webhookData),
-                    });
+                    const response = await fetch(
+                        import.meta.env.VITE_N8N_UPDATE_URL,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                            },
+                            mode: "cors", // Explicitly set CORS mode
+                            body: JSON.stringify(webhookData),
+                        }
+                    );
 
                     if (response.ok) {
                         console.log(
