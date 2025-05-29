@@ -31,8 +31,10 @@ const CalendarPage = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [events, setEvents] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [eventsLoading, setEventsLoading] = useState(true); // Renamed from loading
     const [error, setError] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
     // Modal states
     const [modalOpen, setModalOpen] = useState(false);
@@ -45,35 +47,57 @@ const CalendarPage = () => {
         severity: "success",
     });
 
-    useEffect(() => {
-        const loadEvents = async () => {
-            try {
-                setLoading(true);
-                const response = await fetchEvents();
+    const loadEventsForDate = async (date, page) => {
+        try {
+            setEventsLoading(true);
+            setError(null);
 
-                console.log("Events API response:", response);
+            const year = date.getFullYear();
+            const month = date.getMonth(); // 0-indexed
+            const day = date.getDate();
 
-                if (response && response.data) {
-                    const processedEvents = response.data.map((event) => ({
-                        ...event,
-                        start: new Date(event.startTime || event.start),
-                        end: new Date(event.endTime || event.end),
-                    }));
-                    setEvents(processedEvents);
-                } else {
-                    console.error("Unexpected API response format:", response);
-                    setEvents([]);
-                }
-            } catch (error) {
-                console.error("Error loading events:", error);
-                setError("Failed to load events. Please try again.");
-            } finally {
-                setLoading(false);
+            // Construct startDate and endDate in UTC
+            const startDateUTC = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+            const endDateUTC = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+
+            const params = {
+                startDate: startDateUTC.toISOString(),
+                endDate: endDateUTC.toISOString(),
+                page: page,
+                limit: 20,
+            };
+            const response = await fetchEvents(params);
+
+            console.log("Events API response for date:", date, "page:", page, response);
+
+            if (response && response.data && response.pagination) {
+                const processedEvents = response.data.map((event) => ({
+                    ...event,
+                    start: new Date(event.startTime || event.start),
+                    end: new Date(event.endTime || event.end),
+                }));
+                setEvents(processedEvents);
+                setTotalPages(response.pagination.pages || 1);
+                setCurrentPage(response.pagination.page || 1);
+            } else {
+                console.error("Unexpected API response format:", response);
+                setEvents([]);
+                setTotalPages(1);
             }
-        };
+        } catch (err) {
+            console.error("Error loading events:", err);
+            setError("Failed to load events. Please try again.");
+            setEvents([]);
+            setTotalPages(1);
+        } finally {
+            setEventsLoading(false);
+        }
+    };
 
-        loadEvents();
-    }, []);
+    useEffect(() => {
+        console.log("CalendarPage useEffect triggered. Fetching events for date:", selectedDate, "page:", currentPage);
+        loadEventsForDate(selectedDate, currentPage);
+    }, [selectedDate, currentPage]);
 
     const goToPreviousMonth = () => {
         setCurrentDate((prevDate) => {
@@ -93,6 +117,7 @@ const CalendarPage = () => {
 
     const handleDateClick = (date) => {
         setSelectedDate(date);
+        setCurrentPage(1); // Reset to first page when a new date is selected
     };
 
     // Helper function to format date as Month YYYY
@@ -112,10 +137,9 @@ const CalendarPage = () => {
         );
     };
 
-    // Filter events for the selected date
-    const filteredEvents = events.filter(
-        (event) => event.start && isSameDay(event.start, selectedDate)
-    );
+    // Events for the selected date are now directly in the 'events' state from the API
+    // So, filteredEvents will just be 'events'
+    const filteredEvents = events;
 
     // Modal handlers
     const handleAddEvent = () => {
@@ -133,41 +157,63 @@ const CalendarPage = () => {
         setEditingEvent(null);
     };
 
-    const handleSubmitEvent = async (eventData) => {
+    const handleSubmitEvent = async (formData) => {
         try {
             let response;
+            // Ensure startTime and endTime are ISO strings
+            const apiPayload = {
+                ...formData,
+                startTime: new Date(formData.startTime).toISOString(),
+                endTime: new Date(formData.endTime).toISOString(),
+            };
 
             if (editingEvent) {
                 // Update existing event
-                response = await updateEvent(editingEvent.id, eventData);
+                response = await updateEvent(editingEvent.id, apiPayload);
 
-                // Update events in state
-                setEvents((prevEvents) =>
-                    prevEvents.map((event) =>
-                        event.id === editingEvent.id
-                            ? {
-                                  ...response.data,
-                                  start: new Date(response.data.startTime),
-                                  end: new Date(response.data.endTime),
-                              }
-                            : event
-                    )
-                );
+                // Update events in state, expecting event object directly in response.data
+                if (response && response.data) { // Check for response.data directly
+                    const updatedEventData = response.data; // Event object is in response.data
+                    setEvents((prevEvents) =>
+                        prevEvents.map((event) =>
+                            event.id === editingEvent.id
+                                ? {
+                                      ...updatedEventData,
+                                      start: new Date(updatedEventData.startTime),
+                                      end: new Date(updatedEventData.endTime),
+                                  }
+                                : event
+                        )
+                    );
+                    const message = response.message || "Event updated successfully!";
+                    showNotification(message, "success");
+                } else {
+                    console.error("Unexpected update event response format:", response);
+                    showNotification("Failed to update event due to unexpected response.", "error");
+                }
 
-                showNotification("Event updated successfully!", "success");
             } else {
                 // Create new event
-                response = await createEvent(eventData);
+                console.log("Creating new event with payload:", apiPayload);
+                response = await createEvent(apiPayload);
+                console.log("API response from createEvent:", response);
 
-                // Add new event to state
-                const newEvent = {
-                    ...response.data,
-                    start: new Date(response.data.startTime),
-                    end: new Date(response.data.endTime),
-                };
-                setEvents((prevEvents) => [...prevEvents, newEvent]);
-
-                showNotification("Event created successfully!", "success");
+                // Add new event to state, expecting event object directly in response.data
+                if (response && response.data) { // Check for response.data directly
+                    const newEventData = response.data; // Event object is in response.data
+                    const newEvent = {
+                        ...newEventData,
+                        start: new Date(newEventData.startTime),
+                        end: new Date(newEventData.endTime),
+                    };
+                    setEvents((prevEvents) => [...prevEvents, newEvent]);
+                    const message = response.message || "Event created successfully!";
+                    showNotification(message, "success");
+                } else {
+                    // This log was being hit, as per user feedback
+                    console.error("Unexpected create event response format:", response);
+                    showNotification("Failed to create event due to unexpected response.", "error");
+                }
             }
         } catch (error) {
             console.error("Error saving event:", error);
@@ -281,7 +327,7 @@ const CalendarPage = () => {
                 onAction={handleAddEvent}
             />
 
-            {loading ? (
+            {eventsLoading ? (
                 <Box
                     sx={{
                         display: "flex",
@@ -299,7 +345,7 @@ const CalendarPage = () => {
                         variant="outlined"
                         color="primary"
                         sx={{ mt: 2 }}
-                        onClick={() => window.location.reload()}
+                        onClick={() => loadEventsForDate(selectedDate, currentPage)} // Retry current fetch
                     >
                         Retry
                     </Button>
@@ -537,6 +583,29 @@ const CalendarPage = () => {
                                 >
                                     No events scheduled for this day.
                                 </Typography>
+                            )}
+
+                            {/* Pagination Controls */}
+                            {filteredEvents.length > 0 && totalPages > 1 && (
+                                <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2 }}>
+                                    <Button
+                                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        sx={{ mr: 1 }}
+                                    >
+                                        Previous
+                                    </Button>
+                                    <Typography variant="body2" sx={{ mx: 1 }}>
+                                        Page {currentPage} of {totalPages}
+                                    </Typography>
+                                    <Button
+                                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        sx={{ ml: 1 }}
+                                    >
+                                        Next
+                                    </Button>
+                                </Box>
                             )}
                         </Paper>
                     </Grid>
