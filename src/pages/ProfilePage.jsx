@@ -15,7 +15,7 @@ import PageHeader from "../components/common/PageHeader";
 import { useAuth } from "../hooks/useAuth";
 
 const ProfilePage = () => {
-  const { user } = useAuth();
+  const { user, updateUserData } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -77,6 +77,14 @@ const ProfilePage = () => {
 
       await updateUserProfile(formData);
       setSuccess(true);
+
+      if (updateUserData) {
+        const updatedUserContextData = {
+          ...user,
+          ...formData
+        };
+        updateUserData(updatedUserContextData);
+      }
 
       // Auto-hide success message after 3 seconds
       setTimeout(() => {
