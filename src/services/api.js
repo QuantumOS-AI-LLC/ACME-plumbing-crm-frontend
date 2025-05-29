@@ -8,8 +8,6 @@ const api = axios.create({
     },
 });
 
-// In your api.js file - update the interceptor
-
 // Add token to requests
 api.interceptors.request.use(
     (config) => {
@@ -96,6 +94,17 @@ export const resetPassword = async (token, newPassword) => {
     }
 };
 
+// Password Change API
+export const changePassword = async (passwordData) => {
+    try {
+        const response = await api.post("/auth/change-password", passwordData);
+        return response.data;
+    } catch (error) {
+        console.error("Error changing password:", error);
+        throw error;
+    }
+};
+
 // User Profile APIs
 export const fetchUserProfile = async () => {
     try {
@@ -156,6 +165,40 @@ export const updateCompanySettings = async (companyData) => {
         return response.data;
     } catch (error) {
         console.error("Error updating company settings:", error);
+        throw error;
+    }
+};
+
+export const fetchCompanyProfile = async () => {
+    try {
+        const response = await api.get("/companies/my-company");
+        if (response.data && response.data.success) {
+            // Save the full response to localStorage
+            localStorage.setItem(
+                "companyProfile",
+                JSON.stringify(response.data)
+            );
+        }
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching company profile:", error);
+        throw error;
+    }
+};
+
+export const updateCompanyProfile = async (data) => {
+    try {
+        const response = await api.put("/companies/my-company", data);
+        if (response.data && response.data.success) {
+            // Update localStorage with new data
+            localStorage.setItem(
+                "companyProfile",
+                JSON.stringify(response.data)
+            );
+        }
+        return response.data;
+    } catch (error) {
+        console.error("Error updating company profile:", error);
         throw error;
     }
 };
@@ -365,17 +408,6 @@ export const deleteEvent = async (id) => {
     }
 };
 
-// Password Change API
-export const changePassword = async (passwordData) => {
-    try {
-        const response = await api.post("/auth/change-password", passwordData);
-        return response.data;
-    } catch (error) {
-        console.error("Error changing password:", error);
-        throw error;
-    }
-};
-
 // Time Zone API
 export const fetchTimeZone = async () => {
     try {
@@ -418,86 +450,6 @@ export const updateNotificationSettings = async (settingsData) => {
         return response.data;
     } catch (error) {
         console.error("Error updating notification settings:", error);
-        throw error;
-    }
-};
-
-// AI Assistant
-export const createConversation = async (message, estimateId, contactId) => {
-    try {
-        const response = await api.post("/ai/reply", {
-            message,
-            contactId,
-            estimateId,
-        });
-        return response.data;
-    } catch (error) {
-        console.error("Error sending message to AI:", error);
-        throw error;
-    }
-};
-
-export const getConversations = async () => {
-    try {
-        const response = await api.get("/ai/conversations");
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching AI conversations:", error);
-        throw error;
-    }
-};
-
-export const getConversationMessages = async (contactId) => {
-    try {
-        const response = await api.get(`/ai/conversation/contact/${contactId}`);
-        return response.data;
-    } catch (error) {
-        console.error(
-            `Error fetching messages for conversation ${contactId}:`,
-            error
-        );
-        throw error;
-    }
-};
-
-// export const sendMessageToAI = async (
-//   message,
-//   contactId,
-//   estimateId,
-//   userId
-// ) => {
-//   try {
-//     const response = await api.post("/ai/webhook/message", {
-//       message,
-//       contactId,
-//       estimateId,
-//       userId,
-//     });
-//     return response.data;
-//   } catch (error) {
-//     console.error("Error creating conversation:", error);
-//     throw error;
-//   }
-// };
-export const sendMessageToAI = async (
-    message,
-    contactId,
-    estimateId,
-    userId
-) => {
-    try {
-        // Only call /ai/reply to send the user's message
-        const response = await api.post("/ai/reply", {
-            message,
-            contactId,
-            estimateId,
-            userId,
-        });
-        // Return the response from /ai/reply (or handle as needed, maybe just return success/failure)
-        // The actual AI response will come via WebSocket
-        return response.data;
-    } catch (error) {
-        console.error("Error sending message via /ai/reply:", error);
         throw error;
     }
 };
@@ -547,36 +499,144 @@ export const deleteNotification = async (id) => {
     }
 };
 
-export const fetchCompanyProfile = async () => {
+// AI Assistant APIs
+export const createConversation = async (message, estimateId, contactId) => {
     try {
-        const response = await api.get("/companies/my-company");
-        if (response.data && response.data.success) {
-            // Save the full response to localStorage
-            localStorage.setItem(
-                "companyProfile",
-                JSON.stringify(response.data)
-            );
-        }
+        const response = await api.post("/ai/reply", {
+            message,
+            contactId,
+            estimateId,
+        });
         return response.data;
     } catch (error) {
-        console.error("Error fetching company profile:", error);
+        console.error("Error sending message to AI:", error);
         throw error;
     }
 };
 
-export const updateCompanyProfile = async (data) => {
+export const getConversations = async () => {
     try {
-        const response = await api.put("/companies/my-company", data);
-        if (response.data && response.data.success) {
-            // Update localStorage with new data
-            localStorage.setItem(
-                "companyProfile",
-                JSON.stringify(response.data)
-            );
-        }
+        const response = await api.get("/ai/conversations");
         return response.data;
     } catch (error) {
-        console.error("Error updating company profile:", error);
+        console.error("Error fetching AI conversations:", error);
+        throw error;
+    }
+};
+
+export const getConversationMessages = async (contactId) => {
+    try {
+        const response = await api.get(`/ai/conversation/contact/${contactId}`);
+        return response.data;
+    } catch (error) {
+        console.error(
+            `Error fetching messages for conversation ${contactId}:`,
+            error
+        );
+        throw error;
+    }
+};
+
+export const sendMessageToAI = async (
+    message,
+    contactId,
+    estimateId,
+    userId
+) => {
+    try {
+        // Only call /ai/reply to send the user's message
+        const response = await api.post("/ai/reply", {
+            message,
+            contactId,
+            estimateId,
+            userId,
+        });
+        // Return the response from /ai/reply (or handle as needed, maybe just return success/failure)
+        // The actual AI response will come via WebSocket
+        return response.data;
+    } catch (error) {
+        console.error("Error sending message via /ai/reply:", error);
+        throw error;
+    }
+};
+
+// Services APIs
+export const fetchServices = async (params = {}) => {
+    try {
+        const response = await api.get("/services", { params });
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching services:", error);
+        throw error;
+    }
+};
+
+export const fetchService = async (id) => {
+    try {
+        const response = await api.get(`/services/${id}`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching service ${id}:`, error);
+        throw error;
+    }
+};
+
+export const createService = async (serviceData) => {
+    try {
+        const response = await api.post("/services", serviceData);
+        return response.data;
+    } catch (error) {
+        console.error("Error creating service:", error);
+        throw error;
+    }
+};
+
+export const updateService = async (id, serviceData) => {
+    try {
+        const response = await api.put(`/services/${id}`, serviceData);
+        return response.data;
+    } catch (error) {
+        console.error(`Error updating service ${id}:`, error);
+        throw error;
+    }
+};
+
+export const deleteService = async (id) => {
+    try {
+        const response = await api.delete(`/services/${id}`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error deleting service ${id}:`, error);
+        throw error;
+    }
+};
+
+export const fetchServiceMetrics = async (params = {}) => {
+    try {
+        const response = await api.get("/services/metrics", { params });
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching service metrics:", error);
+        throw error;
+    }
+};
+
+export const fetchServiceCategories = async () => {
+    try {
+        const response = await api.get("/services/categories");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching service categories:", error);
+        throw error;
+    }
+};
+
+export const fetchPopularTags = async () => {
+    try {
+        const response = await api.get("/services/tags");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching popular tags:", error);
         throw error;
     }
 };

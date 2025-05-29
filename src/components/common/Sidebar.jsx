@@ -21,6 +21,7 @@ import {
   NotificationsActive as NotificationsActiveIcon,
   Logout as LogoutIcon,
   Close as CloseIcon,
+  BuildCircle as ServicesIcon,
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import { styled } from "@mui/material/styles";
@@ -57,6 +58,7 @@ const Sidebar = ({ onClose }) => {
   const { user, logout } = useAuth();
   const menuItems = [
     { text: "Dashboard", icon: <DashboardIcon />, path: "/" },
+    { text: "My Services", icon: <ServicesIcon />, path: "/my-services" },
     { text: "Profile", icon: <ProfileIcon />, path: "/profile" },
     {
       text: "Company Settings",
@@ -91,11 +93,11 @@ const Sidebar = ({ onClose }) => {
     if (onClose) onClose(); // Close drawer when item is clicked (mobile only)
   };
   const getInitials = (name) => {
-    if (!name) return 'G';
+    if (!name) return "G";
     return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
       .toUpperCase();
   };
 
@@ -103,8 +105,8 @@ const Sidebar = ({ onClose }) => {
     <SidebarContainer>
       <Box
         sx={{
-          py:2,
-          px:1,
+          py: 2,
+          px: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -112,8 +114,15 @@ const Sidebar = ({ onClose }) => {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center" }}>
-          <Avatar sx={{ mr: 2, bgcolor: "rgba(255, 255, 255, 0.2)",width:"48px",height:"48px" }}>
-            {getInitials(user?.name)}
+          <Avatar
+            sx={{
+              mr: 2,
+              bgcolor: "rgba(255, 255, 255, 0.2)",
+              width: "48px",
+              height: "48px",
+            }}
+          >
+            {getInitials(user?.data?.name)}
           </Avatar>
           <Box>
             <Typography variant="body1" sx={{ fontWeight: "bold" }}>
