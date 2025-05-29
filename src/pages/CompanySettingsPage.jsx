@@ -11,13 +11,21 @@ import {
 } from "@mui/material";
 import {
     fetchCompanyProfile,
-    fetchCompanySettings,
-    updateCompanySettings,
+    updateCompanyProfile, // Changed from updateCompanySettings
 } from "../services/api";
 import PageHeader from "../components/common/PageHeader";
+import { useAuth } from "../hooks/useAuth";
 
 const CompanySettingsPage = () => {
+    const { user, updateUserData } = useAuth(); // Added useAuth
     const [formData, setFormData] = useState({
+        name: "",
+        address: "",
+        phoneNumber: "",
+        email: "",
+        website: "",
+    });
+    const [initialFormData, setInitialFormData] = useState({ // Added initialFormData
         name: "",
         address: "",
         phoneNumber: "",
@@ -36,13 +44,15 @@ const CompanySettingsPage = () => {
                 const response = await fetchCompanyProfile();
                 console.log("Company Profile Response:", response);
                 if (response && response.success && response.data) {
-                    setFormData({
+                    const fetchedData = {
                         name: response.data.name || "",
                         address: response.data.address || "",
                         phoneNumber: response.data.phoneNumber || "",
                         email: response.data.email || "",
                         website: response.data.website || "",
-                    });
+                    };
+                    setFormData(fetchedData);
+                    setInitialFormData(fetchedData); // Set initialFormData here
                 } else {
                     throw new Error("Invalid response format");
                 }
@@ -68,9 +78,41 @@ const CompanySettingsPage = () => {
             setSaving(true);
             setError(null);
             setSuccess(false);
-            console.log("Form data:", formData);
-            await updateCompanySettings(formData);
+            
+            const changedData = {};
+            for (const key in formData) {
+                if (formData[key] !== initialFormData[key]) {
+                    changedData[key] = formData[key];
+                }
+            }
+
+            if (Object.keys(changedData).length === 0) {
+                setSuccess(true); // Or a different message like "No changes to save"
+                setError("No changes detected to save.");
+                setTimeout(() => {
+                    setSuccess(false);
+                    setError(null);
+                }, 3000);
+                setSaving(false);
+                return;
+            }
+
+            console.log("Sending changed data:", changedData);
+            await updateCompanyProfile(changedData); // Send only changed data
             setSuccess(true);
+            setInitialFormData(formData); // Update initialFormData after successful save
+
+            // Update AuthContext
+            if (user && updateUserData) {
+                const updatedUser = {
+                    ...user,
+                    company: {
+                        ...user.company,
+                        ...formData 
+                    }
+                };
+                updateUserData(updatedUser);
+            }
 
             setTimeout(() => {
                 setSuccess(false);

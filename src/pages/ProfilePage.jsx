@@ -19,8 +19,8 @@ const ProfilePage = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    phone: "",
-    title: "",
+    phoneNumber: "",
+    // title: "", // title is not part of the current user object structure based on task
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -37,7 +37,7 @@ const ProfilePage = () => {
           setFormData({
             name: response.data.name || "",
             email: response.data.email || "",
-            phone: response.data.phoneNumber || "",
+            phoneNumber: response.data.phoneNumber || "",
             // title: response.data.title || "",
           });
         }
@@ -50,8 +50,8 @@ const ProfilePage = () => {
           setFormData({
             name: user.name || "",
             email: user.email || "",
-            phone: user.phone || "",
-            title: user.title || "",
+            phoneNumber: user.phoneNumber || user.phone || "", // Accommodate if user context uses 'phone'
+            // title: user.title || "",
           });
         }
       } finally {
@@ -180,8 +180,8 @@ const ProfilePage = () => {
                 <TextField
                   fullWidth
                   label="Phone Number"
-                  name="phone"
-                  value={formData.phone}
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
                   onChange={handleChange}
                 />
               </Grid>

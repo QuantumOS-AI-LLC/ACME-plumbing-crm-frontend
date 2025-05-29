@@ -217,7 +217,7 @@ const Header = ({ isMobile, onMenuClick }) => {
                         component="div"
                         sx={{ flexGrow: 1, fontWeight: 500 }}
                     >
-                        ACME PLUMBING SOLUTION
+                        {user?.company?.name || "Guest Company"}
                     </Typography>
                     <Box sx={{ display: "flex", alignItems: "center" }}>
                         <IconButton
@@ -255,7 +255,7 @@ const Header = ({ isMobile, onMenuClick }) => {
                                     bgcolor: "rgba(255, 255, 255, 0.2)",
                                 }}
                             >
-                                {getInitials(user?.data?.name)}
+                                {getInitials(user?.name)}
                             </Avatar>
                         </IconButton>
                     </Box>
