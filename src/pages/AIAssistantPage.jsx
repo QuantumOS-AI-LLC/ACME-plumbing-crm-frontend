@@ -20,7 +20,7 @@ import PageHeader from "../components/common/PageHeader";
 import AIChat from "../components/ai-assistant/AIChat";
 import {
     getConversations,
-    createConversation,
+    // createConversation, // Commented out - create conversation functionality disabled
 } from "../services/api";
 import { useSocket } from "../contexts/SocketContext";
 import { useAuth } from "../hooks/useAuth"; // Corrected import path for useAuth
@@ -36,7 +36,7 @@ const AIAssistantPage = () => {
         useState(false);
     const { isConnected } = useSocket();
     const [conversationsLoading, setConversationsLoading] = useState(false);
-    const [newConversationLoading, setNewConversationLoading] = useState(false);
+    // const [newConversationLoading, setNewConversationLoading] = useState(false); // Commented out - not needed when create functionality is disabled
 
     const showConversationList = () => setConversationListVisible(true);
     const hideConversationList = () => setConversationListVisible(false);
@@ -136,37 +136,38 @@ const AIAssistantPage = () => {
         }));
     };
 
-    const createNewConversationHandler = async () => {
-        setNewConversationLoading(true);
-        try {
-            const payload = {
-                message: activeConversation?.lastMessage?.message,
-                contactId: activeConversation?.contactId,
-                estimateId: activeConversation?.estimateId,
-                userId: activeConversation?.lastMessage?.userId,
-            };
+    // COMMENTED OUT - Create conversation functionality disabled
+    // const createNewConversationHandler = async () => {
+    //     setNewConversationLoading(true);
+    //     try {
+    //         const payload = {
+    //             message: activeConversation?.lastMessage?.message,
+    //             contactId: activeConversation?.contactId,
+    //             estimateId: activeConversation?.estimateId,
+    //             userId: activeConversation?.lastMessage?.userId,
+    //         };
 
-            const response = await createConversation(
-                payload.message,
-                payload.contactId,
-                payload.estimateId
-            );
+    //         const response = await createConversation(
+    //             payload.message,
+    //             payload.contactId,
+    //             payload.estimateId
+    //         );
 
-            if (response?.data) {
-                const newConversation = response.data;
-                setConversations((prev) => [...prev, newConversation]);
-                setActiveConversation(newConversation);
-                return newConversation;
-            } else {
-                throw new Error("Invalid response format from API");
-            }
-        } catch (error) {
-            console.error("Error creating new conversation:", error);
-            throw error;
-        } finally {
-            setNewConversationLoading(false);
-        }
-    };
+    //         if (response?.data) {
+    //             const newConversation = response.data;
+    //             setConversations((prev) => [...prev, newConversation]);
+    //             setActiveConversation(newConversation);
+    //             return newConversation;
+    //         } else {
+    //             throw new Error("Invalid response format from API");
+    //         }
+    //     } catch (error) {
+    //         console.error("Error creating new conversation:", error);
+    //         throw error;
+    //     } finally {
+    //         setNewConversationLoading(false);
+    //     }
+    // };
 
     // Show main loading backdrop while auth is loading
     if (authLoading) {
@@ -232,7 +233,8 @@ const AIAssistantPage = () => {
                         <Typography variant="h6" gutterBottom>
                             Conversations
                         </Typography>
-                        <Button
+                        {/* COMMENTED OUT - Create conversation functionality disabled */}
+                        {/* <Button
                             variant="outlined"
                             fullWidth
                             startIcon={newConversationLoading ? <CircularProgress size={16} /> : <AddIcon />}
@@ -240,7 +242,7 @@ const AIAssistantPage = () => {
                             disabled={newConversationLoading}
                         >
                             {newConversationLoading ? "Creating..." : "New Conversation"}
-                        </Button>
+                        </Button> */}
                     </Box>
                     <Divider />
 
