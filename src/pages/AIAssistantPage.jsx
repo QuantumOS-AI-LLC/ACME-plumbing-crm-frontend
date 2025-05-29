@@ -10,6 +10,9 @@ import {
     Divider,
     IconButton,
     Badge,
+    CircularProgress,
+    Skeleton,
+    Backdrop,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -32,6 +35,8 @@ const AIAssistantPage = () => {
     const [isConversationListVisible, setConversationListVisible] =
         useState(false);
     const { isConnected } = useSocket();
+    const [conversationsLoading, setConversationsLoading] = useState(false);
+    const [newConversationLoading, setNewConversationLoading] = useState(false);
 
     const showConversationList = () => setConversationListVisible(true);
     const hideConversationList = () => setConversationListVisible(false);
@@ -61,6 +66,7 @@ const AIAssistantPage = () => {
                 return;
             }
 
+            setConversationsLoading(true);
             let finalConvos = [];
             try {
                 const res = await getConversations();
@@ -97,6 +103,8 @@ const AIAssistantPage = () => {
                 finalConvos = [localAlliConversation];
                 setConversations(finalConvos);
                 setActiveConversation(localAlliConversation);
+            } finally {
+                setConversationsLoading(false);
             }
         };
 
@@ -129,6 +137,7 @@ const AIAssistantPage = () => {
     };
 
     const createNewConversationHandler = async () => {
+        setNewConversationLoading(true);
         try {
             const payload = {
                 message: activeConversation?.lastMessage?.message,
@@ -154,8 +163,39 @@ const AIAssistantPage = () => {
         } catch (error) {
             console.error("Error creating new conversation:", error);
             throw error;
+        } finally {
+            setNewConversationLoading(false);
         }
     };
+
+    // Show main loading backdrop while auth is loading
+    if (authLoading) {
+        return (
+            <Box>
+                <PageHeader title="AI Assistant" />
+                <Backdrop
+                    sx={{ 
+                        color: '#fff', 
+                        zIndex: (theme) => theme.zIndex.drawer + 1,
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)'
+                    }}
+                    open={true}
+                >
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <CircularProgress color="primary" />
+                        <Typography variant="body1" color="primary">
+                            Loading AI Assistant...
+                        </Typography>
+                    </Box>
+                </Backdrop>
+            </Box>
+        );
+    }
 
     return (
         <Box>
@@ -195,49 +235,61 @@ const AIAssistantPage = () => {
                         <Button
                             variant="outlined"
                             fullWidth
-                            startIcon={<AddIcon />}
+                            startIcon={newConversationLoading ? <CircularProgress size={16} /> : <AddIcon />}
                             onClick={createNewConversationHandler}
+                            disabled={newConversationLoading}
                         >
-                            New Conversation
+                            {newConversationLoading ? "Creating..." : "New Conversation"}
                         </Button>
                     </Box>
                     <Divider />
 
                     <List sx={{ flexGrow: 1, overflow: "auto" }}>
-                        {conversations.map((conversation) => (
-                            <ListItem
-                                key={conversation.contactId}
-                                disablePadding
-                            >
-                                <ListItemButton
-                                    selected={
-                                        activeConversation?.contactId ===
-                                        conversation.contactId
-                                    }
-                                    onClick={() =>
-                                        selectConversation(
-                                            conversation.contactId
-                                        )
-                                    }
+                        {conversationsLoading ? (
+                            // Loading skeleton for conversations
+                            Array.from({ length: 3 }).map((_, index) => (
+                                <ListItem key={`skeleton-${index}`} disablePadding>
+                                    <ListItemButton>
+                                        <Skeleton variant="text" width="100%" height={40} />
+                                    </ListItemButton>
+                                </ListItem>
+                            ))
+                        ) : (
+                            conversations.map((conversation) => (
+                                <ListItem
+                                    key={conversation.contactId}
+                                    disablePadding
                                 >
-                                    <ListItemText
-                                        primary={
-                                            conversation.contactName ||
-                                            "Unnamed Contact"
+                                    <ListItemButton
+                                        selected={
+                                            activeConversation?.contactId ===
+                                            conversation.contactId
                                         }
-                                    />
-                                    <Badge
-                                        badgeContent={
-                                            unreadCounts[
+                                        onClick={() =>
+                                            selectConversation(
                                                 conversation.contactId
-                                            ] || 0
+                                            )
                                         }
-                                        color="primary"
-                                        sx={{ ml: 1 }}
-                                    />
-                                </ListItemButton>
-                            </ListItem>
-                        ))}
+                                    >
+                                        <ListItemText
+                                            primary={
+                                                conversation.contactName ||
+                                                "Unnamed Contact"
+                                            }
+                                        />
+                                        <Badge
+                                            badgeContent={
+                                                unreadCounts[
+                                                    conversation.contactId
+                                                ] || 0
+                                            }
+                                            color="primary"
+                                            sx={{ ml: 1 }}
+                                        />
+                                    </ListItemButton>
+                                </ListItem>
+                            ))
+                        )}
                     </List>
                 </Box>
 
@@ -301,18 +353,29 @@ const AIAssistantPage = () => {
                                 height: "100%",
                             }}
                         >
-                            <Typography variant="body1" color="text.secondary">
-                                Select a conversation to start chatting
-                            </Typography>
-                            <Button
-                                variant="outlined"
-                                onClick={showConversationList}
-                                sx={{
-                                    display: { md: "none" },
-                                }}
-                            >
-                                See Conversations
-                            </Button>
+                            {conversationsLoading ? (
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                                    <CircularProgress />
+                                    <Typography variant="body1" color="text.secondary">
+                                        Loading conversations...
+                                    </Typography>
+                                </Box>
+                            ) : (
+                                <>
+                                    <Typography variant="body1" color="text.secondary">
+                                        Select a conversation to start chatting
+                                    </Typography>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={showConversationList}
+                                        sx={{
+                                            display: { md: "none" },
+                                        }}
+                                    >
+                                        See Conversations
+                                    </Button>
+                                </>
+                            )}
                         </Box>
                     )}
                 </Box>
