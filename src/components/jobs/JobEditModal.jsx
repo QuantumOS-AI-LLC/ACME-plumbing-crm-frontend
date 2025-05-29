@@ -34,6 +34,14 @@ const defaultClient = {
     phoneNumber: "",
 };
 
+// Webhook URL - use your backend proxy endpoint instead of direct n8n webhook
+const WEBHOOK_URL =
+    "https://n8n.quantumos.ai/webhook/9f052c6d-86dc-4cb1-b7c3-7b0f9c05a477"; // or "https://your-backend.com/api/webhook-proxy"
+// Original: const WEBHOOK_URL = "https://n8n.quantumos.ai/webhook/9f052c6d-86dc-4cb1-b7c3-7b0f9c05a477";
+
+// Temporary flag to disable webhook if needed
+const ENABLE_WEBHOOK = true; // Set to false to temporarily disable webhook calls
+
 const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
     const [formData, setFormData] = useState({
         id: "",
@@ -155,8 +163,78 @@ const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
                 clientId: formData.clientId,
             };
 
+            const webhookData = {
+                jobId: job.id,
+                ...jobDataToSubmit,
+            };
+
             // ✅ Make API call and get updated job
             const updatedJob = await updateJob(job.id, jobDataToSubmit);
+
+            // ✅ Send data to webhook (if enabled)
+            if (ENABLE_WEBHOOK) {
+                try {
+                    const response = await fetch(WEBHOOK_URL, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Accept: "application/json",
+                        },
+                        mode: "cors", // Explicitly set CORS mode
+                        body: JSON.stringify(webhookData),
+                    });
+
+                    if (response.ok) {
+                        console.log(
+                            "✅ Webhook sent successfully:",
+                            webhookData
+                        );
+                        toast.success(
+                            "Job updated and webhook notified successfully!"
+                        );
+                    } else {
+                        console.error(
+                            "❌ Webhook failed:",
+                            response.status,
+                            response.statusText
+                        );
+                        toast.warning(
+                            `Job updated, but webhook failed (${response.status})`
+                        );
+                    }
+                } catch (webhookError) {
+                    console.error("❌ Webhook error:", webhookError);
+                    console.error("❌ Webhook error details:", {
+                        message: webhookError.message,
+                        name: webhookError.name,
+                        stack: webhookError.stack,
+                    });
+
+                    // Check if it's a CORS error
+                    if (
+                        webhookError.message.includes("Failed to fetch") ||
+                        webhookError.message.includes("CORS") ||
+                        webhookError.message.includes("Cross-Origin")
+                    ) {
+                        toast.warning(
+                            "Job updated, but webhook blocked by CORS policy"
+                        );
+                        console.warn(
+                            "💡 Tip: Configure CORS on your n8n webhook or use a proxy"
+                        );
+                    } else {
+                        toast.warning(
+                            "Job updated, but webhook notification failed"
+                        );
+                    }
+                }
+            } else {
+                console.log(
+                    "📝 Webhook disabled - would have sent:",
+                    webhookData
+                );
+                toast.success("Job updated successfully!");
+            }
 
             // ✅ Create complete job object with preserved client data
             const completeUpdatedJob = {
@@ -176,7 +254,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
             }
 
             onClose();
-            window.location.reload();
+            // window.location.reload();
         } catch (err) {
             console.error("Error updating job:", err);
             setErrors({ general: "Failed to update job. Please try again." });
