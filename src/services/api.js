@@ -547,4 +547,38 @@ export const deleteNotification = async (id) => {
     }
 };
 
+export const fetchCompanyProfile = async () => {
+    try {
+        const response = await api.get("/companies/my-company");
+        if (response.data && response.data.success) {
+            // Save the full response to localStorage
+            localStorage.setItem(
+                "companyProfile",
+                JSON.stringify(response.data)
+            );
+        }
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching company profile:", error);
+        throw error;
+    }
+};
+
+export const updateCompanyProfile = async (data) => {
+    try {
+        const response = await api.put("/companies/my-company", data);
+        if (response.data && response.data.success) {
+            // Update localStorage with new data
+            localStorage.setItem(
+                "companyProfile",
+                JSON.stringify(response.data)
+            );
+        }
+        return response.data;
+    } catch (error) {
+        console.error("Error updating company profile:", error);
+        throw error;
+    }
+};
+
 export default api;
