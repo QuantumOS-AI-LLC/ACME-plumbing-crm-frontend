@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -8,19 +8,19 @@ import {
   Grid,
   Avatar,
   CircularProgress,
-  Alert
-} from '@mui/material';
-import { fetchUserProfile, updateUserProfile } from '../services/api';
-import PageHeader from '../components/common/PageHeader';
-import { useAuth } from '../hooks/useAuth';
+  Alert,
+} from "@mui/material";
+import { fetchUserProfile, updateUserProfile } from "../services/api";
+import PageHeader from "../components/common/PageHeader";
+import { useAuth } from "../hooks/useAuth";
 
 const ProfilePage = () => {
-  const { user } = useAuth();
+  const { user, updateUserData } = useAuth();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    title: ''
+    name: "",
+    email: "",
+    phoneNumber: "",
+    // title: "", // title is not part of the current user object structure based on task
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,25 +32,26 @@ const ProfilePage = () => {
       try {
         setLoading(true);
         const response = await fetchUserProfile();
+
         if (response && response.data) {
           setFormData({
-            name: response.data.name || '',
-            email: response.data.email || '',
-            phone: response.data.phone || '',
-            title: response.data.title || ''
+            name: response.data.name || "",
+            email: response.data.email || "",
+            phoneNumber: response.data.phoneNumber || "",
+            // title: response.data.title || "",
           });
         }
       } catch (error) {
-        console.error('Error loading user profile:', error);
-        setError('Failed to load user profile. Please try again.');
-        
+        console.error("Error loading user profile:", error);
+        setError("Failed to load user profile. Please try again.");
+
         // Fallback to user context data if API fails
         if (user) {
           setFormData({
-            name: user.name || '',
-            email: user.email || '',
-            phone: user.phone || '',
-            title: user.title || ''
+            name: user.name || "",
+            email: user.email || "",
+            phoneNumber: user.phoneNumber || user.phone || "", // Accommodate if user context uses 'phone'
+            // title: user.title || "",
           });
         }
       } finally {
@@ -63,75 +64,93 @@ const ProfilePage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       setSaving(true);
       setError(null);
       setSuccess(false);
-      
+
       await updateUserProfile(formData);
       setSuccess(true);
-      
+
+      if (updateUserData) {
+        const updatedUserContextData = {
+          ...user,
+          ...formData
+        };
+        updateUserData(updatedUserContextData);
+      }
+
       // Auto-hide success message after 3 seconds
       setTimeout(() => {
         setSuccess(false);
       }, 3000);
     } catch (error) {
-      console.error('Error updating user profile:', error);
-      setError('Failed to update user profile. Please try again.');
+      console.error("Error updating user profile:", error);
+      setError("Failed to update user profile. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
   const getInitials = (name) => {
-    if (!name) return 'G';
+    if (!name) return "G";
     return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
       .toUpperCase();
   };
 
   return (
     <Box>
       <PageHeader title="Profile Settings" />
-      
+
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
           <CircularProgress />
         </Box>
       ) : (
         <Paper sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-            <Avatar 
-              sx={{ width: 100, height: 100, mr: 3, bgcolor: 'primary.main', fontSize: '2.5rem' }}
+          <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
+            <Avatar
+              sx={{
+                width: 100,
+                height: 100,
+                mr: 3,
+                bgcolor: "primary.main",
+                fontSize: "2rem",
+              }}
             >
               {getInitials(formData.name)}
             </Avatar>
             <Box>
-              <Typography variant="h5" fontWeight={500}>{formData.name}</Typography>
-              <Typography variant="body1" color="text.secondary">{formData.title || 'No title set'}</Typography>
+              <Typography variant="h5" fontWeight={500}>
+                {formData.name}
+              </Typography>
+              {/* <Typography variant="body1" color="text.secondary">
+                {formData.title || "No title set"}
+              </Typography> */}
             </Box>
           </Box>
-          
+
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
               {error}
             </Alert>
           )}
-          
+
           {success && (
             <Alert severity="success" sx={{ mb: 3 }}>
               Profile updated successfully!
             </Alert>
           )}
-          
+
           <form onSubmit={handleSubmit}>
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
@@ -143,8 +162,8 @@ const ProfilePage = () => {
                   onChange={handleChange}
                 />
               </Grid>
-              
-              <Grid item xs={12} md={6}>
+
+              {/* <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="Job Title"
@@ -152,8 +171,8 @@ const ProfilePage = () => {
                   value={formData.title}
                   onChange={handleChange}
                 />
-              </Grid>
-              
+              </Grid> */}
+
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
@@ -164,25 +183,29 @@ const ProfilePage = () => {
                   onChange={handleChange}
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="Phone Number"
-                  name="phone"
-                  value={formData.phone}
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
                   onChange={handleChange}
                 />
               </Grid>
-              
-              <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+
+              <Grid
+                item
+                xs={12}
+                sx={{ display: "flex", justifyContent: "flex-end" }}
+              >
                 <Button
                   type="submit"
                   variant="contained"
                   color="primary"
                   disabled={saving}
                 >
-                  {saving ? 'Saving...' : 'Save Changes'}
+                  {saving ? "Saving..." : "Save Changes"}
                 </Button>
               </Grid>
             </Grid>

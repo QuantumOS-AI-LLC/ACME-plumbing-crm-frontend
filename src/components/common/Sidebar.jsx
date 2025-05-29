@@ -113,14 +113,11 @@ const Sidebar = ({ onClose }) => {
       >
         <Box sx={{ display: "flex", alignItems: "center" }}>
           <Avatar sx={{ mr: 2, bgcolor: "rgba(255, 255, 255, 0.2)",width:"48px",height:"48px" }}>
-            {getInitials(user?.data?.name)}
+            {getInitials(user?.name)}
           </Avatar>
           <Box>
             <Typography variant="body1" sx={{ fontWeight: "bold" }}>
-              {user?.data?.name || "Guest"}
-            </Typography>
-            <Typography variant="caption">
-              {user?.data?.companyName || "Company Name"}
+              {user?.name || "Guest"}
             </Typography>
           </Box>
         </Box>
