@@ -6,6 +6,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ContactsIcon from '@mui/icons-material/Contacts';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
 import { fetchJobs, fetchEstimates, fetchEvents } from '../services/api';
 import GradientCard from '../components/common/GradientCard';
@@ -20,6 +21,7 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const theme = useTheme();
+  const { user } = useAuth();
   
   const gradients = {
     aiAssistant: 'linear-gradient(45deg, #9D4EE9 0%, #8A2BE2 100%)',
@@ -76,7 +78,7 @@ const DashboardPage = () => {
   return (
     <Box sx={{ maxWidth: '1200px', margin: '0 auto' }}>
       <PageHeader
-        title={`Welcome, ${JSON.parse(localStorage.getItem('userProfile'))?.data?.name || 'Guest'}`}
+        title={`Welcome, ${user?.name || 'Guest'}`}
         subtitle="Here's your business at a glance"
       />
       

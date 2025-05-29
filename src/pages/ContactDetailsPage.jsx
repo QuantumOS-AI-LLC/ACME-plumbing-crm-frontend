@@ -28,6 +28,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { fetchContact, updateContact } from "../services/api";
 import PageHeader from "../components/common/PageHeader";
 import { toast } from "sonner";
+import { useWebhook } from "../hooks/webHook";
 
 const ContactDetailsPage = () => {
     const { id } = useParams();
@@ -45,7 +46,7 @@ const ContactDetailsPage = () => {
         tags: [],
     });
     const [updating, setUpdating] = useState(false);
-
+    const { sendWebhook } = useWebhook();
     // Define pipeline stage options
     const pipelineStageOptions = [
         { value: "new_lead", label: "New Lead" },
@@ -148,6 +149,12 @@ const ContactDetailsPage = () => {
                 contactDataToSubmit
             );
             const response = await updateContact(id, contactDataToSubmit);
+            const webHookData = {
+                webhookEvent: "ContactUpdated",
+                createdBy: contact.createdBy,
+                ...contactDataToSubmit,
+            };
+            await sendWebhook({ payload: webHookData });
             if (response && response.data) {
                 console.log(
                     "ContactDetailsPage: Updated contact",
