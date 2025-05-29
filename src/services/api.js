@@ -499,20 +499,20 @@ export const deleteNotification = async (id) => {
     }
 };
 
-// AI Assistant APIs
-export const createConversation = async (message, estimateId, contactId) => {
-    try {
-        const response = await api.post("/ai/reply", {
-            message,
-            contactId,
-            estimateId,
-        });
-        return response.data;
-    } catch (error) {
-        console.error("Error sending message to AI:", error);
-        throw error;
-    }
-};
+// // AI Assistant APIs
+// export const createConversation = async (message, estimateId, contactId) => {
+//     try {
+//         const response = await api.post("/ai/reply", {
+//             message,
+//             contactId,
+//             estimateId,
+//         });
+//         return response.data;
+//     } catch (error) {
+//         console.error("Error sending message to AI:", error);
+//         throw error;
+//     }
+// };
 
 export const getConversations = async () => {
     try {
