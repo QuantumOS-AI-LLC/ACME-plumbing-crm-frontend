@@ -28,6 +28,7 @@ import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useNotifications } from "../../contexts/NotificationContext"; // Add this import
 import { toast } from "sonner";
+import { useWebhook } from "../../hooks/webHook";
 
 const ESTIMATE_STATUS = {
     PENDING: "pending",
@@ -60,7 +61,7 @@ const CreateEstimateForm = ({
     const [error, setError] = useState(null);
     const [clientLoading, setClientLoading] = useState(true);
     const [selectedClient, setSelectedClient] = useState(null);
-
+    const { sendWebhook } = useWebhook();
     // Update createdBy when user changes
     useEffect(() => {
         if (user?.id) {
@@ -198,10 +199,22 @@ const CreateEstimateForm = ({
                 let response;
                 if (estimate) {
                     response = await updateEstimate(estimate.id, estimateData);
+                    const webHookData = {
+                        webhookEvent: "EstimateUpdated",
+                        ...estimateData,
+                    };
+
+                    await sendWebhook({ payload: webHookData });
+
                     toast.success("Estimate updated successfully");
                 } else {
                     response = await createEstimate(estimateData);
-                    toast.success("Estimate created successfully");
+                    const webHookData = {
+                        webhookEvent: "EstimateAdded",
+                        ...estimateData,
+                    };
+
+                    await sendWebhook({ payload: webHookData });
 
                     // Create notification for new estimate
                     const estimateNotification = {
