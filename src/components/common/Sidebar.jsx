@@ -122,7 +122,7 @@ const Sidebar = ({ onClose }) => {
               height: "48px",
             }}
           >
-            {getInitials(user?.data?.name)}
+            {getInitials(user?.name)}
           </Avatar>
           <Box>
             <Typography variant="body1" sx={{ fontWeight: "bold" }}>
