@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { updateJob } from "../../services/api";
 import { toast } from "sonner";
+import { useWebhook } from "../../hooks/webHook";
 
 const JOB_STATUS = {
     OPEN: "open",
@@ -63,6 +64,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const [activeTab, setActiveTab] = useState(0);
+    const { sendWebhook } = useWebhook();
 
     useEffect(() => {
         if (job) {
@@ -163,7 +165,8 @@ const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
                 clientId: formData.clientId,
             };
 
-            const webhookData = {
+            const webHookData = {
+                webhookEvent: "JobEdited",
                 jobId: job.id,
                 createdBy: job.createdBy,
                 ...jobDataToSubmit,
@@ -173,72 +176,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
             const updatedJob = await updateJob(job.id, jobDataToSubmit);
 
             // ✅ Send data to webhook (if enabled)
-            if (ENABLE_WEBHOOK) {
-                try {
-                    const response = await fetch(
-                        import.meta.env.VITE_N8N_UPDATE_URL,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                Accept: "application/json",
-                            },
-                            mode: "cors", // Explicitly set CORS mode
-                            body: JSON.stringify(webhookData),
-                        }
-                    );
-
-                    if (response.ok) {
-                        console.log(
-                            "✅ Webhook sent successfully:",
-                            webhookData
-                        );
-                        toast.success(
-                            "Job updated and webhook notified successfully!"
-                        );
-                    } else {
-                        console.error(
-                            "❌ Webhook failed:",
-                            response.status,
-                            response.statusText
-                        );
-                        toast.warning(
-                            `Job updated, but webhook failed (${response.status})`
-                        );
-                    }
-                } catch (webhookError) {
-                    console.error("❌ Webhook error:", webhookError);
-                    console.error("❌ Webhook error details:", {
-                        message: webhookError.message,
-                        name: webhookError.name,
-                        stack: webhookError.stack,
-                    });
-
-                    // Check if it's a CORS error
-                    if (
-                        webhookError.message.includes("Failed to fetch") ||
-                        webhookError.message.includes("CORS") ||
-                        webhookError.message.includes("Cross-Origin")
-                    ) {
-                        toast.warning(
-                            "Job updated, but webhook blocked by CORS policy"
-                        );
-                        console.warn(
-                            "💡 Tip: Configure CORS on your n8n webhook or use a proxy"
-                        );
-                    } else {
-                        toast.warning(
-                            "Job updated, but webhook notification failed"
-                        );
-                    }
-                }
-            } else {
-                console.log(
-                    "📝 Webhook disabled - would have sent:",
-                    webhookData
-                );
-                toast.success("Job updated successfully!");
-            }
+            await sendWebhook({ payload: webHookData });
 
             // ✅ Create complete job object with preserved client data
             const completeUpdatedJob = {

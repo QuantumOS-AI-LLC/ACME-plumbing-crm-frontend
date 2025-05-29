@@ -17,6 +17,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { createContact } from "../../services/api";
 import { toast } from "sonner";
+import { useWebhook } from "../../hooks/webHook";
 
 const modalStyle = {
     position: "absolute",
@@ -52,7 +53,7 @@ const CreateContactModalForm = ({ open, onClose, onContactCreated }) => {
         phoneNumber: "",
         email: "",
     });
-
+    const { sendWebhook } = useWebhook();
     const validateForm = () => {
         const errors = {
             name: "",
@@ -127,6 +128,13 @@ const CreateContactModalForm = ({ open, onClose, onContactCreated }) => {
 
         try {
             const response = await createContact(formData);
+
+            const webHookData = {
+                webhookEvent: "ContactAdded",
+                createdBy: response.data.createdBy,
+                ...formData,
+            };
+            await sendWebhook({ payload: webHookData });
             if (response && response.data) {
                 onContactCreated(response.data);
                 onClose();

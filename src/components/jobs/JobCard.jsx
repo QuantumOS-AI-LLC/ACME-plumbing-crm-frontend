@@ -28,6 +28,7 @@ import JobEditModal from "./JobEditModal";
 import { toast } from "sonner";
 import { updateJob } from "../../services/api";
 import { useNotifications } from "../../contexts/NotificationContext"; // Add this import
+import { useWebhook } from "../../hooks/webHook";
 
 const JOB_STATUS = {
     OPEN: "open",
@@ -105,6 +106,7 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
     const [openEdit, setOpenEdit] = useState(false);
     const [isUpdatingActivity, setIsUpdatingActivity] = useState(false);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const { sendWebhook } = useWebhook();
 
     // Add notification context
     const { addNotification } = useNotifications();
@@ -229,38 +231,11 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
             const updatedActivityValue = getLeadStatusValue(updatedAction);
             setCurrentActivity(updatedActivityValue || newActivityValue);
 
-            // Send to N8N webhook (if configured)
-            if (import.meta.env.VITE_N8N_API_URL) {
-                try {
-                    const response = await fetch(
-                        import.meta.env.VITE_N8N_API_URL,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                ...activityData,
-                                activity: updatedAction,
-                            }),
-                        }
-                    );
-
-                    if (!response.ok) {
-                        console.warn(
-                            "N8N webhook failed:",
-                            response.status,
-                            response.statusText
-                        );
-                    }
-                } catch (webhookError) {
-                    console.warn(
-                        "N8N webhook error (non-critical):",
-                        webhookError
-                    );
-                }
-            }
-
+            const webHookData = {
+                ...activityData,
+                activity: updatedAction,
+            };
+            await sendWebhook({ payload: webHookData });
             toast.success(`Activity updated to "${updatedAction}"`);
         } catch (error) {
             console.error("Error updating activity:", error);
