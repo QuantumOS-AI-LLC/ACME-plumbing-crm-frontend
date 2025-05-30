@@ -19,9 +19,11 @@ import useGPSLocation from "../hooks/useGPSLocation"; // Import the new hook
 import LocationMap from "../components/common/LocationMap"; // Import the new map component
 import { useLoadScript } from '@react-google-maps/api'; // Import useLoadScript
 import { formatLocationToDms } from '../utils/locationHelpers'; // Import the new helper function
+import { toggleLiveTracking, updateLocation } from '../services/api'; // Import new API functions
 
 const ProfilePage = () => {
   const { user, updateUserData } = useAuth();
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -40,6 +42,23 @@ const ProfilePage = () => {
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
   });
 
+  // Effect to handle location updates and push to backend
+  useEffect(() => {
+    if (isGpsTrackingEnabled && location) {
+      const sendLocationUpdate = async () => {
+        try {
+          await updateLocation(location.latitude, location.longitude);
+          console.log(`Location updated on backend: Lat ${location.latitude}, Lng ${location.longitude}`);
+        } catch (error) {
+          console.error("Failed to update location on backend:", error);
+        }
+      };
+
+      sendLocationUpdate();
+    }
+  }, [isGpsTrackingEnabled, location]); // Call this effect when tracking is enabled and location changes
+
+
   useEffect(() => {
     const loadUserProfile = async () => {
       try {
@@ -53,9 +72,15 @@ const ProfilePage = () => {
             phoneNumber: response.data.phoneNumber || "",
             // title: response.data.title || "",
           });
+          // Set initial state of GPS toggle from fetched profile data
+          if (response.data.isLiveTrackingEnabled !== undefined) {
+            setIsGpsTrackingEnabled(response.data.isLiveTrackingEnabled);
+          }
         }
       } catch (error) {
         console.error("Error loading user profile:", error);
+        setError("Failed to load user profile. Please try again.");
+
         setError("Failed to load user profile. Please try again.");
 
         // Fallback to user context data if API fails
@@ -66,6 +91,10 @@ const ProfilePage = () => {
             phoneNumber: user.phoneNumber || user.phone || "", // Accommodate if user context uses 'phone'
             // title: user.title || "",
           });
+          // Set initial state of GPS toggle from user context if available
+          if (user.isLiveTrackingEnabled !== undefined) {
+             setIsGpsTrackingEnabled(user.isLiveTrackingEnabled);
+          }
         }
       } finally {
         setLoading(false);
@@ -119,6 +148,21 @@ const ProfilePage = () => {
       .join("")
       .toUpperCase();
   };
+
+  // Handle toggle change and call backend API
+  const handleGpsToggleChange = async (event) => {
+    const isChecked = event.target.checked;
+    setIsGpsTrackingEnabled(isChecked);
+    try {
+      await toggleLiveTracking(isChecked);
+      console.log(`Live tracking ${isChecked ? 'enabled' : 'disabled'} on backend.`);
+    } catch (error) {
+      console.error("Failed to toggle live tracking on backend:", error);
+      // Optionally revert the toggle state in UI or show an error message
+      setIsGpsTrackingEnabled(!isChecked); // Revert toggle state on API error
+    }
+  };
+
 
   return (
     <Box>
@@ -213,7 +257,7 @@ const ProfilePage = () => {
                   control={
                     <Switch
                       checked={isGpsTrackingEnabled}
-                      onChange={(e) => setIsGpsTrackingEnabled(e.target.checked)}
+                      onChange={handleGpsToggleChange} // Call the new handler
                       name="gpsTrackingEnabled"
                       color="primary"
                     />
@@ -233,9 +277,14 @@ const ProfilePage = () => {
                       Error: {gpsError}
                     </Typography>
                   ) : location ? (
-                    <Typography variant="body1">
-                      Latitude: {formatLocationToDms(location.latitude, location.longitude).latitudeDms}, Longitude: {formatLocationToDms(location.latitude, location.longitude).longitudeDms}
-                    </Typography>
+                    <Box>
+                      <Typography variant="body1">
+                        Latitude (Decimal): {location.latitude}, Longitude (Decimal): {location.longitude}
+                      </Typography>
+                      <Typography variant="body1">
+                        Latitude (DMS): {formatLocationToDms(location.latitude, location.longitude).latitudeDms}, Longitude (DMS): {formatLocationToDms(location.latitude, location.longitude).longitudeDms}
+                      </Typography>
+                    </Box>
                   ) : (
                     <Typography variant="body1">
                       Fetching location...
