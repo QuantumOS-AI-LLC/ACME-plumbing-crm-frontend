@@ -218,6 +218,10 @@ const CalendarPage = () => {
 
                 setEvents((prevEvents) => [...prevEvents, newEvent]);
                 showNotification("Event created successfully!", "success");
+
+                // Navigate to the new event's date
+                setSelectedDate(newEvent.start);
+                setCurrentDate(newEvent.start);
             }
         } catch (err) {
             console.error("Error saving event:", err);
