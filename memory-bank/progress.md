@@ -24,36 +24,41 @@
     *   Adjusted map zoom level in `LocationMap.jsx` for a closer view (zoom level 18).
     *   Attempted to ensure marker visibility by adding explicit options and trying a custom icon URL, although the marker is still not visible.
     *   Created `src/utils/locationHelpers.js` with a function to format coordinates to DMS.
-    *   Modified `src/pages/ProfilePage.jsx` to display location coordinates in DMS format.
+    *   Modified `src/pages/ProfilePage.jsx` to display location coordinates in both decimal and DMS formats.
     *   Added `toggleLiveTracking` and `updateLocation` API functions to `src/services/api.js`.
     *   Modified `src/pages/ProfilePage.jsx` to call backend APIs for toggle state changes and location updates.
     *   Modified `src/pages/ProfilePage.jsx` to dynamically set the initial state of the GPS toggle based on fetched user profile data.
     *   Resolved issue with incorrect API calls on load by calling `toggleLiveTracking` directly in the switch's `onChange` handler.
-    *   Modified `src/pages/ProfilePage.jsx` to display location coordinates in both decimal and DMS formats.
+*   **WebSocket Keep-Alive and Auto-reconnection:**
+    *   Modified `src/contexts/SocketContext.jsx` to send 'ping' events every 45 seconds to prevent Cloudflare idle timeouts.
+    *   Added a basic auto-reconnection attempt with a 3-second delay in the socket's 'disconnect' handler.
+*   **Fixed Logout and Data Persistence:**
+    *   Modified `src/services/localStorage.js` to ensure authentication token, `isLoggedIn` status, and user/company profile data are correctly cleared from storage on logout, respecting the "Remember Me" setting.
 
 ## 2. What's Left to Build / Current Tasks
 
-*   **User Verification:** The user needs to verify the frontend display (both decimal and DMS formats, zoomed map), dynamic toggle initialization, and backend integration (checking backend logs).
-*   **Further Enhancements (Optional):** Based on user feedback, consider adding features like:
-    *   Troubleshooting the marker visibility issue further if needed.
-    *   Implementing backend logic to store and utilize location data (e.g., display on a map for other users, track routes).
-    *   Improving error handling and user feedback for API calls.
+*   **User Verification:** The user needs to verify the fixed logout functionality and data clearing.
 *   **Memory Bank Refinement:** Ongoing refinement and detailing of Memory Bank files as the project evolves.
+*   **Further Enhancements (Optional):** Based on user feedback, consider:
+    *   Troubleshooting the map marker visibility issue in `src/components/common/LocationMap.jsx`.
+    *   Implementing backend logic for GPS data utilization (e.g., display on a map for other users, track routes).
+    *   Implementing a more robust auto-reconnection strategy (e.g., exponential backoff, retry limits) in `src/contexts/SocketContext.jsx`.
+    *   Improving error handling and user feedback for API calls.
 
 ## 3. Current Project Status
 
 *   The project has a functional core CRM structure.
-*   The frontend implementation for basic GPS live location tracking with highly zoomed-in Google Maps visualization, location displayed in both decimal and DMS formats, and backend integration (for testing) is complete.
+*   The frontend implementation for basic GPS live location tracking with highly zoomed-in Google Maps visualization, location displayed in both decimal and DMS formats, and backend integration (for testing) is complete and confirmed working.
+*   WebSocket keep-alive and basic auto-reconnection logic have been added and confirmed working.
+*   The critical issue with logout and persistent authentication/data has been addressed.
 *   Memory Bank documentation is initialized and reflects the current state.
 
 ## 4. Known Issues / Blockers
 
-*   None explicitly identified for the current frontend-only implementation.
+*   None explicitly identified for the current frontend implementation tasks.
 *   Backend requirements for location data persistence or advanced features are not yet defined.
 *   Initial compatibility issues with `react-leaflet` were resolved by switching to `@react-google-maps/api`.
 *   Issue with multiple Google Maps script loading was resolved by adjusting the loading strategy.
+*   Issue with incorrect toggle API calls on load was resolved by adjusting the handler.
 *   **Unresolved Marker Visibility:** The marker icon is currently not visible on the map. This requires further investigation if a marker is essential.
-*   **Location Display Format:** Changed to display both decimal and Degrees, Minutes, Seconds (DMS) formats.
-*   **Backend Verification:** The user needs to verify that the backend is receiving the toggle state and location updates.
-*   **Dynamic Toggle Initialization:** The initial state of the GPS toggle is now set based on user profile data from the backend.
-*   **Toggle API Call Control:** The `toggleLiveTracking` API is now called only on user interaction with the switch.
+*   **WebSocket Auto-reconnection Robustness:** The current auto-reconnection is a basic attempt. A more robust strategy might be needed for production.
