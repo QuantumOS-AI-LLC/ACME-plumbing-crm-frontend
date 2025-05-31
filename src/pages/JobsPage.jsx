@@ -84,32 +84,38 @@ const JobsPage = () => {
     });
 
     // Handle job update (from edit modal)
-    const handleJobUpdate = async (job) => {
-        try {
-            await updateJob(job.id, job);
+    const handleJobUpdate = (updatedJob) => {
+        // Update the jobs state directly with the updated job
+        setJobs((prevJobs) =>
+            prevJobs.map((job) =>
+                job.id === updatedJob.id ? { ...job, ...updatedJob } : job
+            )
+        );
 
-            // If status changed, auto-switch to the correct tab
-            if (job.status === JOB_STATUS.COMPLETED) {
-                setActiveTab("completed");
-            } else if (job.status === JOB_STATUS.CANCELLED) {
-                setActiveTab("cancelled");
-            } else if (
-                job.status === JOB_STATUS.OPEN ||
-                job.status === JOB_STATUS.IN_PROGRESS
-            ) {
-                setActiveTab("current");
-            }
-
-            loadJobs(); // Refresh jobs list
-        } catch (error) {
-            console.error("Error updating job:", error);
+        // Auto-switch to the correct tab based on the updated job's status
+        if (updatedJob.status === JOB_STATUS.COMPLETED) {
+            setActiveTab("completed");
+        } else if (updatedJob.status === JOB_STATUS.CANCELLED) {
+            setActiveTab("cancelled");
+        } else if (
+            updatedJob.status === JOB_STATUS.OPEN ||
+            updatedJob.status === JOB_STATUS.IN_PROGRESS
+        ) {
+            setActiveTab("current");
         }
     };
 
-    // Status change handler (from status dropdown)
+    // Handle job status change (from status dropdown)
     const handleStatusChange = async (jobId, newStatus) => {
         try {
             await updateJob(jobId, { status: newStatus });
+
+            // Update the jobs state directly
+            setJobs((prevJobs) =>
+                prevJobs.map((job) =>
+                    job.id === jobId ? { ...job, status: newStatus } : job
+                )
+            );
 
             // Auto-switch to the correct tab
             if (newStatus === JOB_STATUS.COMPLETED) {
@@ -122,8 +128,6 @@ const JobsPage = () => {
             ) {
                 setActiveTab("current");
             }
-
-            loadJobs(); // Refresh jobs list
         } catch (error) {
             console.error("Error updating job status:", error);
         }
@@ -174,7 +178,7 @@ const JobsPage = () => {
                         variant="outlined"
                         color="primary"
                         sx={{ mt: 2 }}
-                        onClick={() => window.location.reload()}
+                        onClick={loadJobs} // Use loadJobs instead of reloading the page
                     >
                         Retry
                     </Button>

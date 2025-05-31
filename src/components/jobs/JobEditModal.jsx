@@ -35,15 +35,7 @@ const defaultClient = {
     phoneNumber: "",
 };
 
-// Webhook URL - use your backend proxy endpoint instead of direct n8n webhook
-const WEBHOOK_URL =
-    "https://n8n.quantumos.ai/webhook/9f052c6d-86dc-4cb1-b7c3-7b0f9c05a477"; // or "https://your-backend.com/api/webhook-proxy"
-// Original: const WEBHOOK_URL = "https://n8n.quantumos.ai/webhook/9f052c6d-86dc-4cb1-b7c3-7b0f9c05a477";
-
-// Temporary flag to disable webhook if needed
-const ENABLE_WEBHOOK = true; // Set to false to temporarily disable webhook calls
-
-const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
+const JobEditModal = ({ open, onClose, job, onUpdate }) => {
     const [formData, setFormData] = useState({
         id: "",
         name: "",
@@ -81,7 +73,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
                     ? new Date(job.endDate).toISOString().slice(0, 16)
                     : "",
                 invoiceUrl: job.invoiceUrl || "",
-                clientId: job.clientId || "",
+                clientId: job.clientId || job.client?.id || "",
                 createdBy: job.createdBy || "",
                 createdAt: job.createdAt || "",
                 updatedAt: job.updatedAt || "",
@@ -172,34 +164,38 @@ const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
                 ...jobDataToSubmit,
             };
 
-            // ✅ Make API call and get updated job
-            const updatedJob = await updateJob(job.id, jobDataToSubmit);
+            // Make API call to update job
+            const result = await updateJob(job.id, jobDataToSubmit);
 
-            // ✅ Send data to webhook (if enabled)
-            await sendWebhook({ payload: webHookData });
-
-            // ✅ Create complete job object with preserved client data
+            // Construct the complete updated job object
             const completeUpdatedJob = {
-                ...job, // Keep original data (especially relations)
-                ...updatedJob, // Override with updated data
+                ...job, // Preserve original data (e.g., client, createdBy, etc.)
+                ...result.data, // Update with API response data
+                name: jobDataToSubmit.name,
+                address: jobDataToSubmit.address,
+                price: jobDataToSubmit.price,
+                status: jobDataToSubmit.status,
+                startDate: jobDataToSubmit.startDate,
+                endDate: jobDataToSubmit.endDate,
+                invoiceUrl: jobDataToSubmit.invoiceUrl,
+                clientId: jobDataToSubmit.clientId,
                 client: job.client, // Preserve client data
             };
 
-            console.log(
-                "JobEditModal: Job updated successfully",
-                completeUpdatedJob
-            );
+            // Send data to webhook
+            await sendWebhook({ payload: webHookData });
 
-            // ✅ Immediately notify parent to update state
+            // Notify parent to update state
             if (onUpdate) {
                 onUpdate(completeUpdatedJob);
             }
 
+            toast.success("Job updated successfully");
             onClose();
-            // window.location.reload();
         } catch (err) {
             console.error("Error updating job:", err);
             setErrors({ general: "Failed to update job. Please try again." });
+            toast.error("Failed to update job. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -292,7 +288,6 @@ const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
                     <Tab label="Client Info" />
                 </Tabs>
 
-                {/* Tab 0: Job Details */}
                 {activeTab === 0 && (
                     <Grid container spacing={2}>
                         <Grid item xs={12}>
@@ -596,7 +591,6 @@ const JobEditModal = ({ open, onClose, job, onUpdate, onRefreshJobs }) => {
                     </Grid>
                 )}
 
-                {/* Tab 1: Client Info */}
                 {activeTab === 1 && (
                     <Box
                         sx={{
