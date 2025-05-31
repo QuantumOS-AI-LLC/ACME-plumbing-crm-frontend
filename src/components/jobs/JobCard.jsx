@@ -27,24 +27,15 @@ import JobDetailsModal from "./JobDetailsModal";
 import JobEditModal from "./JobEditModal";
 import { toast } from "sonner";
 import { updateJob } from "../../services/api";
-import { useNotifications } from "../../contexts/NotificationContext";
-import { useWebhook } from "../../hooks/webHook";
+import { useNotifications } from "../../contexts/NotificationContext"; // Add this import
+import { useWebActivityHook } from "../../hooks/webHook";
+
 
 const JOB_STATUS = {
     OPEN: "open",
     IN_PROGRESS: "in_progress",
     COMPLETED: "completed",
     CANCELLED: "cancelled",
-};
-
-const LEAD_STATUS = {
-    ON_THE_WAY: "on_the_way",
-    HAS_ARRIVED: "has_arrived",
-    JOB_STARTED: "job_started",
-    JOB_COMPLETED: "job_completed",
-    INVOICE_SENT: "invoice_sent",
-    INVOICE_PAID: "invoice_paid",
-    REQUEST_REVIEW: "request_review",
 };
 
 const ACTIVITY_OPTIONS = [
@@ -106,7 +97,8 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
     const [openEdit, setOpenEdit] = useState(false);
     const [isUpdatingActivity, setIsUpdatingActivity] = useState(false);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-    const { sendWebhook } = useWebhook();
+    const { sendActivityWebHook } = useWebActivityHook();
+
     const { addNotification } = useNotifications();
 
     const [currentActivity, setCurrentActivity] = useState(
@@ -222,7 +214,7 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                 ...activityData,
                 activity: updatedAction,
             };
-            await sendWebhook({ payload: webHookData });
+            await sendActivityWebHook({ payload: webHookData });
             toast.success(`Activity updated to "${updatedAction}"`);
 
             // Notify parent of the update

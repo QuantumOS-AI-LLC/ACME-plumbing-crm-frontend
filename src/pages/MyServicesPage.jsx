@@ -166,8 +166,8 @@ const MyServicesPage = () => {
 
     const handleFilterChange = (field, value) => {
         setFilters(prev => ({ ...prev, [field]: value }));
-        // Reset to page 1 when filters change
-        if (pagination.page !== 1) {
+        // Reset to page 1 when filters change, BUT NOT FOR SEARCH (as it has its own debounced handler)
+        if (field !== 'search' && pagination.page !== 1) {
             setPagination(prev => ({ ...prev, page: 1 }));
         }
     };
