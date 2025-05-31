@@ -27,7 +27,7 @@ import JobDetailsModal from "./JobDetailsModal";
 import JobEditModal from "./JobEditModal";
 import { toast } from "sonner";
 import { updateJob } from "../../services/api";
-import { useNotifications } from "../../contexts/NotificationContext"; // Add this import
+import { useNotifications } from "../../contexts/NotificationContext";
 import { useWebhook } from "../../hooks/webHook";
 
 const JOB_STATUS = {
@@ -101,23 +101,19 @@ const formatCurrency = (amount) => {
     }).format(amount);
 };
 
-const JobCard = ({ job, onClick, onStatusChange }) => {
+const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
     const [openDetails, setOpenDetails] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
     const [isUpdatingActivity, setIsUpdatingActivity] = useState(false);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const { sendWebhook } = useWebhook();
-
-    // Add notification context
     const { addNotification } = useNotifications();
 
-    // Add local state to track current activity and status
     const [currentActivity, setCurrentActivity] = useState(
         job.leadStatus || getLeadStatusValue(job.activity) || ""
     );
     const [currentStatus, setCurrentStatus] = useState(job.status);
 
-    // Transform job data to match JobDetailsModal expectations
     const transformedJob = {
         ...job,
         name: job.name,
@@ -128,7 +124,7 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
         startDate: job.startDate || null,
         address: job.address || "N/A",
         client: job.client || { name: "N/A" },
-        status: currentStatus || "unknown", // Use local state
+        status: currentStatus || "unknown",
         leadStatus: currentActivity,
         activity: getLeadStatusLabel(currentActivity),
     };
@@ -155,14 +151,12 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
         const previousStatus = currentStatus;
 
         setIsUpdatingStatus(true);
-        setCurrentStatus(newStatus); // Optimistic update
+        setCurrentStatus(newStatus);
 
         try {
-            // Update job status via API
             const result = await updateJob(job.id, { status: newStatus });
 
             if (result.success) {
-                // Create notification ONLY when status changes to COMPLETED
                 if (newStatus === JOB_STATUS.COMPLETED) {
                     const statusNotification = {
                         id: `status-${job.id}-${Date.now()}`,
@@ -176,12 +170,9 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                         isRead: false,
                         relatedId: job.id,
                     };
-
-                    // Add notification to context (this will trigger toast)
                     addNotification(statusNotification);
                 }
 
-                // Call parent callback if provided
                 if (onStatusChange) {
                     onStatusChange(transformedJob.id, newStatus);
                 }
@@ -192,10 +183,7 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
             }
         } catch (error) {
             console.error("Error updating job status:", error);
-
-            // Rollback on error
             setCurrentStatus(previousStatus);
-
             const errorMessage =
                 error.response?.data?.message ||
                 error.message ||
@@ -222,7 +210,6 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
         };
 
         try {
-            // Update job in database
             const result = await updateJob(job.id, {
                 activity: activityLabel,
             });
@@ -237,16 +224,22 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
             };
             await sendWebhook({ payload: webHookData });
             toast.success(`Activity updated to "${updatedAction}"`);
+
+            // Notify parent of the update
+            if (onUpdate) {
+                onUpdate({
+                    ...transformedJob,
+                    activity: updatedAction,
+                    leadStatus: updatedActivityValue || newActivityValue,
+                });
+            }
         } catch (error) {
             console.error("Error updating activity:", error);
-
             const errorMessage =
                 error.response?.data?.message ||
                 error.message ||
                 "Failed to update activity. Please try again.";
             toast.error(errorMessage);
-
-            // Reset to previous value since update failed
             setCurrentActivity(previousValue);
         } finally {
             setIsUpdatingActivity(false);
@@ -284,7 +277,6 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                 onClick={handleCardClick}
             >
                 <CardContent sx={{ padding: 3, paddingTop: 4 }}>
-                    {/* Card Header */}
                     <Box
                         sx={{
                             display: "flex",
@@ -327,7 +319,6 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                         />
                     </Box>
 
-                    {/* Main Content Grid */}
                     <Grid container spacing={3} sx={{ mb: 3 }}>
                         <Grid item xs={12} sm={6}>
                             <Box
@@ -489,7 +480,6 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                         </Grid>
                     </Grid>
 
-                    {/* Progress Bar */}
                     {transformedJob.status === JOB_STATUS.IN_PROGRESS &&
                         typeof transformedJob.progress === "number" && (
                             <Box sx={{ mb: 3 }}>
@@ -538,7 +528,6 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
 
                     <Divider sx={{ mb: 3, backgroundColor: "divider" }} />
 
-                    {/* Actions Footer */}
                     <Box
                         sx={{
                             display: "flex",
@@ -615,7 +604,6 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                                 </Select>
                             </FormControl>
 
-                            {/* Activity Dropdown Section */}
                             <Box
                                 sx={{
                                     mb: 3,
@@ -743,7 +731,6 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                                     <ViewIcon />
                                 </IconButton>
                             </Tooltip>
-                            {/* Conditionally render Edit button */}
                             {transformedJob.status !== JOB_STATUS.COMPLETED &&
                                 transformedJob.status !==
                                     JOB_STATUS.CANCELLED && (
@@ -789,6 +776,7 @@ const JobCard = ({ job, onClick, onStatusChange }) => {
                 job={transformedJob}
                 open={openEdit}
                 onClose={handleCloseEdit}
+                onUpdate={onUpdate} // Pass onUpdate to JobEditModal
             />
         </>
     );
