@@ -120,16 +120,18 @@ export const saveAuthData = (data, rememberMe = false) => {
  */
 export const clearAuthData = () => {
   const remembered = getFromStorage(STORAGE_KEYS.REMEMBER_ME, false) === 'true';
-  
-  // Do not remove token and logged in status
-  // removeFromStorage(STORAGE_KEYS.TOKEN);
-  // removeFromStorage(STORAGE_KEYS.IS_LOGGED_IN);
-  
-  // Only clear user/company data if not using "remember me"
+
+  // Always remove token and logged in status on explicit logout
+  removeFromStorage(STORAGE_KEYS.TOKEN);
+  removeFromStorage(STORAGE_KEYS.IS_LOGGED_IN);
+
+  // Always clear user/company data on explicit logout
+  removeFromStorage(STORAGE_KEYS.USER_PROFILE);
+  removeFromStorage(STORAGE_KEYS.COMPANY_PROFILE);
+
+  // If "remember me" was not selected, also clear the remember me preference
   if (!remembered) {
-    removeFromStorage(STORAGE_KEYS.USER_PROFILE);
-    removeFromStorage(STORAGE_KEYS.COMPANY_PROFILE);
-    removeFromStorage(STORAGE_KEYS.REMEMBER_ME);
+     removeFromStorage(STORAGE_KEYS.REMEMBER_ME);
   }
 };
 
