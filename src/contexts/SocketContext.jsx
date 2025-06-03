@@ -15,6 +15,8 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
+  const [isLocationSharing, setIsLocationSharing] = useState(false);
+  const [locationError, setLocationError] = useState(null);
 
   useEffect(() => {
     // Get token from localStorage or sessionStorage (matching current WebSocket implementation)
@@ -56,6 +58,29 @@ export const SocketProvider = ({ children }) => {
       setIsConnected(false);
     });
 
+    // Location event handlers
+    newSocket.on('location_sharing_started', (data) => {
+      console.log('Location sharing started:', data);
+      setIsLocationSharing(true);
+      setLocationError(null);
+    });
+
+    newSocket.on('location_sharing_stopped', (data) => {
+      console.log('Location sharing stopped:', data);
+      setIsLocationSharing(false);
+      setLocationError(null);
+    });
+
+    newSocket.on('location_updated', (data) => {
+      console.log('Location updated successfully:', data);
+      setLocationError(null);
+    });
+
+    newSocket.on('location_error', (error) => {
+      console.error('Location error:', error);
+      setLocationError(error.message || 'Location operation failed');
+    });
+
     setSocket(newSocket);
 
     return () => {
@@ -63,10 +88,44 @@ export const SocketProvider = ({ children }) => {
     };
   }, []);
 
+  // Location sharing functions
+  const startLocationSharing = () => {
+    if (socket && isConnected) {
+      console.log('Starting location sharing...');
+      socket.emit('location_start_sharing', {});
+    } else {
+      setLocationError('Socket not connected');
+    }
+  };
+
+  const stopLocationSharing = () => {
+    if (socket && isConnected) {
+      console.log('Stopping location sharing...');
+      socket.emit('location_stop_sharing', {});
+    } else {
+      setLocationError('Socket not connected');
+    }
+  };
+
+  const updateLocation = (latitude, longitude, accuracy) => {
+    if (socket && isConnected && isLocationSharing) {
+      socket.emit('location_update', {
+        latitude,
+        longitude,
+        accuracy
+      });
+    }
+  };
+
   const value = {
     socket,
     isConnected,
-    connectionError
+    connectionError,
+    isLocationSharing,
+    locationError,
+    startLocationSharing,
+    stopLocationSharing,
+    updateLocation
   };
 
   return (
