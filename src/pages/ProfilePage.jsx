@@ -9,13 +9,21 @@ import {
   Avatar,
   CircularProgress,
   Alert,
+  FormControlLabel, // Import FormControlLabel
+  Switch, // Import Switch
 } from "@mui/material";
 import { fetchUserProfile, updateUserProfile } from "../services/api";
 import PageHeader from "../components/common/PageHeader";
 import { useAuth } from "../hooks/useAuth";
+import useGPSLocation from "../hooks/useGPSLocation"; // Import the new hook
+import LocationMap from "../components/common/LocationMap"; // Import the new map component
+import { useLoadScript } from '@react-google-maps/api'; // Import useLoadScript
+import { formatLocationToDms } from '../utils/locationHelpers'; // Import the new helper function
+import { toggleLiveTracking, updateLocation } from '../services/api'; // Import new API functions
 
 const ProfilePage = () => {
   const { user, updateUserData } = useAuth();
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -26,6 +34,30 @@ const ProfilePage = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [isGpsTrackingEnabled, setIsGpsTrackingEnabled] = useState(false); // Add state for GPS toggle
+
+  const { location, error: gpsError } = useGPSLocation(isGpsTrackingEnabled); // Use the new hook
+
+  const { isLoaded, loadError } = useLoadScript({ // Use the useLoadScript hook
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+  });
+
+  // Effect to handle location updates and push to backend
+  useEffect(() => {
+    if (isGpsTrackingEnabled && location) {
+      const sendLocationUpdate = async () => {
+        try {
+          await updateLocation(location.latitude, location.longitude);
+          console.log(`Location updated on backend: Lat ${location.latitude}, Lng ${location.longitude}`);
+        } catch (error) {
+          console.error("Failed to update location on backend:", error);
+        }
+      };
+
+      sendLocationUpdate();
+    }
+  }, [isGpsTrackingEnabled, location]); // Call this effect when tracking is enabled and location changes
+
 
   useEffect(() => {
     const loadUserProfile = async () => {
@@ -40,9 +72,15 @@ const ProfilePage = () => {
             phoneNumber: response.data.phoneNumber || "",
             // title: response.data.title || "",
           });
+          // Set initial state of GPS toggle from fetched profile data
+          if (response.data.isLiveTrackingEnabled !== undefined) {
+            setIsGpsTrackingEnabled(response.data.isLiveTrackingEnabled);
+          }
         }
       } catch (error) {
         console.error("Error loading user profile:", error);
+        setError("Failed to load user profile. Please try again.");
+
         setError("Failed to load user profile. Please try again.");
 
         // Fallback to user context data if API fails
@@ -53,6 +91,10 @@ const ProfilePage = () => {
             phoneNumber: user.phoneNumber || user.phone || "", // Accommodate if user context uses 'phone'
             // title: user.title || "",
           });
+          // Set initial state of GPS toggle from user context if available
+          if (user.isLiveTrackingEnabled !== undefined) {
+             setIsGpsTrackingEnabled(user.isLiveTrackingEnabled);
+          }
         }
       } finally {
         setLoading(false);
@@ -106,6 +148,21 @@ const ProfilePage = () => {
       .join("")
       .toUpperCase();
   };
+
+  // Handle toggle change and call backend API
+  const handleGpsToggleChange = async (event) => {
+    const isChecked = event.target.checked;
+    setIsGpsTrackingEnabled(isChecked);
+    try {
+      await toggleLiveTracking(isChecked);
+      console.log(`Live tracking ${isChecked ? 'enabled' : 'disabled'} on backend.`);
+    } catch (error) {
+      console.error("Failed to toggle live tracking on backend:", error);
+      // Optionally revert the toggle state in UI or show an error message
+      setIsGpsTrackingEnabled(!isChecked); // Revert toggle state on API error
+    }
+  };
+
 
   return (
     <Box>
@@ -193,6 +250,64 @@ const ProfilePage = () => {
                   onChange={handleChange}
                 />
               </Grid>
+
+              {/* GPS Tracking Setting */}
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={isGpsTrackingEnabled}
+                      onChange={handleGpsToggleChange} // Call the new handler
+                      name="gpsTrackingEnabled"
+                      color="primary"
+                    />
+                  }
+                  label="Enable Live GPS Tracking"
+                />
+              </Grid>
+
+              {/* Placeholder for Live Location Display */}
+              {isGpsTrackingEnabled && (
+                <Grid item xs={12}>
+                  <Typography variant="h6" sx={{ mt: 2 }}>
+                    Live Location:
+                  </Typography>
+                  {gpsError ? (
+                    <Typography variant="body1" color="error">
+                      Error: {gpsError}
+                    </Typography>
+                  ) : location ? (
+                    <Box>
+                      <Typography variant="body1">
+                        Latitude (Decimal): {location.latitude}, Longitude (Decimal): {location.longitude}
+                      </Typography>
+                      <Typography variant="body1">
+                        Latitude (DMS): {formatLocationToDms(location.latitude, location.longitude).latitudeDms}, Longitude (DMS): {formatLocationToDms(location.latitude, location.longitude).longitudeDms}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1">
+                      Fetching location...
+                    </Typography>
+                  )}
+                  {location && isLoaded && !loadError && ( // Conditionally render map when loaded
+                     <Box sx={{ mt: 2 }}>
+                       <LocationMap latitude={location.latitude} longitude={location.longitude} isLoaded={isLoaded} />
+                     </Box>
+                   )}
+                   {loadError && (
+                     <Typography variant="body1" color="error" sx={{ mt: 2 }}>
+                       Error loading map: {loadError.message}
+                     </Typography>
+                   )}
+                   {!isLoaded && !loadError && isGpsTrackingEnabled && (
+                      <Typography variant="body1" sx={{ mt: 2 }}>
+                        Loading map...
+                      </Typography>
+                   )}
+                </Grid>
+              )}
+
 
               <Grid
                 item

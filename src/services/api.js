@@ -641,4 +641,26 @@ export const fetchPopularTags = async () => {
     }
 };
 
+// GPS Tracking APIs
+export const toggleLiveTracking = async (isLiveTrackingEnabled) => {
+    try {
+        const response = await api.put("/users/toggle-tracking", { isLiveTrackingEnabled });
+        return response.data;
+    } catch (error) {
+        console.error("Error toggling live tracking:", error);
+        throw error;
+    }
+};
+
+export const updateLocation = async (latitude, longitude) => {
+    try {
+        const response = await api.put("/users/location", { latitude, longitude });
+        return response.data;
+    } catch (error) {
+        console.error("Error updating location:", error);
+        throw error;
+    }
+};
+
+
 export default api;

@@ -180,6 +180,12 @@ const CalendarPage = () => {
 
             if (editingEvent) {
                 response = await updateEvent(editingEvent.id, eventData);
+                const webHookData = {
+                    ...eventData,
+                    webhookEvent: "EventEdited",
+                    createdBy: response.data.createdBy,
+                };
+                await sendWebhook({ payload: webHookData });
                 setEvents((prevEvents) =>
                     prevEvents.map((ev) =>
                         ev.id === editingEvent.id
@@ -202,18 +208,20 @@ const CalendarPage = () => {
 
                 const webHookData = {
                     ...newEvent,
-                    webhookEvent: "Event Added",
-                    craetedBy: response.data.createdBy,
+                    webhookEvent: "EventAdded",
+                    createdBy: response.data.createdBy,
                 };
 
                 console.log("Sending webhook data:", webHookData);
 
-                const result = await sendWebhook({ payload: webHookData });
+                await sendWebhook({ payload: webHookData });
 
-                console.log("New webhook created:", result);
-                console.log("New event created:", newEvent);
                 setEvents((prevEvents) => [...prevEvents, newEvent]);
                 showNotification("Event created successfully!", "success");
+
+                // Navigate to the new event's date
+                setSelectedDate(newEvent.start);
+                setCurrentDate(newEvent.start);
             }
         } catch (err) {
             console.error("Error saving event:", err);
