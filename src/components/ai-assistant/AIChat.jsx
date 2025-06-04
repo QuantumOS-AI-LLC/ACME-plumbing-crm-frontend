@@ -11,7 +11,7 @@ import {
 import SendIcon from '@mui/icons-material/Send';
 import { useAIChat } from '../../hooks/useAIChat';
 
-const AIChat = ({ contactId, estimateId = null }) => {
+const AIChat = ({ contactId, estimateId = null, initialConversationId = null, onConversationSaved = () => {} }) => {
   const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -24,7 +24,7 @@ const AIChat = ({ contactId, estimateId = null }) => {
     sendMessage,
     startTyping,
     stopTyping
-  } = useAIChat(contactId, estimateId);
+  } = useAIChat(contactId, estimateId, initialConversationId, onConversationSaved);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
