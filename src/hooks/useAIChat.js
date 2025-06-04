@@ -77,19 +77,23 @@ export const useAIChat = (contactId, estimateId = null, initialConversationId = 
             console.log('No message history found or invalid format for contact:', contactId, historyResponse);
             setMessages([]);
           }
-        } catch (error) {
-          console.error('Error fetching conversation history for contact:', contactId, error);
-          setMessages([]);
-        } finally {
-          setIsLoadingHistory(false);
-        }
-      } else {
-        setMessages([]); // Clear messages if no contactId
-      }
-    };
+       } catch (error) {
+         console.error('Error fetching conversation history for contact:', contactId, error);
+         setMessages([]);
+       } finally {
+         setIsLoadingHistory(false);
+         // If it's a new conversation, trigger the onConversationSaved callback
+         if (initialConversationId && messages.length === 0) {
+           onConversationSaved(contactId, initialConversationId);
+         }
+       }
+     } else {
+       setMessages([]); // Clear messages if no contactId
+     }
+   };
 
-    loadHistory();
-  }, [contactId, socket]); // Rerun when contactId or socket changes
+   loadHistory();
+ }, [contactId, socket, initialConversationId, onConversationSaved]); // Rerun when contactId or socket changes
 
   const sendMessage = useCallback((message) => {
     if (!socket || !message.trim() || isSending) return;

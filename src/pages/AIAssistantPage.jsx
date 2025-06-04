@@ -143,28 +143,39 @@ const AIAssistantPage = () => {
 
                 // Determine active conversation after all conversations are set
                 if (contactId && conversationId) {
+                    const newConvoFromURL = {
+                        contactId: contactId,
+                        contactName: contactName,
+                        id: conversationId,
+                        lastMessage: null,
+                        estimateId: null
+                    };
+
                     // Prioritize the conversation from URL parameters
                     const targetConversation = finalConvos.find(
                         (convo) =>
                             convo.contactId === contactId &&
                             convo.id === conversationId
                     );
-                    if (targetConversation) {
-                        setActiveConversation(targetConversation);
-                    } else {
-                        // If it's a brand new conversation not yet in backend, it should be in the `conversations` state now
-                        const existingNewConvo = conversations.find(
-                            (convo) =>
-                                convo.contactId === contactId &&
-                                convo.id === conversationId
-                        );
-                        if (existingNewConvo) {
-                            setActiveConversation(existingNewConvo);
-                        } else if (finalConvos.length > 0) {
-                            setActiveConversation(finalConvos[0]);
-                        }
+
+                    if (!targetConversation) {
+                        finalConvos.unshift(newConvoFromURL); // Add to the beginning
                     }
-                } else if (finalConvos.length > 0) {
+
+                    const targetConversationFinal = finalConvos.find(
+                        (convo) =>
+                            convo.contactId === contactId &&
+                            convo.id === conversationId
+                    );
+
+                    if (targetConversationFinal) {
+                        setActiveConversation(targetConversationFinal);
+                    }
+                    else if (finalConvos.length > 0) {
+                        setActiveConversation(finalConvos[0]);
+                    }
+                }
+                else if (finalConvos.length > 0) {
                     // If no specific conversation in URL, default to the first one
                     setActiveConversation(finalConvos[0]);
                 }
