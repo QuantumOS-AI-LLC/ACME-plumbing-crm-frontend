@@ -157,16 +157,16 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                 clientId: formData.clientId,
             };
 
+            // Make API call to update job
+            const result = await updateJob(job.id, jobDataToSubmit);
+            console.log("Job updated successfully:", result.data);
+
             const webHookData = {
                 webhookEvent: "JobEdited",
                 jobId: job.id,
                 createdBy: job.createdBy,
-                ...jobDataToSubmit,
+                ...result.data,
             };
-
-            // Make API call to update job
-            const result = await updateJob(job.id, jobDataToSubmit);
-
             // Construct the complete updated job object
             const completeUpdatedJob = {
                 ...job, // Preserve original data (e.g., client, createdBy, etc.)

@@ -21,7 +21,6 @@ import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import { AuthContext } from "../../contexts/AuthContext";
-import { toast } from "sonner";
 import { useWebhook } from "../../hooks/webHook";
 
 const AddJobModal = ({ open, onClose, onJobCreated }) => {
@@ -114,16 +113,22 @@ const AddJobModal = ({ open, onClose, onJobCreated }) => {
                 clientId: formData.clientId,
                 createdBy: formData.createdBy,
                 activity: "",
+                jobLocationLat: formData.jobLocationLat || 0,
+                jobLocationLon: formData.jobLocationLon || 0,
+                calculatedDistance: formData.calculatedDistance || 0,
+                calculatedTravelTime: formData.calculatedTravelTime || 0,
             };
 
             console.log("Job Data being sent:", jobData);
 
-            await createJob(jobData);
+            const newJob = await createJob(jobData);
             // Send to N8N webhook (if configured)
+            console.log("New Job Created:", newJob);
 
             const webHookData = {
-                ...jobData,
+                ...newJob.data,
                 webhookEvent: "JobCreated",
+                jobId: newJob.data.id,
             };
 
             await sendWebhook({ payload: webHookData });

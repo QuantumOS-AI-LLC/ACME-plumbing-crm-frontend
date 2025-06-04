@@ -153,6 +153,7 @@ const ContactDetailsPage = () => {
                 webhookEvent: "ContactUpdated",
                 createdBy: contact.createdBy,
                 ...contactDataToSubmit,
+                contactId: response.data.id,
             };
             await sendWebhook({ payload: webHookData });
             if (response && response.data) {

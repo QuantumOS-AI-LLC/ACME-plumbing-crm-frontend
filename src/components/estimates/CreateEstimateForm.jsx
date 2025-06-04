@@ -201,7 +201,8 @@ const CreateEstimateForm = ({
                     response = await updateEstimate(estimate.id, estimateData);
                     const webHookData = {
                         webhookEvent: "EstimateUpdated",
-                        ...estimateData,
+                        ...response.data,
+                        estimateId: response.data.id,
                     };
 
                     await sendWebhook({ payload: webHookData });
@@ -209,9 +210,13 @@ const CreateEstimateForm = ({
                     toast.success("Estimate updated successfully");
                 } else {
                     response = await createEstimate(estimateData);
+
+                    console.log("Estimate created:", response.data.id);
+
                     const webHookData = {
                         webhookEvent: "EstimateAdded",
-                        ...estimateData,
+                        ...response.data,
+                        estimateId: response.data.id,
                     };
 
                     await sendWebhook({ payload: webHookData });
