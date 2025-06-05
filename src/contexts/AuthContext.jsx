@@ -1,14 +1,14 @@
-import React, { createContext, useState, useEffect } from 'react';
-import { loginUser, checkAuthStatus } from '../services/auth';
-import { 
-  saveAuthData, 
-  clearAuthData, 
-  getFromStorage, 
+import React, { createContext, useState, useEffect, useContext } from "react";
+import { loginUser, checkAuthStatus } from "../services/auth";
+import {
+  saveAuthData,
+  clearAuthData,
+  getFromStorage,
   saveUserProfile,
   saveCompanyProfile,
   restoreAuthState,
-  STORAGE_KEYS 
-} from '../services/localStorage';
+  STORAGE_KEYS,
+} from "../services/localStorage";
 
 export const AuthContext = createContext();
 
@@ -24,16 +24,26 @@ export const AuthProvider = ({ children }) => {
     const initAuth = async () => {
       try {
         setLoading(true);
-        
-        // Restore auth state from storage
-        const { remembered, token, isLoggedIn: storedIsLoggedIn, userProfile } = restoreAuthState();
 
-        console.log("auth-context",userProfile)
-        
+        // Restore auth state from storage
+        const {
+          remembered,
+          token,
+          isLoggedIn: storedIsLoggedIn,
+          userProfile,
+        } = restoreAuthState();
+
+        console.log("auth-context", userProfile);
+
         setRememberMe(remembered);
-        
-        console.log('Auth state restored:', { remembered, hasToken: !!token, storedIsLoggedIn, hasProfile: !!userProfile });
-        
+
+        console.log("Auth state restored:", {
+          remembered,
+          hasToken: !!token,
+          storedIsLoggedIn,
+          hasProfile: !!userProfile,
+        });
+
         if (token && storedIsLoggedIn) {
           // No backend validation, just trust the token in storage
           setIsLoggedIn(true);
@@ -50,14 +60,14 @@ export const AuthProvider = ({ children }) => {
           setIsLoggedIn(false);
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        console.error("Auth initialization error:", error);
         setIsLoggedIn(false);
         setUser(null);
       } finally {
         setLoading(false);
       }
     };
-    
+
     initAuth();
   }, []);
 
@@ -65,21 +75,21 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const response = await loginUser(phoneNumber, password);
-      
+
       // Update remember me state
       setRememberMe(rememberedValue);
-      
+
       // Save auth data with remember me preference
       saveAuthData(response, rememberedValue);
-      
+
       setUser(response.userData);
       setIsLoggedIn(true);
-      
+
       return { success: true };
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.message || 'Login failed');
-      return { success: false, error: err.message || 'Login failed' };
+      console.error("Login error:", err);
+      setError(err.message || "Login failed");
+      return { success: false, error: err.message || "Login failed" };
     }
   };
 
@@ -88,28 +98,30 @@ export const AuthProvider = ({ children }) => {
     setIsLoggedIn(false);
     setUser(null);
   };
-  
+
   const updateUserData = (userData) => {
     setUser(userData);
     saveUserProfile(userData);
   };
-  
+
   const updateCompanyData = (companyData) => {
     saveCompanyProfile(companyData);
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      isLoggedIn, 
-      user, 
-      loading, 
-      error, 
-      login, 
-      logout,
-      rememberMe,
-      updateUserData,
-      updateCompanyData
-    }}>
+    <AuthContext.Provider
+      value={{
+        isLoggedIn,
+        user,
+        loading,
+        error,
+        login,
+        logout,
+        rememberMe,
+        updateUserData,
+        updateCompanyData,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

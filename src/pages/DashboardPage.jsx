@@ -1,5 +1,5 @@
-import React from "react";
-import { Box, Typography, Grid, useTheme } from "@mui/material";
+import React, { useEffect } from "react";
+import { Box, Grid } from "@mui/material";
 import ComputerIcon from "@mui/icons-material/Computer";
 import BuildIcon from "@mui/icons-material/Build";
 import DescriptionIcon from "@mui/icons-material/Description";
@@ -7,25 +7,24 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import ContactsIcon from "@mui/icons-material/Contacts";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { useJobs } from "../contexts/JobsContext";
-import { useEstimates } from "../contexts/EstimatesContext";
-import { useEvents } from "../contexts/EventsContext";
+import { useDashboardStats } from "../hooks/useDashboardStats";
 import GradientCard from "../components/common/GradientCard";
-import ScheduleItem from "../components/common/ScheduleItem";
 import StatsCard from "../components/common/StatsCard";
 import PageHeader from "../components/common/PageHeader";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const theme = useTheme();
   const { user } = useAuth();
-  const { jobs, loading: jobsLoading, getJobsByStatus } = useJobs();
   const {
-    estimates,
-    loading: estimatesLoading,
-    getEstimatesByStatus,
-  } = useEstimates();
-  const { loading: eventsLoading, getTodayEvents } = useEvents();
+    stats,
+    loading: statsLoading,
+    loadDashboardStats,
+  } = useDashboardStats();
+
+  // Load dashboard stats when component mounts (only if not already loaded)
+  useEffect(() => {
+    loadDashboardStats();
+  }, []); // Empty dependency array to run only once on mount
 
   const gradients = {
     aiAssistant: "linear-gradient(45deg, #9D4EE9 0%, #8A2BE2 100%)",
@@ -33,21 +32,6 @@ const DashboardPage = () => {
     estimates: "linear-gradient(45deg, #9D4EE9 0%, #8A2BE2 100%)",
     calendar: "linear-gradient(45deg, #9D4EE9 0%, #8A2BE2 100%)",
     contacts: "linear-gradient(90deg, #8A2BE2 0%, #FF1493 100%)",
-  };
-
-  // Use JobsContext to get filtered jobs by status
-  const openJobs = getJobsByStatus("open");
-
-  // Use EstimatesContext to get filtered estimates by status - looking for 'pending' status
-  const pendingEstimates = getEstimatesByStatus("pending");
-
-  // Use EventsContext to get today's events
-  const todayEvents = getTodayEvents();
-
-  // Format time from date string
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   return (
@@ -167,7 +151,7 @@ const DashboardPage = () => {
         <Grid item xs={12} sm={4}>
           <StatsCard
             title="Today's Schedule"
-            value={eventsLoading ? "..." : todayEvents.length}
+            value={statsLoading ? "..." : stats.todaysEventsCount}
             change="3"
             changeText="from last week"
             isPositive={true}
@@ -176,7 +160,7 @@ const DashboardPage = () => {
         <Grid item xs={12} sm={4}>
           <StatsCard
             title="Open Jobs"
-            value={jobsLoading ? "..." : openJobs.length}
+            value={statsLoading ? "..." : stats.openJobsCount}
             change="3"
             changeText="from last week"
             isPositive={true}
@@ -185,7 +169,7 @@ const DashboardPage = () => {
         <Grid item xs={12} sm={4}>
           <StatsCard
             title="Pending Estimates"
-            value={estimatesLoading ? "..." : pendingEstimates.length}
+            value={statsLoading ? "..." : stats.pendingEstimatesCount}
             change="2"
             changeText="from last week"
             isPositive={true}

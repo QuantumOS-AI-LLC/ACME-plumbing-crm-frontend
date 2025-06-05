@@ -388,7 +388,7 @@ export const fetchEvent = async (id) => {
 
 export const fetchEventsCount = async () => {
   try {
-    const response = await api.get("/api/calendar/events/today/count");
+    const response = await api.get("/calendar/events/today/count");
     return response.data;
   } catch (error) {
     console.error("Error fetching events count:", error);

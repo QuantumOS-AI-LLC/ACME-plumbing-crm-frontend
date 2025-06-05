@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { fetchEstimates } from "../services/api";
+import { useDashboardStats } from "./DashboardStatsContext";
 
 const EstimatesContext = createContext();
 
@@ -15,6 +16,7 @@ export const EstimatesProvider = ({ children }) => {
   const [estimates, setEstimates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { updateEstimatesCount } = useDashboardStats();
 
   const loadEstimates = async () => {
     try {
@@ -47,6 +49,9 @@ export const EstimatesProvider = ({ children }) => {
 
   // Update a specific estimate in the state
   const updateEstimateInState = (updatedEstimate) => {
+    const oldEstimate = estimates.find(
+      (estimate) => estimate.id === updatedEstimate.id
+    );
     setEstimates((prevEstimates) =>
       prevEstimates.map((estimate) =>
         estimate.id === updatedEstimate.id
@@ -54,18 +59,27 @@ export const EstimatesProvider = ({ children }) => {
           : estimate
       )
     );
+    // Update dashboard stats directly without API call
+    updateEstimatesCount("update", oldEstimate?.status, updatedEstimate.status);
   };
 
   // Add a new estimate to the state
   const addEstimateToState = (newEstimate) => {
     setEstimates((prevEstimates) => [newEstimate, ...prevEstimates]);
+    // Update dashboard stats directly without API call
+    updateEstimatesCount("add", null, newEstimate.status);
   };
 
   // Remove an estimate from the state
   const removeEstimateFromState = (estimateId) => {
+    const estimateToRemove = estimates.find(
+      (estimate) => estimate.id === estimateId
+    );
     setEstimates((prevEstimates) =>
       prevEstimates.filter((estimate) => estimate.id !== estimateId)
     );
+    // Update dashboard stats directly without API call
+    updateEstimatesCount("remove", estimateToRemove?.status, null);
   };
 
   // Get filtered estimates by status

@@ -17,6 +17,7 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { useDashboardStats } from "../hooks/useDashboardStats";
 import { formatPhoneNumber } from "../utils/helpers";
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
@@ -80,6 +81,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { loadDashboardStats } = useDashboardStats();
   const isMobile = useMediaQuery((theme) => theme.breakpoints.down("sm"));
 
   // Handle phone number input with formatting
@@ -105,6 +107,14 @@ const LoginPage = () => {
     try {
       const result = await login(phoneNumber, password, rememberMe);
       if (result.success) {
+        // Load dashboard stats after successful login
+        try {
+          await loadDashboardStats();
+          console.log("Dashboard stats loaded after login");
+        } catch (statsError) {
+          console.error("Failed to load dashboard stats:", statsError);
+          // Don't block navigation if stats loading fails
+        }
         navigate("/");
       } else {
         setError(

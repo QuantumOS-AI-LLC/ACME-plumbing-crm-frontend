@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { fetchJobs } from "../services/api";
+import { useDashboardStats } from "./DashboardStatsContext";
 
 const JobsContext = createContext();
 
@@ -15,6 +16,7 @@ export const JobsProvider = ({ children }) => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { updateJobsCount } = useDashboardStats();
 
   const loadJobs = async () => {
     try {
@@ -47,21 +49,29 @@ export const JobsProvider = ({ children }) => {
 
   // Update a specific job in the state
   const updateJobInState = (updatedJob) => {
+    const oldJob = jobs.find((job) => job.id === updatedJob.id);
     setJobs((prevJobs) =>
       prevJobs.map((job) =>
         job.id === updatedJob.id ? { ...job, ...updatedJob } : job
       )
     );
+    // Update dashboard stats directly without API call
+    updateJobsCount("update", oldJob?.status, updatedJob.status);
   };
 
   // Add a new job to the state
   const addJobToState = (newJob) => {
     setJobs((prevJobs) => [newJob, ...prevJobs]);
+    // Update dashboard stats directly without API call
+    updateJobsCount("add", null, newJob.status);
   };
 
   // Remove a job from the state
   const removeJobFromState = (jobId) => {
+    const jobToRemove = jobs.find((job) => job.id === jobId);
     setJobs((prevJobs) => prevJobs.filter((job) => job.id !== jobId));
+    // Update dashboard stats directly without API call
+    updateJobsCount("remove", jobToRemove?.status, null);
   };
 
   // Get filtered jobs by status

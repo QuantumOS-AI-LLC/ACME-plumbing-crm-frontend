@@ -6,6 +6,7 @@ import { NotificationProvider } from "./contexts/NotificationContext";
 import { JobsProvider } from "./contexts/JobsContext";
 import { EstimatesProvider } from "./contexts/EstimatesContext";
 import { EventsProvider } from "./contexts/EventsContext";
+import { DashboardStatsProvider } from "./contexts/DashboardStatsContext";
 import CssBaseline from "@mui/material/CssBaseline";
 
 import theme from "./theme";
@@ -51,175 +52,177 @@ const App = () => {
       <CssBaseline />
       <SocketProvider>
         <NotificationProvider>
-          <JobsProvider>
-            <EstimatesProvider>
-              <EventsProvider>
-                <BrowserRouter>
-                  <Routes>
-                    <Route path="/login" element={<LoginPage />} />
+          <DashboardStatsProvider>
+            <JobsProvider>
+              <EstimatesProvider>
+                <EventsProvider>
+                  <BrowserRouter>
+                    <Routes>
+                      <Route path="/login" element={<LoginPage />} />
 
-                    {/* Protected routes */}
-                    <Route
-                      path="/"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <DashboardPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      {/* Protected routes */}
+                      <Route
+                        path="/"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <DashboardPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/jobs"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <JobsPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/jobs"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <JobsPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/estimates"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <EstimatesPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/estimates"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <EstimatesPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/calendar"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <CalendarPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/calendar"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <CalendarPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/contacts"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <ContactsPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/contacts"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <ContactsPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/contacts/:id"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <ContactDetailsPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/contacts/:id"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <ContactDetailsPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/ai-assistant"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <AIAssistantPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/ai-assistant"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <AIAssistantPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/my-services"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <MyServicesPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/my-services"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <MyServicesPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/profile"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <ProfilePage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/profile"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <ProfilePage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/company-settings"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <CompanySettingsPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/company-settings"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <CompanySettingsPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/change-password"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <ChangePasswordPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/change-password"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <ChangePasswordPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/set-time-zone"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <SetTimeZonePage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/set-time-zone"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <SetTimeZonePage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/notifications"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <NotificationsPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/notifications"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <NotificationsPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route
-                      path="/notification-settings"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <NotificationSettingsPage />
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
+                      <Route
+                        path="/notification-settings"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <NotificationSettingsPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    {/* Redirect any unknown routes to dashboard */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </BrowserRouter>
-              </EventsProvider>
-            </EstimatesProvider>
-          </JobsProvider>
+                      {/* Redirect any unknown routes to dashboard */}
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </BrowserRouter>
+                </EventsProvider>
+              </EstimatesProvider>
+            </JobsProvider>
+          </DashboardStatsProvider>
         </NotificationProvider>
       </SocketProvider>
     </ThemeProvider>
