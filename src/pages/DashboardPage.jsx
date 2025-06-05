@@ -43,10 +43,10 @@ const DashboardPage = () => {
       try {
         // Load only events data (jobs and estimates are handled by their contexts)
         const eventsResponse = await fetchEvents();
+        console.log("event", eventsResponse);
 
         // Process the response with better error handling
         const eventsData = eventsResponse?.data || [];
-
         setEvents(eventsData);
       } catch (error) {
         console.error("Error loading dashboard data:", error);
@@ -66,18 +66,32 @@ const DashboardPage = () => {
   // Use EstimatesContext to get filtered estimates by status - looking for 'pending' status
   const pendingEstimates = getEstimatesByStatus("pending");
 
-  console.log("Filtered open jobs:", openJobs);
-  console.log("Filtered pending estimates:", pendingEstimates);
-  // Get today's events
+  // Get today's events with timezone-safe comparison
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayDateString = today.toDateString();
+
   const todayEvents = events
     .filter((event) => {
-      const eventDate = new Date(event.start);
-      eventDate.setHours(0, 0, 0, 0);
-      return eventDate.getTime() === today.getTime();
+      const startField = event.startTime;
+
+      if (!startField) {
+        return false;
+      }
+
+      const eventDate = new Date(startField);
+
+      if (isNaN(eventDate.getTime())) {
+        return false;
+      }
+
+      const eventDateString = eventDate.toDateString();
+      return eventDateString === todayDateString;
     })
-    .sort((a, b) => new Date(a.start) - new Date(b.start));
+    .sort((a, b) => {
+      const aStart = a.startTime;
+      const bStart = b.startTime;
+      return new Date(aStart) - new Date(bStart);
+    });
 
   // Format time from date string
   const formatTime = (dateString) => {
@@ -139,7 +153,7 @@ const DashboardPage = () => {
       </Grid>
 
       {/* Today's Schedule */}
-      <Box sx={{ mb: 4 }}>
+      {/* <Box sx={{ mb: 4 }}>
         <Box
           sx={{
             display: "flex",
@@ -178,7 +192,7 @@ const DashboardPage = () => {
               <ScheduleItem
                 key={event.id}
                 title={event.title}
-                time={formatTime(event.start)}
+                time={formatTime(event.startTime)}
                 color={
                   index % 3 === 0
                     ? theme.palette.success.main
@@ -195,11 +209,20 @@ const DashboardPage = () => {
             </Typography>
           )}
         </Box>
-      </Box>
+      </Box> */}
 
       {/* Statistics */}
       <Grid container spacing={3}>
-        <Grid item xs={12} sm={6}>
+        <Grid item xs={12} sm={4}>
+          <StatsCard
+            title="Today's Schedule"
+            value={loading ? "..." : todayEvents.length}
+            change="3"
+            changeText="from last week"
+            isPositive={true}
+          />
+        </Grid>
+        <Grid item xs={12} sm={4}>
           <StatsCard
             title="Open Jobs"
             value={jobsLoading ? "..." : openJobs.length}
@@ -208,7 +231,7 @@ const DashboardPage = () => {
             isPositive={true}
           />
         </Grid>
-        <Grid item xs={12} sm={6}>
+        <Grid item xs={12} sm={4}>
           <StatsCard
             title="Pending Estimates"
             value={estimatesLoading ? "..." : pendingEstimates.length}
