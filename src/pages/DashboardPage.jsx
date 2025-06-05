@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Box, Typography, Grid, useTheme } from "@mui/material";
 import ComputerIcon from "@mui/icons-material/Computer";
 import BuildIcon from "@mui/icons-material/Build";
@@ -9,16 +9,13 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useJobs } from "../contexts/JobsContext";
 import { useEstimates } from "../contexts/EstimatesContext";
-
-import { fetchEvents } from "../services/api";
+import { useEvents } from "../contexts/EventsContext";
 import GradientCard from "../components/common/GradientCard";
 import ScheduleItem from "../components/common/ScheduleItem";
 import StatsCard from "../components/common/StatsCard";
 import PageHeader from "../components/common/PageHeader";
 
 const DashboardPage = () => {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const theme = useTheme();
   const { user } = useAuth();
@@ -28,6 +25,7 @@ const DashboardPage = () => {
     loading: estimatesLoading,
     getEstimatesByStatus,
   } = useEstimates();
+  const { loading: eventsLoading, getTodayEvents } = useEvents();
 
   const gradients = {
     aiAssistant: "linear-gradient(45deg, #9D4EE9 0%, #8A2BE2 100%)",
@@ -37,61 +35,14 @@ const DashboardPage = () => {
     contacts: "linear-gradient(90deg, #8A2BE2 0%, #FF1493 100%)",
   };
 
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      setLoading(true);
-      try {
-        // Load only events data (jobs and estimates are handled by their contexts)
-        const eventsResponse = await fetchEvents();
-        console.log("event", eventsResponse);
-
-        // Process the response with better error handling
-        const eventsData = eventsResponse?.data || [];
-        setEvents(eventsData);
-      } catch (error) {
-        console.error("Error loading dashboard data:", error);
-        // Set empty array on error to prevent crashes
-        setEvents([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadDashboardData();
-  }, []);
-
   // Use JobsContext to get filtered jobs by status
   const openJobs = getJobsByStatus("open");
 
   // Use EstimatesContext to get filtered estimates by status - looking for 'pending' status
   const pendingEstimates = getEstimatesByStatus("pending");
 
-  // Get today's events with timezone-safe comparison
-  const today = new Date();
-  const todayDateString = today.toDateString();
-
-  const todayEvents = events
-    .filter((event) => {
-      const startField = event.startTime;
-
-      if (!startField) {
-        return false;
-      }
-
-      const eventDate = new Date(startField);
-
-      if (isNaN(eventDate.getTime())) {
-        return false;
-      }
-
-      const eventDateString = eventDate.toDateString();
-      return eventDateString === todayDateString;
-    })
-    .sort((a, b) => {
-      const aStart = a.startTime;
-      const bStart = b.startTime;
-      return new Date(aStart) - new Date(bStart);
-    });
+  // Use EventsContext to get today's events
+  const todayEvents = getTodayEvents();
 
   // Format time from date string
   const formatTime = (dateString) => {
@@ -216,7 +167,7 @@ const DashboardPage = () => {
         <Grid item xs={12} sm={4}>
           <StatsCard
             title="Today's Schedule"
-            value={loading ? "..." : todayEvents.length}
+            value={eventsLoading ? "..." : todayEvents.length}
             change="3"
             changeText="from last week"
             isPositive={true}
