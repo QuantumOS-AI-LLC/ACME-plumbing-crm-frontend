@@ -231,6 +231,7 @@ const ContactsPage = () => {
                 sx={{
                   cursor: "pointer",
                   transition: "transform 0.2s, box-shadow 0.2s",
+                  height: "100%",
                   "&:hover": {
                     transform: "translateY(-4px)",
                     boxShadow: 3,
