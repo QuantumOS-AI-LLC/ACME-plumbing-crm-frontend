@@ -32,9 +32,27 @@ export const NotificationProvider = ({ children }) => {
     // Socket.IO real-time notifications
     const socketNotifications = useSocketNotifications();
 
+    // Check if user is authenticated
+    const isAuthenticated = useCallback(() => {
+        const token =
+            localStorage.getItem("token") || sessionStorage.getItem("token");
+        const isLoggedIn =
+            localStorage.getItem("isLoggedIn") ||
+            sessionStorage.getItem("isLoggedIn");
+        return !!(token && isLoggedIn === "true");
+    }, []);
+
     // Load notifications
     const loadNotifications = useCallback(
         async (page = 1, limit = 10, isRead) => {
+            // Check authentication before making API call
+            if (!isAuthenticated()) {
+                console.log(
+                    "User not authenticated, skipping notification fetch"
+                );
+                return;
+            }
+
             try {
                 setLoading(true);
                 setError(null);
@@ -55,12 +73,19 @@ export const NotificationProvider = ({ children }) => {
                 setLoading(false);
             }
         },
-        []
+        [isAuthenticated]
     );
 
     // Mark notification as read
     const markAsRead = useCallback(
         async (id) => {
+            if (!isAuthenticated()) {
+                console.log(
+                    "User not authenticated, cannot mark notification as read"
+                );
+                return;
+            }
+
             try {
                 // Optimistically update UI
                 setNotifications((prev) =>
@@ -92,11 +117,18 @@ export const NotificationProvider = ({ children }) => {
                 throw err;
             }
         },
-        [socketNotifications]
+        [socketNotifications, isAuthenticated]
     );
 
     // Mark all notifications as read
     const markAllAsRead = useCallback(async () => {
+        if (!isAuthenticated()) {
+            console.log(
+                "User not authenticated, cannot mark all notifications as read"
+            );
+            return;
+        }
+
         try {
             // Optimistically update UI
             setNotifications((prev) =>
@@ -122,11 +154,23 @@ export const NotificationProvider = ({ children }) => {
             console.error("Error marking all notifications as read:", err);
             throw err;
         }
-    }, [socketNotifications, loadNotifications, pagination.limit]);
+    }, [
+        socketNotifications,
+        loadNotifications,
+        pagination.limit,
+        isAuthenticated,
+    ]);
 
     // Delete notification
     const removeNotification = useCallback(
         async (id) => {
+            if (!isAuthenticated()) {
+                console.log(
+                    "User not authenticated, cannot delete notification"
+                );
+                return;
+            }
+
             try {
                 // Optimistically update UI
                 const notificationToRemove = notifications.find(
@@ -159,7 +203,7 @@ export const NotificationProvider = ({ children }) => {
                 throw err;
             }
         },
-        [notifications, socketNotifications]
+        [notifications, socketNotifications, isAuthenticated]
     );
 
     // Add a new notification (used with WebSocket)
@@ -172,7 +216,12 @@ export const NotificationProvider = ({ children }) => {
 
     // Handle WebSocket notifications
     useEffect(() => {
-        if (!socketNotifications?.socket || !socketNotifications?.isConnected)
+        // Only setup WebSocket if user is authenticated
+        if (
+            !isAuthenticated() ||
+            !socketNotifications?.socket ||
+            !socketNotifications?.isConnected
+        )
             return;
 
         const { socket } = socketNotifications;
@@ -217,8 +266,10 @@ export const NotificationProvider = ({ children }) => {
 
         // Handle WebSocket reconnection
         socket.on("connect", () => {
-            // Reload notifications to sync with server
-            loadNotifications(1, pagination.limit, false);
+            // Reload notifications to sync with server (only if authenticated)
+            if (isAuthenticated()) {
+                loadNotifications(1, pagination.limit, false);
+            }
         });
 
         // Handle WebSocket errors
@@ -241,11 +292,20 @@ export const NotificationProvider = ({ children }) => {
         addNotification,
         loadNotifications,
         pagination.limit,
+        isAuthenticated,
     ]);
 
     // Initial load for total unread count and notifications
     useEffect(() => {
         const fetchInitialData = async () => {
+            // CHECK: Only fetch if user is authenticated
+            if (!isAuthenticated()) {
+                console.log(
+                    "User not authenticated, skipping initial notification fetch"
+                );
+                return;
+            }
+
             try {
                 // Fetch unread notifications to set initial unreadCount
                 const response = await fetchNotifications(1, 1, false);
@@ -263,7 +323,22 @@ export const NotificationProvider = ({ children }) => {
         };
 
         fetchInitialData();
-    }, [loadNotifications, pagination.limit]);
+    }, [loadNotifications, pagination.limit, isAuthenticated]);
+
+    // Reset state when user logs out
+    useEffect(() => {
+        if (!isAuthenticated()) {
+            setNotifications([]);
+            setUnreadCount(0);
+            setError(null);
+            setPagination({
+                total: 0,
+                page: 1,
+                limit: 10,
+                pages: 0,
+            });
+        }
+    }, [isAuthenticated]);
 
     const value = {
         notifications,
@@ -276,6 +351,7 @@ export const NotificationProvider = ({ children }) => {
         markAllAsRead,
         removeNotification,
         addNotification,
+        isAuthenticated, // Export this for components to use
     };
 
     return (
