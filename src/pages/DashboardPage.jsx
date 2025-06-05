@@ -8,21 +8,26 @@ import ContactsIcon from "@mui/icons-material/Contacts";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useJobs } from "../contexts/JobsContext";
+import { useEstimates } from "../contexts/EstimatesContext";
 
-import { fetchEstimates, fetchEvents } from "../services/api";
+import { fetchEvents } from "../services/api";
 import GradientCard from "../components/common/GradientCard";
 import ScheduleItem from "../components/common/ScheduleItem";
 import StatsCard from "../components/common/StatsCard";
 import PageHeader from "../components/common/PageHeader";
 
 const DashboardPage = () => {
-  const [estimates, setEstimates] = useState([]);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const theme = useTheme();
   const { user } = useAuth();
   const { jobs, loading: jobsLoading, getJobsByStatus } = useJobs();
+  const {
+    estimates,
+    loading: estimatesLoading,
+    getEstimatesByStatus,
+  } = useEstimates();
 
   const gradients = {
     aiAssistant: "linear-gradient(45deg, #9D4EE9 0%, #8A2BE2 100%)",
@@ -36,25 +41,16 @@ const DashboardPage = () => {
     const loadDashboardData = async () => {
       setLoading(true);
       try {
-        // Load estimates and events data in parallel (jobs are handled by JobsContext)
-        const [estimatesResponse, eventsResponse] = await Promise.all([
-          fetchEstimates(),
-          fetchEvents(),
-        ]);
+        // Load only events data (jobs and estimates are handled by their contexts)
+        const eventsResponse = await fetchEvents();
 
-        // Process the responses with better error handling
-        const estimatesData = estimatesResponse?.data || [];
+        // Process the response with better error handling
         const eventsData = eventsResponse?.data || [];
 
-        console.log("Estimates API Response:", estimatesResponse);
-        console.log("Estimates data:", estimatesData);
-
-        setEstimates(estimatesData);
         setEvents(eventsData);
       } catch (error) {
         console.error("Error loading dashboard data:", error);
-        // Set empty arrays on error to prevent crashes
-        setEstimates([]);
+        // Set empty array on error to prevent crashes
         setEvents([]);
       } finally {
         setLoading(false);
@@ -67,14 +63,11 @@ const DashboardPage = () => {
   // Use JobsContext to get filtered jobs by status
   const openJobs = getJobsByStatus("open");
 
-  // Filter estimates by status - looking for 'active' status
-  const activeEstimates = estimates.filter((estimate) => {
-    console.log("Estimate status:", estimate.status);
-    return estimate.status === "active";
-  });
+  // Use EstimatesContext to get filtered estimates by status - looking for 'pending' status
+  const pendingEstimates = getEstimatesByStatus("pending");
 
   console.log("Filtered open jobs:", openJobs);
-  console.log("Filtered active estimates:", activeEstimates);
+  console.log("Filtered pending estimates:", pendingEstimates);
   // Get today's events
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -217,8 +210,8 @@ const DashboardPage = () => {
         </Grid>
         <Grid item xs={12} sm={6}>
           <StatsCard
-            title="Active Estimates"
-            value={loading ? "..." : activeEstimates.length}
+            title="Pending Estimates"
+            value={estimatesLoading ? "..." : pendingEstimates.length}
             change="2"
             changeText="from last week"
             isPositive={true}
