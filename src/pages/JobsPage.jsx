@@ -14,6 +14,8 @@ import {
     Button,
     CircularProgress,
 } from "@mui/material";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { fetchJobs, updateJob } from "../services/api";
 import PageHeader from "../components/common/PageHeader";
 import JobCard from "../components/jobs/JobCard";
@@ -28,46 +30,95 @@ const JOB_STATUS = {
 };
 
 const JobsPage = () => {
-    const [activeTab, setActiveTab] = useState("current");
+    const [activeTab, setActiveTab] = useState("open");
     const [jobs, setJobs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalItems: 0,
+    });
 
-    const loadJobs = async () => {
-        try {
-            setLoading(true);
+    const pages = [...Array(pagination.totalPages).keys()];
+
+const loadJobs = async () => {
+    try {
+        setLoading(true);
+        setError(null); // Clear previous errors
+
+        const params = {
+            page: pagination.page,
+            limit: pagination.limit,
+        };
+
+        let combinedJobs = [];
+        let combinedTotalItems = 0;
+
+        if (activeTab === "open") {
             const response = await fetchJobs({
-                page: 1,
-                limit: 50,
+                ...params,
+                status: JOB_STATUS.OPEN,
             });
-
-            if (response && response.data) {
-                setJobs(response.data);
-            } else {
-                console.error("Unexpected API response format:", response);
-                setJobs([]);
-            }
-        } catch (error) {
-            console.error("Error loading jobs:", error);
-            setError("Failed to load jobs. Please try again.");
-        } finally {
-            setLoading(false);
+            combinedJobs = response.data || [];
+            combinedTotalItems = response.pagination?.total || 0;
+        } else if (activeTab === "in_progress") {
+            const response = await fetchJobs({
+                ...params,
+                status: JOB_STATUS.IN_PROGRESS,
+            });
+            combinedJobs = response.data || [];
+            combinedTotalItems = response.pagination?.total || 0;
+        } else if (activeTab === "completed") {
+            const response = await fetchJobs({
+                ...params,
+                status: JOB_STATUS.COMPLETED,
+            });
+            combinedJobs = response.data || [];
+            combinedTotalItems = response.pagination?.total || 0;
+        } else if (activeTab === "cancelled") {
+            const response = await fetchJobs({
+                ...params,
+                status: JOB_STATUS.CANCELLED,
+            });
+            combinedJobs = response.data || [];
+            combinedTotalItems = response.pagination?.total || 0;
         }
-    };
+
+        setJobs(combinedJobs);
+        setPagination((prev) => ({
+            ...prev,
+            totalPages: Math.ceil(combinedTotalItems / pagination.limit),
+            totalItems: combinedTotalItems,
+        }));
+    } catch (error) {
+        console.error("Error loading jobs:", error);
+        setError("Failed to load jobs. Please try again.");
+    } finally {
+        setLoading(false);
+    }
+};
 
     useEffect(() => {
         loadJobs();
-    }, []);
+    }, [pagination.page, activeTab]); // Add activeTab as a dependency
 
     const handleTabChange = (event, newValue) => {
         setActiveTab(newValue);
+        setPagination((prevState) => ({
+            ...prevState,
+            page: 1, // Reset to first page on tab change
+        }));
     };
 
     const getStatusFilters = () => {
         switch (activeTab) {
-            case "current":
-                return [JOB_STATUS.OPEN, JOB_STATUS.IN_PROGRESS];
+            case "open":
+                return [JOB_STATUS.OPEN];
+            case "in_progress":
+                return [JOB_STATUS.IN_PROGRESS];
             case "completed":
                 return [JOB_STATUS.COMPLETED];
             case "cancelled":
@@ -76,12 +127,6 @@ const JobsPage = () => {
                 return [];
         }
     };
-
-    const filteredJobs = jobs.filter((job) => {
-        if (activeTab === "reports") return true;
-        const statusFilters = getStatusFilters();
-        return statusFilters.includes(job.status);
-    });
 
     // Handle job update (from edit modal)
     const handleJobUpdate = (updatedJob) => {
@@ -93,15 +138,14 @@ const JobsPage = () => {
         );
 
         // Auto-switch to the correct tab based on the updated job's status
-        if (updatedJob.status === JOB_STATUS.COMPLETED) {
+        if (updatedJob.status === JOB_STATUS.OPEN) {
+            setActiveTab("open");
+        } else if (updatedJob.status === JOB_STATUS.IN_PROGRESS) {
+            setActiveTab("in_progress");
+        } else if (updatedJob.status === JOB_STATUS.COMPLETED) {
             setActiveTab("completed");
         } else if (updatedJob.status === JOB_STATUS.CANCELLED) {
             setActiveTab("cancelled");
-        } else if (
-            updatedJob.status === JOB_STATUS.OPEN ||
-            updatedJob.status === JOB_STATUS.IN_PROGRESS
-        ) {
-            setActiveTab("current");
         }
     };
 
@@ -122,11 +166,10 @@ const JobsPage = () => {
                 setActiveTab("completed");
             } else if (newStatus === JOB_STATUS.CANCELLED) {
                 setActiveTab("cancelled");
-            } else if (
-                newStatus === JOB_STATUS.OPEN ||
-                newStatus === JOB_STATUS.IN_PROGRESS
-            ) {
-                setActiveTab("current");
+            } else if (newStatus === JOB_STATUS.OPEN) {
+                setActiveTab("open");
+            } else if (newStatus === JOB_STATUS.IN_PROGRESS) {
+                setActiveTab("in_progress");
             }
         } catch (error) {
             console.error("Error updating job status:", error);
@@ -136,6 +179,16 @@ const JobsPage = () => {
     // Handle job creation
     const handleJobCreated = () => {
         loadJobs(); // Refresh jobs list
+    };
+
+    // For pagination
+    const handlePageChange = (newPage) => {
+        if (newPage !== pagination.page) {
+            setPagination((prevState) => ({
+                ...prevState,
+                page: newPage,
+            }));
+        }
     };
 
     return (
@@ -153,10 +206,10 @@ const JobsPage = () => {
                     onChange={handleTabChange}
                     aria-label="job tabs"
                 >
-                    <Tab label="Current Jobs" value="current" />
+                    <Tab label="Open Jobs" value="open" />
+                    <Tab label="In Progress" value="in_progress" />
                     <Tab label="Completed" value="completed" />
                     <Tab label="Cancelled" value="cancelled" />
-                    <Tab label="Reports" value="reports" />
                 </Tabs>
             </Box>
 
@@ -186,22 +239,24 @@ const JobsPage = () => {
             ) : activeTab !== "reports" ? (
                 <>
                     <Grid container spacing={3}>
-                        {filteredJobs.length === 0 ? (
+                        {jobs.length === 0 ? (
                             <Grid item xs={12}>
                                 <Box sx={{ textAlign: "center", py: 4 }}>
                                     <Typography variant="body1">
                                         No{" "}
-                                        {activeTab === "current"
-                                            ? "current"
+                                        {activeTab === "open"
+                                            ? "open"
+                                            : activeTab === "in_progress"
+                                            ? "in progress"
                                             : activeTab === "completed"
                                             ? "completed"
-                                            : "cancelled"}{" "}
-                                        jobs found.
+                                            : activeTab === "cancelled"}{" "}
+                                      jobs found.
                                     </Typography>
                                 </Box>
                             </Grid>
                         ) : (
-                            filteredJobs.map((job) => (
+                            jobs.map((job) => (
                                 <Grid item xs={12} key={job.id}>
                                     <JobCard
                                         job={job}
@@ -367,6 +422,45 @@ const JobsPage = () => {
                             <Typography>Jobs vs. Revenue Chart</Typography>
                         </Box>
                     </Paper>
+                </Box>
+            )}
+
+            {/* Pagination controller */}
+            {activeTab !== "reports" && (
+                <Box sx={{ textAlign: "center", mt: 4 }}>
+                    <Button
+                        variant="outlined"
+                        onClick={() => handlePageChange(pagination.page - 1)}
+                        disabled={pagination.page === 1}
+                        sx={{ px: 1, mr: 0.5, minWidth: "32px" }}
+                    >
+                        <ChevronLeftIcon />
+                    </Button>
+
+                    {pages.map((page) => (
+                        <Button
+                            key={page}
+                            variant={
+                                pagination.page === page + 1
+                                    ? "contained"
+                                    : "outlined"
+                            }
+                            onClick={() => handlePageChange(page + 1)}
+                            disabled={pagination.page === page + 1}
+                            sx={{ px: 1, mx: 0.5, minWidth: "32px" }}
+                        >
+                            {page + 1}
+                        </Button>
+                    ))}
+
+                    <Button
+                        variant="outlined"
+                        onClick={() => handlePageChange(pagination.page + 1)}
+                        disabled={pagination.page === pagination.totalPages}
+                        sx={{ px: 1, ml: 0.5, minWidth: "32px" }}
+                    >
+                        <ChevronRightIcon />
+                    </Button>
                 </Box>
             )}
 

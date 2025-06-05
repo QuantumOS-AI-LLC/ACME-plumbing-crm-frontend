@@ -206,7 +206,11 @@ export const updateCompanyProfile = async (data) => {
 // Jobs APIs
 export const fetchJobs = async (params = {}) => {
     try {
-        const response = await api.get("/jobs", { params });
+        const newParams = { ...params };
+        if (newParams.status && Array.isArray(newParams.status)) {
+            newParams.status = newParams.status.join(",");
+        }
+        const response = await api.get("/jobs", { params: newParams });
         return response.data;
     } catch (error) {
         console.error("Error fetching jobs:", error);
@@ -258,7 +262,11 @@ export const deleteJob = async (id) => {
 // Estimates APIs
 export const fetchEstimates = async (params = {}) => {
     try {
-        const response = await api.get("/estimates", { params });
+        const newParams = { ...params };
+        if (newParams.status && Array.isArray(newParams.status)) {
+            newParams.status = newParams.status.join(",");
+        }
+        const response = await api.get("/estimates", { params: newParams });
         return response.data;
     } catch (error) {
         console.error("Error fetching estimates:", error);
