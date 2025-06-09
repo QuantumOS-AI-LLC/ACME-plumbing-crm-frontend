@@ -24,6 +24,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 import EditIcon from "@mui/icons-material/Edit";
+import { v4 as uuidv4 } from 'uuid';
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { fetchContact, updateContact } from "../services/api";
 import PageHeader from "../components/common/PageHeader";
@@ -46,6 +47,10 @@ const ContactDetailsPage = () => {
         tags: [],
     });
     const [updating, setUpdating] = useState(false);
+    const handleAIAssistant = () => {
+        const conversationId = uuidv4();
+        navigate(`/ai-assistant?contactId=${id}&contactName=${contact.name}&conversationId=${conversationId}`);
+    };
     const { sendWebhook } = useWebhook();
     // Define pipeline stage options
     const pipelineStageOptions = [
@@ -288,10 +293,10 @@ const ContactDetailsPage = () => {
                                 {contact.status === "client"
                                     ? "Client"
                                     : contact.status === "lead"
-                                    ? "Lead"
-                                    : contact.status === "former_client"
-                                    ? "Former Client"
-                                    : "Contact"}
+                                        ? "Lead"
+                                        : contact.status === "former_client"
+                                            ? "Former Client"
+                                            : "Contact"}
                             </Typography>
                             {contact.tags && contact.tags.length > 0 && (
                                 <Box
@@ -315,6 +320,14 @@ const ContactDetailsPage = () => {
                         </Box>
                     </Box>
                     <Box>
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            onClick={handleAIAssistant}
+                            sx={{ mr: 1 }}
+                        >
+                            Text
+                        </Button>
                         <Button
                             variant="outlined"
                             color="primary"
@@ -424,14 +437,14 @@ const ContactDetailsPage = () => {
                                         borderRadius: 2,
                                         backgroundColor: "white",
                                         "&:hover .MuiOutlinedInput-notchedOutline":
-                                            {
-                                                borderColor: "primary.dark",
-                                            },
+                                        {
+                                            borderColor: "primary.dark",
+                                        },
                                         "&.Mui-focused .MuiOutlinedInput-notchedOutline":
-                                            {
-                                                borderColor: "primary.main",
-                                                borderWidth: 3,
-                                            },
+                                        {
+                                            borderColor: "primary.main",
+                                            borderWidth: 3,
+                                        },
                                         "&.Mui-disabled": {
                                             backgroundColor: "grey.200",
                                         },
@@ -462,18 +475,16 @@ const ContactDetailsPage = () => {
                                             <ListItem sx={{ px: 0 }}>
                                                 <ListItemText
                                                     primary={job.name}
-                                                    secondary={`Status: ${
-                                                        job.status
-                                                    } • Amount: $${
-                                                        job.amount?.toLocaleString() ||
+                                                    secondary={`Status: ${job.status
+                                                        } • Amount: $${job.amount?.toLocaleString() ||
                                                         "N/A"
-                                                    }`}
+                                                        }`}
                                                 />
                                             </ListItem>
                                             {index <
                                                 contact.jobs.length - 1 && (
-                                                <Divider />
-                                            )}
+                                                    <Divider />
+                                                )}
                                         </React.Fragment>
                                     ))}
                                 </List>

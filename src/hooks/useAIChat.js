@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { getConversationMessages } from '../services/api'; // Adjust path if necessary
 
-export const useAIChat = (contactId, estimateId = null) => {
+export const useAIChat = (contactId, estimateId = null, initialConversationId = null, onConversationSaved = () => {}) => {
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -29,9 +29,13 @@ export const useAIChat = (contactId, estimateId = null) => {
       setIsSending(false);
       
       // Add user message to conversation
-      if (data.message.contactId === contactId && 
+      if (data.message.contactId === contactId &&
           data.message.estimateId === estimateId) {
         setMessages(prev => [...prev, data.message]);
+        // If this was a new conversation, update its ID in the parent component
+        if (initialConversationId && data.message.conversationId !== initialConversationId) {
+          onConversationSaved(contactId, data.message.conversationId);
+        }
       }
     });
 
@@ -54,7 +58,7 @@ export const useAIChat = (contactId, estimateId = null) => {
       socket.off('user_typing');
       socket.off('error');
     };
-  }, [socket, contactId, estimateId]);
+  }, [socket, contactId, estimateId, initialConversationId, onConversationSaved]);
 
   // Effect to load message history
   useEffect(() => {
@@ -73,19 +77,23 @@ export const useAIChat = (contactId, estimateId = null) => {
             console.log('No message history found or invalid format for contact:', contactId, historyResponse);
             setMessages([]);
           }
-        } catch (error) {
-          console.error('Error fetching conversation history for contact:', contactId, error);
-          setMessages([]);
-        } finally {
-          setIsLoadingHistory(false);
-        }
-      } else {
-        setMessages([]); // Clear messages if no contactId
-      }
-    };
+       } catch (error) {
+         console.error('Error fetching conversation history for contact:', contactId, error);
+         setMessages([]);
+       } finally {
+         setIsLoadingHistory(false);
+         // If it's a new conversation, trigger the onConversationSaved callback
+         if (initialConversationId && messages.length === 0) {
+           onConversationSaved(contactId, initialConversationId);
+         }
+       }
+     } else {
+       setMessages([]); // Clear messages if no contactId
+     }
+   };
 
-    loadHistory();
-  }, [contactId, socket]); // Rerun when contactId or socket changes
+   loadHistory();
+ }, [contactId, socket, initialConversationId, onConversationSaved]); // Rerun when contactId or socket changes
 
   const sendMessage = useCallback((message) => {
     if (!socket || !message.trim() || isSending) return;
