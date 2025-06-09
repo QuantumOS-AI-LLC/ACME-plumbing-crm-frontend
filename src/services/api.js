@@ -8,6 +8,84 @@ const api = axios.create({
     },
 });
 
+// Global refresh token promise to prevent race conditions
+let refreshTokenPromise = null;
+
+// Token refresh function
+const refreshTokenAPI = async () => {
+    try {
+        console.log("🔄 Starting token refresh...");
+
+        // Get refresh token from storage
+        const refreshToken =
+            localStorage.getItem("refreshToken") ||
+            sessionStorage.getItem("refreshToken");
+
+        if (!refreshToken) {
+            console.log("❌ No refresh token found in storage");
+            throw new Error("No refresh token available");
+        }
+
+        console.log("🔍 Making refresh token API call...");
+        const response = await axios.post(
+            `${import.meta.env.VITE_API_BASE_URL}/auth/refresh-token`,
+            { refreshToken },
+            {
+                headers: { "Content-Type": "application/json" },
+            }
+        );
+
+        console.log("✅ Refresh token response:", response.data);
+
+        if (!response.data.success || !response.data.data) {
+            throw new Error("Invalid refresh response format");
+        }
+
+        const { accessToken, refreshToken: newRefreshToken } =
+            response.data.data;
+
+        if (!accessToken) {
+            throw new Error("No access token in refresh response");
+        }
+
+        console.log("💾 Updating tokens in storage...");
+
+        // Update tokens in storage
+        const isSessionStorage = sessionStorage.getItem("token");
+        if (isSessionStorage) {
+            sessionStorage.setItem("token", accessToken);
+            if (newRefreshToken) {
+                sessionStorage.setItem("refreshToken", newRefreshToken);
+            }
+        } else {
+            localStorage.setItem("token", accessToken);
+            if (newRefreshToken) {
+                localStorage.setItem("refreshToken", newRefreshToken);
+            }
+        }
+
+        console.log("✅ Token refresh successful");
+        return accessToken;
+    } catch (error) {
+        console.error("❌ Token refresh failed:", error);
+
+        // Refresh failed, clear all tokens and redirect to login
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("isLoggedIn");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("isLoggedIn");
+
+        if (!window.location.pathname.includes("/login")) {
+            console.log("🔄 Redirecting to login...");
+            window.location.href = "/login";
+        }
+
+        throw error;
+    }
+};
+
 // Add token to requests
 api.interceptors.request.use(
     (config) => {
@@ -25,15 +103,73 @@ api.interceptors.request.use(
     }
 );
 
-// Handle response errors
+// Handle response errors with automatic token refresh - RACE CONDITION FIXED
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
+        console.log("=== API INTERCEPTOR ERROR ===");
+        console.log("Error status:", error.response?.status);
+        console.log("Error URL:", error.config?.url);
+
+        const originalRequest = error.config;
+
+        if (
+            error.response &&
+            error.response.status === 401 &&
+            !originalRequest._retry
+        ) {
+            console.log("🔄 401 Error detected, attempting refresh...");
+            originalRequest._retry = true;
+
+            // Check if user should be authenticated
+            const isLoggedIn =
+                localStorage.getItem("isLoggedIn") ||
+                sessionStorage.getItem("isLoggedIn");
+
+            if (!isLoggedIn || isLoggedIn !== "true") {
+                console.log("❌ User not logged in, skipping refresh");
+                return Promise.reject(error);
+            }
+
+            try {
+                // RACE CONDITION FIX: Use shared promise for multiple simultaneous requests
+                if (!refreshTokenPromise) {
+                    console.log("🔄 Creating new refresh token promise...");
+                    refreshTokenPromise = refreshTokenAPI().finally(() => {
+                        // Clear the promise after completion (success or failure)
+                        refreshTokenPromise = null;
+                    });
+                } else {
+                    console.log("🔄 Using existing refresh token promise...");
+                }
+
+                // Wait for the refresh to complete
+                const newAccessToken = await refreshTokenPromise;
+
+                console.log("🔄 Retrying original request with new token...");
+
+                // Update the original request with new token
+                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+                // Retry the original request
+                return api(originalRequest);
+            } catch (refreshError) {
+                console.log("❌ Refresh failed, rejecting original request");
+                // Refresh failed, user will be redirected to login
+                return Promise.reject(refreshError);
+            }
+        }
+
+        // If not a 401 error or refresh failed, handle normally
         if (error.response && error.response.status === 401) {
+            console.log("❌ 401 error after retry, clearing auth data");
+
             // Clear token from both storage types
             localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
             localStorage.removeItem("isLoggedIn");
             sessionStorage.removeItem("token");
+            sessionStorage.removeItem("refreshToken");
             sessionStorage.removeItem("isLoggedIn");
 
             // If not already on the login page, redirect
@@ -41,20 +177,63 @@ api.interceptors.response.use(
                 window.location.href = "/login";
             }
         }
+
         return Promise.reject(error);
     }
 );
 
 // Authentication APIs
-export const loginUser = async (phoneNumber, password) => {
+export const loginUser = async (phoneNumber, password, rememberMe = false) => {
     try {
+        console.log("🔐 Attempting login...");
+
         const response = await api.post("/auth/login", {
             phoneNumber,
             password,
         });
+
+        console.log("✅ Login response:", response.data);
+
+        if (!response.data.success || !response.data.data) {
+            throw new Error("Invalid login response format");
+        }
+
+        // Store both access and refresh tokens
+        const { accessToken, refreshToken, user } = response.data.data;
+
+        if (!accessToken || !refreshToken) {
+            throw new Error("Missing tokens in login response");
+        }
+
+        console.log("💾 Storing auth data...");
+
+        // Store tokens based on rememberMe preference
+        if (rememberMe) {
+            localStorage.setItem("token", accessToken);
+            localStorage.setItem("refreshToken", refreshToken);
+            localStorage.setItem("isLoggedIn", "true");
+            localStorage.setItem("userProfile", JSON.stringify(user));
+        } else {
+            sessionStorage.setItem("token", accessToken);
+            sessionStorage.setItem("refreshToken", refreshToken);
+            sessionStorage.setItem("isLoggedIn", "true");
+            sessionStorage.setItem("userProfile", JSON.stringify(user));
+        }
+
+        console.log("✅ Login successful, tokens stored");
         return response.data;
     } catch (error) {
-        console.error("Login error:", error);
+        console.error("❌ Login error:", error);
+        throw error;
+    }
+};
+
+// Manual refresh token function (can be used when needed)
+export const refreshUserToken = async () => {
+    try {
+        return await refreshTokenAPI();
+    } catch (error) {
+        console.error("Manual refresh token error:", error);
         throw error;
     }
 };
@@ -62,9 +241,37 @@ export const loginUser = async (phoneNumber, password) => {
 export const logoutUser = async () => {
     try {
         await api.post("/auth/logout");
+
+        // Clear all tokens
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem("userProfile");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("isLoggedIn");
+        sessionStorage.removeItem("userProfile");
+
+        // Clear the refresh promise if it exists
+        refreshTokenPromise = null;
+
         return true;
     } catch (error) {
         console.error("Logout error:", error);
+
+        // Even if logout fails, clear tokens locally
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem("userProfile");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("isLoggedIn");
+        sessionStorage.removeItem("userProfile");
+
+        // Clear the refresh promise
+        refreshTokenPromise = null;
+
         return false;
     }
 };
@@ -108,10 +315,12 @@ export const changePassword = async (passwordData) => {
 // User Profile APIs
 export const fetchUserProfile = async () => {
     try {
-        const response = await api.get("/users/me");
+        const response = await api.get("/auth/profile");
         if (response.data && response.data.success) {
-            // Save the full response to localStorage
-            localStorage.setItem("userProfile", JSON.stringify(response.data));
+            localStorage.setItem(
+                "userProfile",
+                JSON.stringify(response.data.data.user)
+            );
         }
         return response.data;
     } catch (error) {
@@ -124,8 +333,10 @@ export const updateUserProfile = async (profileData) => {
     try {
         const response = await api.put("/users/profile", profileData);
         if (response.data && response.data.success) {
-            // Save the full response to localStorage
-            localStorage.setItem("userProfile", JSON.stringify(response.data));
+            localStorage.setItem(
+                "userProfile",
+                JSON.stringify(response.data.data)
+            );
         }
         return response.data;
     } catch (error) {
@@ -137,12 +348,11 @@ export const updateUserProfile = async (profileData) => {
 // Company APIs
 export const fetchCompanySettings = async () => {
     try {
-        const response = await api.get("/users/me");
+        const response = await api.get("/auth/profile");
         if (response.data && response.data.success) {
-            // Save the full response to localStorage
             localStorage.setItem(
                 "companyProfile",
-                JSON.stringify(response.data)
+                JSON.stringify(response.data.data.user.company)
             );
         }
         return response.data;
@@ -156,10 +366,9 @@ export const updateCompanySettings = async (companyData) => {
     try {
         const response = await api.put("/users/company", companyData);
         if (response.data && response.data.success) {
-            // Save the full response to localStorage
             localStorage.setItem(
                 "companyProfile",
-                JSON.stringify(response.data)
+                JSON.stringify(response.data.data)
             );
         }
         return response.data;
@@ -173,10 +382,9 @@ export const fetchCompanyProfile = async () => {
     try {
         const response = await api.get("/companies/my-company");
         if (response.data && response.data.success) {
-            // Save the full response to localStorage
             localStorage.setItem(
                 "companyProfile",
-                JSON.stringify(response.data)
+                JSON.stringify(response.data.data)
             );
         }
         return response.data;
@@ -190,10 +398,9 @@ export const updateCompanyProfile = async (data) => {
     try {
         const response = await api.put("/companies/my-company", data);
         if (response.data && response.data.success) {
-            // Update localStorage with new data
             localStorage.setItem(
                 "companyProfile",
-                JSON.stringify(response.data)
+                JSON.stringify(response.data.data)
             );
         }
         return response.data;
@@ -449,12 +656,10 @@ export const fetchNotificationSettings = async () => {
 };
 
 export const updateNotificationSettings = async (settingsData) => {
-    // settingsData is expected to be an array of setting objects
     try {
-        const response = await api.put(
-            "/notifications/settings",
-            { settings: settingsData } // Wrap settingsData in an object with a 'settings' key
-        );
+        const response = await api.put("/notifications/settings", {
+            settings: settingsData,
+        });
         return response.data;
     } catch (error) {
         console.error("Error updating notification settings:", error);
@@ -507,21 +712,6 @@ export const deleteNotification = async (id) => {
     }
 };
 
-// // AI Assistant APIs
-// export const createConversation = async (message, estimateId, contactId) => {
-//     try {
-//         const response = await api.post("/ai/reply", {
-//             message,
-//             contactId,
-//             estimateId,
-//         });
-//         return response.data;
-//     } catch (error) {
-//         console.error("Error sending message to AI:", error);
-//         throw error;
-//     }
-// };
-
 export const getConversations = async () => {
     try {
         const response = await api.get("/ai/conversations");
@@ -552,15 +742,12 @@ export const sendMessageToAI = async (
     userId
 ) => {
     try {
-        // Only call /ai/reply to send the user's message
         const response = await api.post("/ai/reply", {
             message,
             contactId,
             estimateId,
             userId,
         });
-        // Return the response from /ai/reply (or handle as needed, maybe just return success/failure)
-        // The actual AI response will come via WebSocket
         return response.data;
     } catch (error) {
         console.error("Error sending message via /ai/reply:", error);
@@ -652,7 +839,9 @@ export const fetchPopularTags = async () => {
 // GPS Tracking APIs
 export const toggleLiveTracking = async (isLiveTrackingEnabled) => {
     try {
-        const response = await api.put("/users/toggle-tracking", { isLiveTrackingEnabled });
+        const response = await api.put("/users/toggle-tracking", {
+            isLiveTrackingEnabled,
+        });
         return response.data;
     } catch (error) {
         console.error("Error toggling live tracking:", error);
@@ -662,13 +851,15 @@ export const toggleLiveTracking = async (isLiveTrackingEnabled) => {
 
 export const updateLocation = async (latitude, longitude) => {
     try {
-        const response = await api.put("/users/location", { latitude, longitude });
+        const response = await api.put("/users/location", {
+            latitude,
+            longitude,
+        });
         return response.data;
     } catch (error) {
         console.error("Error updating location:", error);
         throw error;
     }
 };
-
 
 export default api;
