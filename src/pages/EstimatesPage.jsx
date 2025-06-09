@@ -9,6 +9,8 @@ import {
     Button,
     CircularProgress,
 } from "@mui/material";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import PageHeader from "../components/common/PageHeader";
 import EstimateCard from "../components/estimates/EstimateCard";
@@ -32,21 +34,43 @@ const EstimatesPage = () => {
     const [error, setError] = useState(null);
     const [openForm, setOpenForm] = useState(false);
     const [editingEstimate, setEditingEstimate] = useState(null);
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalItems: 0,
+    });
 
     // ADD THESE MODAL STATES
     const [selectedEstimate, setSelectedEstimate] = useState(null);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
 
     // Memoized function to load estimates
-    const loadEstimates = useCallback(async () => {
+    const pages = [...Array(pagination.totalPages).keys()];
+
+    const loadEstimates = useCallback(async (page = pagination.page, limit = pagination.limit) => {
         try {
             setLoading(true);
             setError(null);
-            const response = await fetchEstimates({
-                page: 1,
-                limit: 50,
-            });
+            const statusFilters = getStatusFilters();
+            const params = {
+                page: page,
+                limit: limit,
+            };
+
+            if (statusFilters.length > 0) {
+                params.status = statusFilters; // Pass status as an array
+            }
+
+            const response = await fetchEstimates(params);
             setEstimates(response.data || []);
+            setPagination((prev) => ({
+                ...prev,
+                page: response.pagination.page,
+                limit: response.pagination.limit,
+                totalPages: response.pagination.pages,
+                totalItems: response.pagination.total,
+            }));
         } catch (error) {
             console.error("Error loading estimates:", error);
             setError("Failed to load estimates. Please try again.");
@@ -59,7 +83,7 @@ const EstimatesPage = () => {
     // Initial load
     useEffect(() => {
         loadEstimates();
-    }, [loadEstimates]);
+    }, [loadEstimates, activeTab]); // Add activeTab as a dependency
 
     // Refetch when window gains focus (optional - good UX)
     useEffect(() => {
@@ -73,6 +97,10 @@ const EstimatesPage = () => {
 
     const handleTabChange = (event, newValue) => {
         setActiveTab(newValue);
+        setPagination((prevState) => ({
+            ...prevState,
+            page: 1, // Reset to first page on tab change
+        }));
     };
 
     const getStatusFilters = () => {
@@ -88,11 +116,12 @@ const EstimatesPage = () => {
         }
     };
 
-    const filteredEstimates = estimates.filter((estimate) => {
-        if (activeTab === "reports") return true;
-        const statusFilters = getStatusFilters();
-        return statusFilters.includes(estimate.status);
-    });
+    // Remove client-side filtering as API will handle it
+    // const filteredEstimates = estimates.filter((estimate) => {
+    //     if (activeTab === "reports") return true;
+    //     const statusFilters = getStatusFilters();
+    //     return statusFilters.includes(estimate.status);
+    // });
 
     // UPDATE THIS FUNCTION TO OPEN THE MODAL
     const handleViewEstimate = (estimate) => {
@@ -160,6 +189,17 @@ const EstimatesPage = () => {
     // Manual refresh function
     const handleRefresh = () => {
         loadEstimates();
+    };
+
+    // For pagination
+    const handlePageChange = (newPage) => {
+        if (newPage !== pagination.page) {
+            loadEstimates(newPage, pagination.limit);
+            setPagination((prevState) => ({
+                ...prevState,
+                page: newPage,
+            }));
+        }
     };
 
     return (
@@ -242,7 +282,7 @@ const EstimatesPage = () => {
                     </Box>
 
                     <Grid container spacing={3}>
-                        {filteredEstimates.length === 0 ? (
+                        {estimates.length === 0 ? (
                             <Grid item xs={12}>
                                 <Box sx={{ textAlign: "center", py: 4 }}>
                                     <Typography variant="body1">
@@ -257,7 +297,7 @@ const EstimatesPage = () => {
                                 </Box>
                             </Grid>
                         ) : (
-                            filteredEstimates.map((estimate) => (
+                            estimates.map((estimate) => (
                                 <Grid item xs={12} key={estimate.id}>
                                     <EstimateCard
                                         estimate={estimate}
@@ -424,6 +464,45 @@ const EstimatesPage = () => {
                             <Typography>Conversion Rate Chart</Typography>
                         </Box>
                     </Paper>
+                </Box>
+            )}
+
+            {/* Pagination controller */}
+            {activeTab !== "reports" && (
+                <Box sx={{ textAlign: "center", mt: 4 }}>
+                    <Button
+                        variant="outlined"
+                        onClick={() => handlePageChange(pagination.page - 1)}
+                        disabled={pagination.page === 1}
+                        sx={{ px: 1, mr: 0.5, minWidth: "32px" }}
+                    >
+                        <ChevronLeftIcon />
+                    </Button>
+
+                    {pages.map((page) => (
+                        <Button
+                            key={page}
+                            variant={
+                                pagination.page === page + 1
+                                    ? "contained"
+                                    : "outlined"
+                            }
+                            onClick={() => handlePageChange(page + 1)}
+                            disabled={pagination.page === page + 1}
+                            sx={{ px: 1, mx: 0.5, minWidth: "32px" }}
+                        >
+                            {page + 1}
+                        </Button>
+                    ))}
+
+                    <Button
+                        variant="outlined"
+                        onClick={() => handlePageChange(pagination.page + 1)}
+                        disabled={pagination.page === pagination.totalPages}
+                        sx={{ px: 1, ml: 0.5, minWidth: "32px" }}
+                    >
+                        <ChevronRightIcon />
+                    </Button>
                 </Box>
             )}
         </Box>
