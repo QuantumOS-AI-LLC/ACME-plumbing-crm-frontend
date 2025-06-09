@@ -25,6 +25,7 @@ import {
 } from "@mui/icons-material";
 import { toast } from "sonner";
 import { createService } from "../../services/api";
+import { useWebhook } from "../../hooks/webHook";
 
 const modalStyle = {
     position: "absolute",
@@ -60,6 +61,7 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
         category: "",
         price: "",
     });
+    const { sendWebhook } = useWebhook();
 
     const validateForm = () => {
         const errors = {
@@ -85,7 +87,10 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
         }
 
         // Price validation (must be a valid number if provided)
-        if (formData.price && (isNaN(formData.price) || parseFloat(formData.price) < 0)) {
+        if (
+            formData.price &&
+            (isNaN(formData.price) || parseFloat(formData.price) < 0)
+        ) {
             errors.price = "Price must be a valid positive number";
             isValid = false;
         }
@@ -119,10 +124,16 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
     };
 
     const handleAddIncludedService = () => {
-        if (newIncludedService.trim() && !formData.includedServices.includes(newIncludedService.trim())) {
+        if (
+            newIncludedService.trim() &&
+            !formData.includedServices.includes(newIncludedService.trim())
+        ) {
             setFormData((prev) => ({
                 ...prev,
-                includedServices: [...prev.includedServices, newIncludedService.trim()],
+                includedServices: [
+                    ...prev.includedServices,
+                    newIncludedService.trim(),
+                ],
             }));
             setNewIncludedService("");
         }
@@ -131,7 +142,9 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
     const handleRemoveIncludedService = (serviceToRemove) => {
         setFormData((prev) => ({
             ...prev,
-            includedServices: prev.includedServices.filter((service) => service !== serviceToRemove),
+            includedServices: prev.includedServices.filter(
+                (service) => service !== serviceToRemove
+            ),
         }));
     };
 
@@ -154,19 +167,28 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                 duration: formData.duration.trim() || null,
                 tags: formData.tags,
                 includedServices: formData.includedServices,
-                status: "active"
+                status: "active",
             };
 
             // Call the real API
             const response = await createService(serviceData);
-            
+
+            console.log("Service creation response:", response);
+
+            const webHookData = {
+                ...response.data,
+                webhookEvent: "serviceCreated",
+                serviceId: response.data.id,
+            };
+            await sendWebhook({ payload: webHookData });
+
             if (response.success) {
                 if (onServiceCreated) {
                     onServiceCreated(response.data);
                 }
-                
+
                 onClose();
-                
+
                 // Reset form
                 setFormData({
                     name: "",
@@ -178,14 +200,16 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                     includedServices: [],
                 });
                 setValidationErrors({ name: "", category: "", price: "" });
-                
+
                 toast.success("Service created successfully!");
             } else {
-                throw new Error(response.message || 'Failed to create service');
+                throw new Error(response.message || "Failed to create service");
             }
         } catch (err) {
             console.error("Error creating service:", err);
-            setError(err.message || "Failed to create service. Please try again.");
+            setError(
+                err.message || "Failed to create service. Please try again."
+            );
             toast.error(err.message || "Failed to create service");
         } finally {
             setLoading(false);
@@ -275,7 +299,8 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                                         },
                                         "&.Mui-focused fieldset": {
                                             borderColor: "primary.main",
-                                            boxShadow: "0 0 0 2px rgba(138, 43, 226, 0.1)",
+                                            boxShadow:
+                                                "0 0 0 2px rgba(138, 43, 226, 0.1)",
                                         },
                                     },
                                 }}
@@ -301,7 +326,8 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                                         },
                                         "&.Mui-focused fieldset": {
                                             borderColor: "primary.main",
-                                            boxShadow: "0 0 0 2px rgba(138, 43, 226, 0.1)",
+                                            boxShadow:
+                                                "0 0 0 2px rgba(138, 43, 226, 0.1)",
                                         },
                                     },
                                 }}
@@ -320,7 +346,8 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                                         },
                                         "&.Mui-focused fieldset": {
                                             borderColor: "primary.main",
-                                            boxShadow: "0 0 0 2px rgba(138, 43, 226, 0.1)",
+                                            boxShadow:
+                                                "0 0 0 2px rgba(138, 43, 226, 0.1)",
                                         },
                                     },
                                 }}
@@ -334,14 +361,24 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                                     size="small"
                                     required
                                 >
-                                    <MenuItem value="Emergency">Emergency</MenuItem>
-                                    <MenuItem value="Installation">Installation</MenuItem>
+                                    <MenuItem value="Emergency">
+                                        Emergency
+                                    </MenuItem>
+                                    <MenuItem value="Installation">
+                                        Installation
+                                    </MenuItem>
                                     <MenuItem value="Repair">Repair</MenuItem>
-                                    <MenuItem value="Maintenance">Maintenance</MenuItem>
+                                    <MenuItem value="Maintenance">
+                                        Maintenance
+                                    </MenuItem>
                                 </Select>
                             </FormControl>
                             {validationErrors.category && (
-                                <Typography variant="caption" color="error.main" sx={{ ml: 1.5, mt: 0.5, display: "block" }}>
+                                <Typography
+                                    variant="caption"
+                                    color="error.main"
+                                    sx={{ ml: 1.5, mt: 0.5, display: "block" }}
+                                >
                                     {validationErrors.category}
                                 </Typography>
                             )}
@@ -381,7 +418,8 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                                         },
                                         "&.Mui-focused fieldset": {
                                             borderColor: "primary.main",
-                                            boxShadow: "0 0 0 2px rgba(138, 43, 226, 0.1)",
+                                            boxShadow:
+                                                "0 0 0 2px rgba(138, 43, 226, 0.1)",
                                         },
                                     },
                                 }}
@@ -405,7 +443,8 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                                         },
                                         "&.Mui-focused fieldset": {
                                             borderColor: "primary.main",
-                                            boxShadow: "0 0 0 2px rgba(138, 43, 226, 0.1)",
+                                            boxShadow:
+                                                "0 0 0 2px rgba(138, 43, 226, 0.1)",
                                         },
                                     },
                                 }}
@@ -457,7 +496,7 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                             size="small"
                             placeholder="e.g., Emergency Response"
                             onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
+                                if (e.key === "Enter") {
                                     e.preventDefault();
                                     handleAddTag();
                                 }
@@ -470,7 +509,8 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                                     },
                                     "&.Mui-focused fieldset": {
                                         borderColor: "primary.main",
-                                        boxShadow: "0 0 0 2px rgba(138, 43, 226, 0.1)",
+                                        boxShadow:
+                                            "0 0 0 2px rgba(138, 43, 226, 0.1)",
                                     },
                                 },
                             }}
@@ -512,19 +552,21 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                     >
                         Included Services
                     </Typography>
-                    
+
                     {/* Add Included Service Input */}
                     <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
                         <TextField
                             fullWidth
                             label="Add included service"
                             value={newIncludedService}
-                            onChange={(e) => setNewIncludedService(e.target.value)}
+                            onChange={(e) =>
+                                setNewIncludedService(e.target.value)
+                            }
                             variant="outlined"
                             size="small"
                             placeholder="e.g., Drain Cleaning"
                             onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
+                                if (e.key === "Enter") {
                                     e.preventDefault();
                                     handleAddIncludedService();
                                 }
@@ -537,7 +579,8 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                                     },
                                     "&.Mui-focused fieldset": {
                                         borderColor: "primary.main",
-                                        boxShadow: "0 0 0 2px rgba(138, 43, 226, 0.1)",
+                                        boxShadow:
+                                            "0 0 0 2px rgba(138, 43, 226, 0.1)",
                                     },
                                 },
                             }}
@@ -566,7 +609,13 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
 
                     {/* Included Services List */}
                     {formData.includedServices.length > 0 ? (
-                        <List sx={{ p: 0, backgroundColor: "rgba(0,0,0,0.02)", borderRadius: "8px" }}>
+                        <List
+                            sx={{
+                                p: 0,
+                                backgroundColor: "rgba(0,0,0,0.02)",
+                                borderRadius: "8px",
+                            }}
+                        >
                             {formData.includedServices.map((service, index) => (
                                 <ListItem
                                     key={index}
@@ -579,13 +628,18 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                                     }}
                                     secondaryAction={
                                         <Tooltip title="Remove service" arrow>
-                                            <IconButton 
-                                                edge="end" 
-                                                onClick={() => handleRemoveIncludedService(service)}
+                                            <IconButton
+                                                edge="end"
+                                                onClick={() =>
+                                                    handleRemoveIncludedService(
+                                                        service
+                                                    )
+                                                }
                                                 sx={{
                                                     color: "error.main",
                                                     "&:hover": {
-                                                        backgroundColor: "rgba(244, 67, 54, 0.1)",
+                                                        backgroundColor:
+                                                            "rgba(244, 67, 54, 0.1)",
                                                     },
                                                 }}
                                             >
@@ -600,7 +654,7 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                                                 variant="body1"
                                                 sx={{
                                                     fontWeight: 500,
-                                                    color: "text.primary"
+                                                    color: "text.primary",
                                                 }}
                                             >
                                                 {service}
@@ -617,14 +671,18 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                                 textAlign: "center",
                                 backgroundColor: "rgba(0,0,0,0.02)",
                                 borderRadius: "8px",
-                                border: "2px dashed rgba(0,0,0,0.1)"
+                                border: "2px dashed rgba(0,0,0,0.1)",
                             }}
                         >
                             <Typography
                                 variant="body2"
-                                sx={{ color: "text.secondary", fontStyle: "italic" }}
+                                sx={{
+                                    color: "text.secondary",
+                                    fontStyle: "italic",
+                                }}
                             >
-                                No included services added yet. Add some services above to get started.
+                                No included services added yet. Add some
+                                services above to get started.
                             </Typography>
                         </Box>
                     )}
@@ -679,7 +737,12 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
                             type="submit"
                             variant="contained"
                             color="primary"
-                            disabled={loading || !!validationErrors.name || !!validationErrors.category || !!validationErrors.price}
+                            disabled={
+                                loading ||
+                                !!validationErrors.name ||
+                                !!validationErrors.category ||
+                                !!validationErrors.price
+                            }
                             sx={{
                                 borderRadius: "8px",
                                 textTransform: "none",
