@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   Box,
   Typography,
@@ -14,12 +14,11 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import PageHeader from "../components/common/PageHeader";
 import EstimateCard from "../components/estimates/EstimateCard";
-import EstimateDetailsModal from "../components/estimates/EstimateDetailsModal"; // ADD THIS IMPORT
+import EstimateDetailsModal from "../components/estimates/EstimateDetailsModal";
 import { toast } from "sonner";
 import { AuthContext } from "../contexts/AuthContext";
 import { useEstimates } from "../contexts/EstimatesContext";
 import CreateEstimateForm from "../components/estimates/CreateEstimateForm";
-import { fetchEstimates } from "../services/api";
 
 const ESTIMATE_STATUS = {
   PENDING: "pending",
@@ -60,68 +59,31 @@ const EstimatesPage = () => {
     }
   });
 
-  // Memoized function to load estimates
+  // Calculate pagination for filtered estimates
+  const startIndex = (pagination.page - 1) * pagination.limit;
+  const endIndex = startIndex + pagination.limit;
+  const paginatedEstimates = filteredEstimates.slice(startIndex, endIndex);
+
   const pages = [...Array(pagination.totalPages).keys()];
 
   // Update pagination based on filtered estimates
   useEffect(() => {
     const totalItems = filteredEstimates.length;
-    setPagination((prev) => ({
-      ...prev,
-      totalPages: Math.ceil(totalItems / prev.limit),
-      totalItems: totalItems,
-    }));
-  }, [filteredEstimates]);
+    const newTotalPages = Math.ceil(totalItems / pagination.limit);
 
-  const loadEstimates = useCallback(
-    async (page = pagination.page, limit = pagination.limit) => {
-      try {
-        setLoading(true);
-        setError(null);
-        const statusFilters = getStatusFilters();
-        const params = {
-          page: page,
-          limit: limit,
-        };
+    setPagination((prev) => {
+      // If current page is beyond available pages, reset to page 1
+      const newPage =
+        prev.page > newTotalPages && newTotalPages > 0 ? 1 : prev.page;
 
-        if (statusFilters.length > 0) {
-          params.status = statusFilters; // Pass status as an array
-        }
-
-        const response = await fetchEstimates(params);
-        setEstimates(response.data || []);
-        setPagination((prev) => ({
-          ...prev,
-          page: response.pagination.page,
-          limit: response.pagination.limit,
-          totalPages: response.pagination.pages,
-          totalItems: response.pagination.total,
-        }));
-      } catch (error) {
-        console.error("Error loading estimates:", error);
-        setError("Failed to load estimates. Please try again.");
-        toast.error("Failed to load estimates");
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  // Initial load
-  useEffect(() => {
-    loadEstimates();
-  }, [loadEstimates, activeTab]); // Add activeTab as a dependency
-
-  // Refetch when window gains focus (optional - good UX)
-  useEffect(() => {
-    const handleFocus = () => {
-      loadEstimates();
-    };
-
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [loadEstimates]);
+      return {
+        ...prev,
+        page: newPage,
+        totalPages: newTotalPages,
+        totalItems: totalItems,
+      };
+    });
+  }, [filteredEstimates, pagination.limit]);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -130,26 +92,6 @@ const EstimatesPage = () => {
       page: 1, // Reset to first page on tab change
     }));
   };
-
-  const getStatusFilters = () => {
-    switch (activeTab) {
-      case "active":
-        return [ESTIMATE_STATUS.PENDING];
-      case "accepted":
-        return [ESTIMATE_STATUS.ACCEPTED];
-      case "rejected":
-        return [ESTIMATE_STATUS.REJECTED];
-      default:
-        return [];
-    }
-  };
-
-  // Remove client-side filtering as API will handle it
-  // const filteredEstimates = estimates.filter((estimate) => {
-  //     if (activeTab === "reports") return true;
-  //     const statusFilters = getStatusFilters();
-  //     return statusFilters.includes(estimate.status);
-  // });
 
   // UPDATE THIS FUNCTION TO OPEN THE MODAL
   const handleViewEstimate = (estimate) => {
@@ -204,15 +146,9 @@ const EstimatesPage = () => {
     }
   };
 
-  // Manual refresh function
-  const handleRefresh = () => {
-    loadEstimates();
-  };
-
   // For pagination
   const handlePageChange = (newPage) => {
     if (newPage !== pagination.page) {
-      loadEstimates(newPage, pagination.limit);
       setPagination((prevState) => ({
         ...prevState,
         page: newPage,
@@ -274,31 +210,13 @@ const EstimatesPage = () => {
             variant="outlined"
             color="primary"
             sx={{ mt: 2 }}
-            onClick={handleRefresh}
+            onClick={() => window.location.reload()}
           >
             Retry
           </Button>
         </Box>
       ) : activeTab !== "reports" ? (
         <>
-          {/* Add refresh button for better UX */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "flex-end",
-              mb: 2,
-            }}
-          >
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={handleRefresh}
-              disabled={loading}
-            >
-              Refresh
-            </Button>
-          </Box>
-
           <Grid container spacing={3}>
             {filteredEstimates.length === 0 ? (
               <Grid item xs={12}>
@@ -315,7 +233,7 @@ const EstimatesPage = () => {
                 </Box>
               </Grid>
             ) : (
-              filteredEstimates.map((estimate) => (
+              paginatedEstimates.map((estimate) => (
                 <Grid item xs={12} key={estimate.id}>
                   <EstimateCard
                     estimate={estimate}
@@ -424,7 +342,7 @@ const EstimatesPage = () => {
       )}
 
       {/* Pagination controller */}
-      {activeTab !== "reports" && (
+      {activeTab !== "reports" && pagination.totalPages > 1 && (
         <Box sx={{ textAlign: "center", mt: 4 }}>
           <Button
             variant="outlined"

@@ -61,15 +61,29 @@ const JobsPage = () => {
     }
   });
 
+  // Calculate pagination for filtered jobs
+  const startIndex = (pagination.page - 1) * pagination.limit;
+  const endIndex = startIndex + pagination.limit;
+  const paginatedJobs = filteredJobs.slice(startIndex, endIndex);
+
   // Update pagination based on filtered jobs
   useEffect(() => {
     const totalItems = filteredJobs.length;
-    setPagination((prev) => ({
-      ...prev,
-      totalPages: Math.ceil(totalItems / prev.limit),
-      totalItems: totalItems,
-    }));
-  }, [filteredJobs]);
+    const newTotalPages = Math.ceil(totalItems / pagination.limit);
+
+    setPagination((prev) => {
+      // If current page is beyond available pages, reset to page 1
+      const newPage =
+        prev.page > newTotalPages && newTotalPages > 0 ? 1 : prev.page;
+
+      return {
+        ...prev,
+        page: newPage,
+        totalPages: newTotalPages,
+        totalItems: totalItems,
+      };
+    });
+  }, [filteredJobs, pagination.limit]);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -219,7 +233,7 @@ const JobsPage = () => {
                 </Box>
               </Grid>
             ) : (
-              filteredJobs.map((job) => (
+              paginatedJobs.map((job) => (
                 <Grid item xs={12} key={job.id}>
                   <JobCard
                     job={job}
@@ -320,7 +334,7 @@ const JobsPage = () => {
       )}
 
       {/* Pagination controller */}
-      {activeTab !== "reports" && (
+      {activeTab !== "reports" && pagination.totalPages > 1 && (
         <Box sx={{ textAlign: "center", mt: 4 }}>
           <Button
             variant="outlined"
