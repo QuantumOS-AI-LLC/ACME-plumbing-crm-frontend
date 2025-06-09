@@ -34,6 +34,16 @@
     *   Added a basic auto-reconnection attempt with a 3-second delay in the socket's 'disconnect' handler.
 *   **Fixed Logout and Data Persistence:**
     *   Modified `src/services/localStorage.js` to ensure authentication token, `isLoggedIn` status, and user/company profile data are correctly cleared from storage on logout, respecting the "Remember Me" setting.
+*   **Google Calendar Integration (Complete):**
+    *   Implemented complete OAuth 2.0 authentication flow for Google Calendar
+    *   Added API functions in `src/services/api.js` for Google Calendar operations
+    *   Created custom hook `src/hooks/useGoogleCalendar.js` for state management
+    *   Built user-friendly settings component `src/components/profile/GoogleCalendarSettings.jsx`
+    *   Created OAuth callback handler `src/pages/GoogleCalendarCallback.jsx`
+    *   Integrated Google Calendar settings into Profile page
+    *   Added routing for OAuth callback in `src/App.jsx`
+    *   Users can now connect/disconnect Google Calendar from profile settings
+    *   Backend integration ready for automatic event synchronization
 
 ## 2. What's Left to Build / Current Tasks
 

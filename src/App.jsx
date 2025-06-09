@@ -25,6 +25,7 @@ import SetTimeZonePage from "./pages/SetTimeZonePage";
 import NotificationsPage from "./pages/NotificationsPage";
 import NotificationSettingsPage from "./pages/NotificationSettingsPage";
 import MyServicesPage from "./pages/MyServicesPage";
+import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -51,6 +52,18 @@ const App = () => {
                     <BrowserRouter>
                         <Routes>
                             <Route path="/login" element={<LoginPage />} />
+                            
+                            {/* Google Calendar OAuth Callback - Protected route */}
+                            <Route
+                                path="/auth/google/callback"
+                                element={
+                                    <ProtectedRoute>
+                                        <Layout>
+                                            <GoogleCalendarCallback />
+                                        </Layout>
+                                    </ProtectedRoute>
+                                }
+                            />
 
                             {/* Protected routes */}
                             <Route
