@@ -181,9 +181,10 @@ const CalendarPage = () => {
             if (editingEvent) {
                 response = await updateEvent(editingEvent.id, eventData);
                 const webHookData = {
-                    ...eventData,
+                    ...response.data,
                     webhookEvent: "EventEdited",
                     createdBy: response.data.createdBy,
+                    eventId: response.data.id,
                 };
                 await sendWebhook({ payload: webHookData });
                 setEvents((prevEvents) =>
@@ -210,6 +211,7 @@ const CalendarPage = () => {
                     ...newEvent,
                     webhookEvent: "EventAdded",
                     createdBy: response.data.createdBy,
+                    eventId: response.data.id,
                 };
 
                 console.log("Sending webhook data:", webHookData);

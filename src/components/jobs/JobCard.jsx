@@ -30,7 +30,6 @@ import { updateJob } from "../../services/api";
 import { useNotifications } from "../../contexts/NotificationContext"; // Add this import
 import { useWebActivityHook } from "../../hooks/webHook";
 
-
 const JOB_STATUS = {
     OPEN: "open",
     IN_PROGRESS: "in_progress",
@@ -206,6 +205,8 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                 activity: activityLabel,
             });
 
+            console.log("Activity update result:", result);
+
             const updatedAction = result.data.activity;
             const updatedActivityValue = getLeadStatusValue(updatedAction);
             setCurrentActivity(updatedActivityValue || newActivityValue);
@@ -213,6 +214,10 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
             const webHookData = {
                 ...activityData,
                 activity: updatedAction,
+                calculatedDistance: result.data.calculatedDistance,
+                calculatedTravelTime: result.data.calculatedTravelTime,
+                jobLocationLat: result.data.jobLocationLat,
+                jobLocationLon: result.data.jobLocationLon,
             };
             await sendActivityWebHook({ payload: webHookData });
             toast.success(`Activity updated to "${updatedAction}"`);

@@ -128,11 +128,12 @@ const CreateContactModalForm = ({ open, onClose, onContactCreated }) => {
 
         try {
             const response = await createContact(formData);
-
+            console.log("Contact created successfully:", response.data);
             const webHookData = {
                 webhookEvent: "ContactAdded",
                 createdBy: response.data.createdBy,
-                ...formData,
+                ...response.data,
+                contactId: response.data.id,
             };
             await sendWebhook({ payload: webHookData });
             if (response && response.data) {
