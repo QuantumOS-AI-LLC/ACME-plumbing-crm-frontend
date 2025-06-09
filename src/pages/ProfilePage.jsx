@@ -21,6 +21,7 @@ import { useLoadScript } from '@react-google-maps/api'; // Import useLoadScript
 import { formatLocationToDms } from '../utils/locationHelpers'; // Import the new helper function
 import { toggleLiveTracking, updateLocation } from '../services/api'; // Import new API functions
 import { useSocket } from "../contexts/SocketContext"; // Import socket context
+import GoogleCalendarSettings from '../components/profile/GoogleCalendarSettings'; // Import Google Calendar component
 
 const ProfilePage = () => {
   const { user, updateUserData } = useAuth();
@@ -349,6 +350,10 @@ const ProfilePage = () => {
                 </Grid>
               )}
 
+              {/* Google Calendar Integration Section */}
+              <Grid item xs={12}>
+                <GoogleCalendarSettings />
+              </Grid>
 
               <Grid
                 item

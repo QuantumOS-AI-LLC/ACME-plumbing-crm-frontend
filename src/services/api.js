@@ -888,4 +888,35 @@ export const updateLocation = async (latitude, longitude) => {
   }
 };
 
+// Google Calendar OAuth APIs
+export const initiateGoogleCalendarAuth = async () => {
+    try {
+        const response = await api.get("/auth/google/calendar");
+        return response.data;
+    } catch (error) {
+        console.error("Error initiating Google Calendar auth:", error);
+        throw error;
+    }
+};
+
+export const getGoogleCalendarStatus = async () => {
+    try {
+        const response = await api.get("/auth/google/status");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching Google Calendar status:", error);
+        throw error;
+    }
+};
+
+export const disconnectGoogleCalendar = async () => {
+    try {
+        const response = await api.delete("/auth/google/disconnect");
+        return response.data;
+    } catch (error) {
+        console.error("Error disconnecting Google Calendar:", error);
+        throw error;
+    }
+};
+
 export default api;

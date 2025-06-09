@@ -2,6 +2,7 @@
 
 ## 1. Current Work Focus
 
+*   **Google Calendar Integration:** Successfully implemented complete Google Calendar OAuth authentication and integration in the frontend.
 *   **Feature Implementation:** Fixed the logout functionality and ensured proper clearing of authentication data.
 *   **Memory Bank Initialization:** Completed the initial setup of core Memory Bank documentation files.
 
@@ -28,6 +29,22 @@
     *   Added a basic auto-reconnection attempt with a 3-second delay in the 'disconnect' handler.
 *   Confirmed Functionality:** GPS tracking and WebSocket features are working as expected.
 *   **Fixed Logout Issue:** Modified `src/services/localStorage.js` to ensure authentication token and user data are cleared on logout.
+*   **Google Calendar Integration Implementation:**
+    *   Added Google Calendar OAuth API functions to `src/services/api.js`:
+        - `initiateGoogleCalendarAuth()` - Starts OAuth flow
+        - `getGoogleCalendarStatus()` - Checks connection status
+        - `disconnectGoogleCalendar()` - Disconnects account
+    *   Created `src/hooks/useGoogleCalendar.js` custom hook for managing Google Calendar state
+    *   Created `src/components/profile/GoogleCalendarSettings.jsx` component with:
+        - Connection status display
+        - Connect/disconnect functionality
+        - User-friendly interface with Google branding
+        - Confirmation dialog for disconnection
+    *   Created `src/pages/GoogleCalendarCallback.jsx` for OAuth callback handling
+    *   Updated `src/pages/ProfilePage.jsx` to include Google Calendar settings
+    *   Added OAuth callback route `/auth/google/callback` to `src/App.jsx`
+    *   Integration allows users to connect their Google Calendar from profile settings
+    *   Backend handles OAuth flow and credential storage securely
 
 ## 3. Next Steps (High-Level)
 
