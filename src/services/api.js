@@ -952,14 +952,34 @@ export const createVideoRoom = async (contactId) => {
 
         const roomData = telnyxResponse.data.data;
         
+        // Generate participant token for proper join URL
+        let clientToken = null;
+        let refreshToken = null;
+        let joinUrl = `https://telnyx-meet-demo.vercel.app/rooms/${roomData.id}`;
+        
+        try {
+            const tokenResponse = await generateClientToken(roomData.id);
+            if (tokenResponse.success) {
+                clientToken = tokenResponse.data.clientToken;
+                refreshToken = tokenResponse.data.refreshToken;
+                // Use the correct Telnyx Meet demo URL format with tokens
+                joinUrl = `https://telnyx-meet-demo.vercel.app/rooms/${roomData.id}?client_token=${clientToken}&refresh_token=${refreshToken}`;
+            }
+        } catch (tokenError) {
+            console.warn("Participant token generation failed, using basic room URL:", tokenError.message);
+            // Continue with basic URL without tokens
+        }
+        
         return {
             success: true,
             data: {
                 roomId: roomData.id,
                 uniqueName: roomData.unique_name,
-                joinUrl: `https://meet.telnyx.com/${roomData.unique_name}`,
+                joinUrl: joinUrl,
                 maxParticipants: roomData.max_participants,
-                createdAt: roomData.created_at
+                createdAt: roomData.created_at,
+                clientToken: clientToken,
+                refreshToken: refreshToken
             }
         };
     } catch (error) {
@@ -999,7 +1019,7 @@ export const updateVideoRoom = async (roomId, updateData) => {
             data: {
                 roomId: roomData.id,
                 uniqueName: roomData.unique_name,
-                joinUrl: `https://meet.telnyx.com/${roomData.unique_name}`,
+                joinUrl: roomData.session_url || `https://meet.telnyx.com/rooms/${roomData.id}`,
                 maxParticipants: roomData.max_participants,
                 enableRecording: roomData.enable_recording,
                 updatedAt: roomData.updated_at
@@ -1071,7 +1091,7 @@ export const getVideoRoom = async (roomId) => {
             data: {
                 roomId: roomData.id,
                 uniqueName: roomData.unique_name,
-                joinUrl: `https://meet.telnyx.com/${roomData.unique_name}`,
+                joinUrl: roomData.session_url || `https://meet.telnyx.com/rooms/${roomData.id}`,
                 maxParticipants: roomData.max_participants,
                 enableRecording: roomData.enable_recording,
                 createdAt: roomData.created_at,
@@ -1081,6 +1101,93 @@ export const getVideoRoom = async (roomId) => {
         };
     } catch (error) {
         console.error("Error fetching Telnyx video room:", error);
+        throw error;
+    }
+};
+
+// Generate participant token for Telnyx video room
+export const generateClientToken = async (roomId) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+        
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Generate participant token using correct Telnyx API endpoint
+        const tokenResponse = await axios.post(
+            `https://api.telnyx.com/v2/rooms/${roomId}/actions/generate_join_client_token`,
+            {
+                token_ttl_secs: 600, // 10 minutes access token
+                refresh_token_ttl_secs: 3600 // 1 hour refresh token
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${telnyxApiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (!tokenResponse.data || !tokenResponse.data.data) {
+            throw new Error("Invalid response from Telnyx token API");
+        }
+
+        const tokenData = tokenResponse.data.data;
+        
+        return {
+            success: true,
+            data: {
+                clientToken: tokenData.token,
+                refreshToken: tokenData.refresh_token
+            }
+        };
+    } catch (error) {
+        console.error("Error generating Telnyx participant token:", error);
+        throw error;
+    }
+};
+
+// Refresh participant token for Telnyx video room
+export const refreshClientToken = async (roomId, refreshToken) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+        
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Refresh participant token using Telnyx API endpoint
+        const tokenResponse = await axios.post(
+            `https://api.telnyx.com/v2/rooms/${roomId}/actions/refresh_client_token`,
+            {
+                token_ttl_secs: 600, // 10 minutes access token
+                refresh_token: refreshToken
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${telnyxApiKey}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            }
+        );
+
+        if (!tokenResponse.data || !tokenResponse.data.data) {
+            throw new Error("Invalid response from Telnyx refresh token API");
+        }
+
+        const tokenData = tokenResponse.data.data;
+        
+        return {
+            success: true,
+            data: {
+                clientToken: tokenData.token,
+                refreshToken: tokenData.refresh_token
+            }
+        };
+    } catch (error) {
+        console.error("Error refreshing Telnyx participant token:", error);
         throw error;
     }
 };

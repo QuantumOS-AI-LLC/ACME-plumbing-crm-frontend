@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createVideoRoom, updateVideoRoom, deleteVideoRoom, getVideoRoom, sendVideoRoomWebhook } from '../services/api';
+import { createVideoRoom, updateVideoRoom, deleteVideoRoom, getVideoRoom, refreshClientToken, sendVideoRoomWebhook } from '../services/api';
 import { toast } from 'sonner';
 
 export const useVideoRoom = () => {
