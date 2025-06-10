@@ -2,6 +2,7 @@
 
 ## 1. Current Work Focus
 
+*   **Video Room Feature:** Successfully implemented Telnyx Video Room integration for contacts with webhook support.
 *   **Google Calendar Integration:** Successfully implemented complete Google Calendar OAuth authentication and integration in the frontend.
 *   **Feature Implementation:** Fixed the logout functionality and ensured proper clearing of authentication data.
 *   **Memory Bank Initialization:** Completed the initial setup of core Memory Bank documentation files.
@@ -45,6 +46,27 @@
     *   Added OAuth callback route `/auth/google/callback` to `src/App.jsx`
     *   Integration allows users to connect their Google Calendar from profile settings
     *   Backend handles OAuth flow and credential storage securely
+*   **Video Room Feature Implementation:**
+    *   Added Telnyx Video Room API configuration to `.env.example`:
+        - `VITE_TELNYX_API_KEY` - Telnyx API key for authentication
+        - `VITE_VIDEO_ROOM_WEBHOOK_URL` - Webhook URL for sending room details
+    *   Created Telnyx Video Room API functions in `src/services/api.js`:
+        - `createVideoRoom(contactId)` - Creates video room via Telnyx API
+        - `sendVideoRoomWebhook(webhookData)` - Sends room details to webhook
+    *   Created `src/hooks/useVideoRoom.js` custom hook for video room management:
+        - Handles room creation with loading states
+        - Manages webhook data sending (contactId, userId, joinLink, roomId)
+        - Provides join room functionality and error handling
+        - Shows success/error toast notifications
+    *   Updated `src/pages/ContactDetailsPage.jsx` with video room functionality:
+        - Added "Video Room" button next to Call/Email buttons
+        - Integrated video room creation and join functionality
+        - Added video room status display section with join link
+        - Shows loading state during room creation
+        - Displays success message with option to join room in new tab
+    *   Video room workflow: Create room → Send webhook → Display join link → User can join
+    *   No time limits on video rooms as requested
+    *   Webhook sends: contactId, userId, joinLink, roomId, contactName, userName, timestamp
 
 ## 3. Next Steps (High-Level)
 

@@ -919,4 +919,78 @@ export const disconnectGoogleCalendar = async () => {
     }
 };
 
+// Telnyx Video Room APIs
+export const createVideoRoom = async (contactId) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+        
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Create video room using Telnyx API
+        const telnyxResponse = await axios.post(
+            'https://api.telnyx.com/v2/rooms',
+            {
+                unique_name: `room_${contactId}_${Date.now()}`,
+                max_participants: 10,
+                enable_recording: false,
+                webhook_event_url: import.meta.env.VITE_VIDEO_ROOM_WEBHOOK_URL,
+                webhook_event_failover_url: null
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${telnyxApiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (!telnyxResponse.data || !telnyxResponse.data.data) {
+            throw new Error("Invalid response from Telnyx API");
+        }
+
+        const roomData = telnyxResponse.data.data;
+        
+        return {
+            success: true,
+            data: {
+                roomId: roomData.id,
+                uniqueName: roomData.unique_name,
+                joinUrl: `https://meet.telnyx.com/${roomData.unique_name}`,
+                maxParticipants: roomData.max_participants,
+                createdAt: roomData.created_at
+            }
+        };
+    } catch (error) {
+        console.error("Error creating Telnyx video room:", error);
+        throw error;
+    }
+};
+
+export const sendVideoRoomWebhook = async (webhookData) => {
+    try {
+        const webhookUrl = import.meta.env.VITE_VIDEO_ROOM_WEBHOOK_URL;
+        
+        if (!webhookUrl) {
+            console.warn("Video room webhook URL not configured");
+            return { success: true, message: "Webhook URL not configured" };
+        }
+
+        const response = await axios.post(webhookUrl, webhookData, {
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        return {
+            success: true,
+            data: response.data
+        };
+    } catch (error) {
+        console.error("Error sending video room webhook:", error);
+        throw error;
+    }
+};
+
 export default api;

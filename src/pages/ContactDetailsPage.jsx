@@ -24,12 +24,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 import EditIcon from "@mui/icons-material/Edit";
+import VideoCallIcon from "@mui/icons-material/VideoCall";
 import { v4 as uuidv4 } from 'uuid';
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { fetchContact, updateContact } from "../services/api";
 import PageHeader from "../components/common/PageHeader";
 import { toast } from "sonner";
 import { useWebhook } from "../hooks/webHook";
+import { useVideoRoom } from "../hooks/useVideoRoom";
 
 const ContactDetailsPage = () => {
     const { id } = useParams();
@@ -52,6 +54,8 @@ const ContactDetailsPage = () => {
         navigate(`/ai-assistant?contactId=${id}&contactName=${contact.name}&conversationId=${conversationId}`);
     };
     const { sendWebhook } = useWebhook();
+    const { loading: videoRoomLoading, videoRoomData, createRoom, joinRoom, clearRoomData } = useVideoRoom();
+    
     // Define pipeline stage options
     const pipelineStageOptions = [
         { value: "new_lead", label: "New Lead" },
@@ -225,6 +229,21 @@ const ContactDetailsPage = () => {
         navigate("/contacts");
     };
 
+    const handleVideoRoom = async () => {
+        try {
+            const roomData = await createRoom(id, contact.name);
+            console.log('Video room created:', roomData);
+        } catch (error) {
+            console.error('Failed to create video room:', error);
+        }
+    };
+
+    const handleJoinVideoRoom = () => {
+        if (videoRoomData?.joinUrl) {
+            joinRoom(videoRoomData.joinUrl);
+        }
+    };
+
     if (loading) {
         return (
             <Box
@@ -349,6 +368,16 @@ const ContactDetailsPage = () => {
                         </Button>
                         <Button
                             variant="contained"
+                            color="success"
+                            startIcon={<VideoCallIcon />}
+                            onClick={handleVideoRoom}
+                            sx={{ mr: 1 }}
+                            disabled={videoRoomLoading}
+                        >
+                            {videoRoomLoading ? "Creating..." : "Video Room"}
+                        </Button>
+                        <Button
+                            variant="contained"
                             color="secondary"
                             startIcon={<EmailIcon />}
                             onClick={handleEmail}
@@ -358,6 +387,45 @@ const ContactDetailsPage = () => {
                         </Button>
                     </Box>
                 </Box>
+
+                {/* Video Room Section */}
+                {videoRoomData && (
+                    <Box
+                        sx={{
+                            mb: 3,
+                            p: 2,
+                            backgroundColor: "success.light",
+                            borderRadius: 2,
+                            border: "1px solid",
+                            borderColor: "success.main",
+                        }}
+                    >
+                        <Typography variant="h6" sx={{ mb: 1, color: "success.dark" }}>
+                            Video Room Created
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2, color: "success.dark" }}>
+                            Video room has been created for {contact.name}. Join link sent via webhook.
+                        </Typography>
+                        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                            <Button
+                                variant="contained"
+                                color="success"
+                                onClick={handleJoinVideoRoom}
+                                startIcon={<VideoCallIcon />}
+                            >
+                                Join Video Room
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                color="success"
+                                onClick={clearRoomData}
+                                size="small"
+                            >
+                                Clear
+                            </Button>
+                        </Box>
+                    </Box>
+                )}
 
                 <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
