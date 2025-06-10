@@ -31,30 +31,9 @@ export const useVideoRoom = () => {
             const roomData = roomResponse.data;
             setVideoRoomData(roomData);
 
-            // Prepare webhook data
-            const webhookData = {
-                contactId: contactId,
-                userId: userProfile.id,
-                joinLink: roomData.joinUrl,
-                roomId: roomData.roomId,
-                contactName: contactName,
-                userName: userProfile.name || userProfile.firstName || 'Unknown User',
-                timestamp: new Date().toISOString(),
-                event: 'video_room_created'
-            };
-
-            // Send webhook notification
-            try {
-                await sendVideoRoomWebhook(webhookData);
-                console.log('Video room webhook sent successfully');
-            } catch (webhookError) {
-                console.warn('Failed to send webhook, but room was created:', webhookError);
-                // Don't fail the entire operation if webhook fails
-            }
-
             toast.success(`Video room created for ${contactName}!`, {
                 duration: 4000,
-                description: 'Join link has been sent via webhook'
+                description: 'Video room is ready to use'
             });
 
             return roomData;
@@ -110,26 +89,6 @@ export const useVideoRoom = () => {
             const roomData = roomResponse.data;
             setVideoRoomData(roomData);
 
-            // Prepare webhook data
-            const webhookData = {
-                userId: userProfile.id,
-                joinLink: roomData.joinUrl,
-                roomId: roomData.roomId,
-                contactName: contactName,
-                userName: userProfile.name || userProfile.firstName || 'Unknown User',
-                timestamp: new Date().toISOString(),
-                event: 'video_room_updated',
-                updateData: updateData
-            };
-
-            // Send webhook notification
-            try {
-                await sendVideoRoomWebhook(webhookData);
-                console.log('Video room update webhook sent successfully');
-            } catch (webhookError) {
-                console.warn('Failed to send webhook, but room was updated:', webhookError);
-            }
-
             toast.success(`Video room updated for ${contactName}!`, {
                 duration: 3000,
                 description: 'Room settings have been updated'
@@ -181,24 +140,6 @@ export const useVideoRoom = () => {
 
             // Clear room data from state
             setVideoRoomData(null);
-
-            // Prepare webhook data
-            const webhookData = {
-                userId: userProfile.id,
-                roomId: roomId,
-                contactName: contactName,
-                userName: userProfile.name || userProfile.firstName || 'Unknown User',
-                timestamp: new Date().toISOString(),
-                event: 'video_room_deleted'
-            };
-
-            // Send webhook notification
-            try {
-                await sendVideoRoomWebhook(webhookData);
-                console.log('Video room deletion webhook sent successfully');
-            } catch (webhookError) {
-                console.warn('Failed to send webhook, but room was deleted:', webhookError);
-            }
 
             toast.success(`Video room deleted for ${contactName}!`, {
                 duration: 3000,
@@ -261,6 +202,33 @@ export const useVideoRoom = () => {
         }
     };
 
+    const shareRoomLink = async (joinUrl, contactName, contactId, userId) => {
+        try {
+            setLoading(true);
+            
+            // Send webhook notification with join link, contactId, and userId
+            await sendVideoRoomWebhook(joinUrl, contactId, userId);
+            
+            toast.success(`Video room link shared for ${contactName}!`, {
+                duration: 3000,
+                description: 'Join link has been sent via webhook'
+            });
+
+            console.log('Video room link shared successfully');
+
+        } catch (error) {
+            console.error('Error sharing video room link:', error);
+            
+            toast.error('Failed to share video room link', {
+                duration: 4000
+            });
+            
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const clearRoomData = () => {
         setVideoRoomData(null);
     };
@@ -273,6 +241,7 @@ export const useVideoRoom = () => {
         deleteRoom,
         getRoomDetails,
         joinRoom,
+        shareRoomLink,
         clearRoomData
     };
 };

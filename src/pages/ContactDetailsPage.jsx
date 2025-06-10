@@ -56,7 +56,7 @@ const ContactDetailsPage = () => {
         navigate(`/ai-assistant?contactId=${id}&contactName=${contact.name}&conversationId=${conversationId}`);
     };
     const { sendWebhook } = useWebhook();
-    const { loading: videoRoomLoading, videoRoomData, createRoom, updateRoom, deleteRoom, joinRoom, clearRoomData } = useVideoRoom();
+    const { loading: videoRoomLoading, videoRoomData, createRoom, updateRoom, deleteRoom, joinRoom, shareRoomLink, clearRoomData } = useVideoRoom();
     const [openVideoRoomDialog, setOpenVideoRoomDialog] = useState(false);
     const [videoRoomSettings, setVideoRoomSettings] = useState({
         maxParticipants: 10,
@@ -301,6 +301,24 @@ const ContactDetailsPage = () => {
         }));
     };
 
+    const handleShareVideoRoomLink = async () => {
+        if (!videoRoomData?.joinUrl) return;
+        
+        try {
+            // Get current user data
+            const userProfile = JSON.parse(
+                localStorage.getItem('userProfile') || 
+                sessionStorage.getItem('userProfile') || 
+                '{}'
+            );
+            
+            await shareRoomLink(videoRoomData.joinUrl, contact.name, contact.id, userProfile.id);
+            console.log('Video room link shared successfully');
+        } catch (error) {
+            console.error('Failed to share video room link:', error);
+        }
+    };
+
     if (loading) {
         return (
             <Box
@@ -461,7 +479,7 @@ const ContactDetailsPage = () => {
                             Video Room Created
                         </Typography>
                         <Typography variant="body2" sx={{ mb: 2, color: "success.dark" }}>
-                            Video room has been created for {contact.name}. Join link sent via webhook.
+                            Video room has been created for {contact.name}. Use "Share Link" to send join link via webhook.
                         </Typography>
                         <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
                             <Button
@@ -471,6 +489,15 @@ const ContactDetailsPage = () => {
                                 startIcon={<VideoCallIcon />}
                             >
                                 Join Video Room
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="info"
+                                onClick={handleShareVideoRoomLink}
+                                size="small"
+                                disabled={videoRoomLoading}
+                            >
+                                Share Link
                             </Button>
                             <Button
                                 variant="outlined"

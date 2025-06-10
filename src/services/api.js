@@ -935,7 +935,7 @@ export const createVideoRoom = async (contactId) => {
                 unique_name: `room_${contactId}_${Date.now()}`,
                 max_participants: 10,
                 enable_recording: false,
-                webhook_event_url: import.meta.env.VITE_VIDEO_ROOM_WEBHOOK_URL,
+                webhook_event_url: import.meta.env.VITE_N8N_API_URL,
                 webhook_event_failover_url: null
             },
             {
@@ -1192,14 +1192,22 @@ export const refreshClientToken = async (roomId, refreshToken) => {
     }
 };
 
-export const sendVideoRoomWebhook = async (webhookData) => {
+export const sendVideoRoomWebhook = async (joinLink, contactId, userId) => {
     try {
-        const webhookUrl = import.meta.env.VITE_VIDEO_ROOM_WEBHOOK_URL;
+        const webhookUrl = import.meta.env.VITE_N8N_API_URL;
         
         if (!webhookUrl) {
-            console.warn("Video room webhook URL not configured");
+            console.warn("N8N webhook URL not configured");
             return { success: true, message: "Webhook URL not configured" };
         }
+
+        // Enhanced webhook payload with contact and user information
+        const webhookData = {
+            "webhookEvent": "share-room-link",
+            "joinLink": joinLink,
+            "contactId": contactId,
+            "userId": userId
+        };
 
         const response = await axios.post(webhookUrl, webhookData, {
             headers: {
