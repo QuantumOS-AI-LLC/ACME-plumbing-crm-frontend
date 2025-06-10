@@ -968,6 +968,123 @@ export const createVideoRoom = async (contactId) => {
     }
 };
 
+export const updateVideoRoom = async (roomId, updateData) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+        
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Update video room using Telnyx API
+        const telnyxResponse = await axios.patch(
+            `https://api.telnyx.com/v2/rooms/${roomId}`,
+            updateData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${telnyxApiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (!telnyxResponse.data || !telnyxResponse.data.data) {
+            throw new Error("Invalid response from Telnyx API");
+        }
+
+        const roomData = telnyxResponse.data.data;
+        
+        return {
+            success: true,
+            data: {
+                roomId: roomData.id,
+                uniqueName: roomData.unique_name,
+                joinUrl: `https://meet.telnyx.com/${roomData.unique_name}`,
+                maxParticipants: roomData.max_participants,
+                enableRecording: roomData.enable_recording,
+                updatedAt: roomData.updated_at
+            }
+        };
+    } catch (error) {
+        console.error("Error updating Telnyx video room:", error);
+        throw error;
+    }
+};
+
+export const deleteVideoRoom = async (roomId) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+        
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Delete video room using Telnyx API
+        const telnyxResponse = await axios.delete(
+            `https://api.telnyx.com/v2/rooms/${roomId}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${telnyxApiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        return {
+            success: true,
+            message: "Video room deleted successfully",
+            roomId: roomId
+        };
+    } catch (error) {
+        console.error("Error deleting Telnyx video room:", error);
+        throw error;
+    }
+};
+
+export const getVideoRoom = async (roomId) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+        
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Get video room details using Telnyx API
+        const telnyxResponse = await axios.get(
+            `https://api.telnyx.com/v2/rooms/${roomId}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${telnyxApiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (!telnyxResponse.data || !telnyxResponse.data.data) {
+            throw new Error("Invalid response from Telnyx API");
+        }
+
+        const roomData = telnyxResponse.data.data;
+        
+        return {
+            success: true,
+            data: {
+                roomId: roomData.id,
+                uniqueName: roomData.unique_name,
+                joinUrl: `https://meet.telnyx.com/${roomData.unique_name}`,
+                maxParticipants: roomData.max_participants,
+                enableRecording: roomData.enable_recording,
+                createdAt: roomData.created_at,
+                updatedAt: roomData.updated_at,
+                status: roomData.status
+            }
+        };
+    } catch (error) {
+        console.error("Error fetching Telnyx video room:", error);
+        throw error;
+    }
+};
+
 export const sendVideoRoomWebhook = async (webhookData) => {
     try {
         const webhookUrl = import.meta.env.VITE_VIDEO_ROOM_WEBHOOK_URL;

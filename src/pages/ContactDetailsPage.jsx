@@ -25,6 +25,8 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 import EditIcon from "@mui/icons-material/Edit";
 import VideoCallIcon from "@mui/icons-material/VideoCall";
+import DeleteIcon from "@mui/icons-material/Delete";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { v4 as uuidv4 } from 'uuid';
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { fetchContact, updateContact } from "../services/api";
@@ -54,7 +56,12 @@ const ContactDetailsPage = () => {
         navigate(`/ai-assistant?contactId=${id}&contactName=${contact.name}&conversationId=${conversationId}`);
     };
     const { sendWebhook } = useWebhook();
-    const { loading: videoRoomLoading, videoRoomData, createRoom, joinRoom, clearRoomData } = useVideoRoom();
+    const { loading: videoRoomLoading, videoRoomData, createRoom, updateRoom, deleteRoom, joinRoom, clearRoomData } = useVideoRoom();
+    const [openVideoRoomDialog, setOpenVideoRoomDialog] = useState(false);
+    const [videoRoomSettings, setVideoRoomSettings] = useState({
+        maxParticipants: 10,
+        enableRecording: false
+    });
     
     // Define pipeline stage options
     const pipelineStageOptions = [
@@ -244,6 +251,56 @@ const ContactDetailsPage = () => {
         }
     };
 
+    const handleDeleteVideoRoom = async () => {
+        if (!videoRoomData?.roomId) return;
+        
+        try {
+            await deleteRoom(videoRoomData.roomId, contact.name);
+            console.log('Video room deleted successfully');
+        } catch (error) {
+            console.error('Failed to delete video room:', error);
+        }
+    };
+
+    const handleUpdateVideoRoom = async () => {
+        if (!videoRoomData?.roomId) return;
+        
+        try {
+            const updateData = {
+                max_participants: videoRoomSettings.maxParticipants,
+                enable_recording: videoRoomSettings.enableRecording
+            };
+            
+            await updateRoom(videoRoomData.roomId, updateData, contact.name);
+            setOpenVideoRoomDialog(false);
+            console.log('Video room updated successfully');
+        } catch (error) {
+            console.error('Failed to update video room:', error);
+        }
+    };
+
+    const handleOpenVideoRoomSettings = () => {
+        if (videoRoomData) {
+            setVideoRoomSettings({
+                maxParticipants: videoRoomData.maxParticipants || 10,
+                enableRecording: videoRoomData.enableRecording || false
+            });
+        }
+        setOpenVideoRoomDialog(true);
+    };
+
+    const handleCloseVideoRoomDialog = () => {
+        setOpenVideoRoomDialog(false);
+    };
+
+    const handleVideoRoomSettingsChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setVideoRoomSettings(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+    };
+
     if (loading) {
         return (
             <Box
@@ -406,7 +463,7 @@ const ContactDetailsPage = () => {
                         <Typography variant="body2" sx={{ mb: 2, color: "success.dark" }}>
                             Video room has been created for {contact.name}. Join link sent via webhook.
                         </Typography>
-                        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
                             <Button
                                 variant="contained"
                                 color="success"
@@ -414,6 +471,26 @@ const ContactDetailsPage = () => {
                                 startIcon={<VideoCallIcon />}
                             >
                                 Join Video Room
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                onClick={handleOpenVideoRoomSettings}
+                                startIcon={<SettingsIcon />}
+                                size="small"
+                                disabled={videoRoomLoading}
+                            >
+                                Settings
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                color="error"
+                                onClick={handleDeleteVideoRoom}
+                                startIcon={<DeleteIcon />}
+                                size="small"
+                                disabled={videoRoomLoading}
+                            >
+                                Delete Room
                             </Button>
                             <Button
                                 variant="outlined"
@@ -725,6 +802,64 @@ const ContactDetailsPage = () => {
                         disabled={updating}
                     >
                         {updating ? "Saving..." : "Save Changes"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Video Room Settings Dialog */}
+            <Dialog
+                open={openVideoRoomDialog}
+                onClose={handleCloseVideoRoomDialog}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>Video Room Settings</DialogTitle>
+                <DialogContent>
+                    <Grid container spacing={2} sx={{ mt: 1 }}>
+                        <Grid item xs={12}>
+                            <TextField
+                                label="Max Participants"
+                                name="maxParticipants"
+                                type="number"
+                                value={videoRoomSettings.maxParticipants}
+                                onChange={handleVideoRoomSettingsChange}
+                                fullWidth
+                                margin="normal"
+                                inputProps={{ min: 2, max: 50 }}
+                                helperText="Maximum number of participants (2-50)"
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+                                <input
+                                    type="checkbox"
+                                    id="enableRecording"
+                                    name="enableRecording"
+                                    checked={videoRoomSettings.enableRecording}
+                                    onChange={handleVideoRoomSettingsChange}
+                                    style={{ marginRight: '8px' }}
+                                />
+                                <label htmlFor="enableRecording">
+                                    <Typography variant="body1">
+                                        Enable Recording
+                                    </Typography>
+                                </label>
+                            </Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                Allow recording of the video room session
+                            </Typography>
+                        </Grid>
+                    </Grid>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseVideoRoomDialog}>Cancel</Button>
+                    <Button
+                        onClick={handleUpdateVideoRoom}
+                        color="primary"
+                        variant="contained"
+                        disabled={videoRoomLoading}
+                    >
+                        {videoRoomLoading ? "Updating..." : "Update Room"}
                     </Button>
                 </DialogActions>
             </Dialog>
