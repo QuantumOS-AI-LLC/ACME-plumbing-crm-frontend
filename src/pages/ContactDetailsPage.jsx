@@ -582,80 +582,148 @@ const ContactDetailsPage = () => {
                     <Box
                         sx={{
                             mb: 3,
-                            p: 2,
-                            backgroundColor: "info.light",
-                            borderRadius: 2,
+                            p: 3,
+                            backgroundColor: "grey.50",
+                            borderRadius: 3,
                             border: "1px solid",
-                            borderColor: "info.main",
+                            borderColor: "grey.200",
                         }}
                     >
-                        <Typography variant="h6" sx={{ mb: 2, color: "info.dark" }}>
-                            Existing Video Rooms ({existingRooms.length})
+                        <Typography 
+                            variant="h6" 
+                            sx={{ 
+                                mb: 3, 
+                                color: "text.primary",
+                                fontWeight: 600,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1
+                            }}
+                        >
+                            <VideoCallIcon color="primary" />
+                            Video Rooms ({existingRooms.length})
                         </Typography>
-                        <List disablePadding>
-                            {existingRooms.map((room, index) => (
-                                <React.Fragment key={room.id}>
-                                    <ListItem sx={{ px: 0, py: 1 }}>
-                                        <ListItemText
-                                            primary={
-                                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        
+                        <Grid container spacing={2}>
+                            {existingRooms.map((room) => (
+                                <Grid item xs={12} key={room.id}>
+                                    <Paper
+                                        elevation={1}
+                                        sx={{
+                                            p: 2.5,
+                                            borderRadius: 2,
+                                            border: "1px solid",
+                                            borderColor: "grey.200",
+                                            backgroundColor: "white",
+                                            transition: "all 0.2s ease-in-out",
+                                            "&:hover": {
+                                                elevation: 2,
+                                                borderColor: "primary.light",
+                                                transform: "translateY(-1px)"
+                                            }
+                                        }}
+                                    >
+                                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
+                                            <Box sx={{ flex: 1 }}>
+                                                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                                                    <Typography 
+                                                        variant="h6" 
+                                                        sx={{ 
+                                                            fontWeight: 600,
+                                                            color: "text.primary",
+                                                            fontSize: "1.1rem"
+                                                        }}
+                                                    >
                                                         {room.uniqueName}
                                                     </Typography>
                                                     <Chip 
-                                                        label={`${room.maxParticipants} max`} 
+                                                        label={`${room.maxParticipants} participants`} 
                                                         size="small" 
                                                         color="primary" 
-                                                        variant="outlined"
+                                                        variant="filled"
+                                                        sx={{
+                                                            fontWeight: 500,
+                                                            fontSize: "0.75rem"
+                                                        }}
                                                     />
                                                 </Box>
-                                            }
-                                            secondary={
-                                                <Box sx={{ mt: 1 }}>
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        Created: {new Date(room.createdAt).toLocaleDateString()} at {new Date(room.createdAt).toLocaleTimeString()}
-                                                    </Typography>
-                                                    {room.user && (
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            Created by: {room.user.name}
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                            }
-                                        />
-                                        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+                                                <Typography 
+                                                    variant="body2" 
+                                                    color="text.secondary"
+                                                    sx={{ 
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        gap: 0.5,
+                                                        fontWeight: 500
+                                                    }}
+                                                >
+                                                    Created on {new Date(room.createdAt).toLocaleDateString('en-US', {
+                                                        year: 'numeric',
+                                                        month: 'short',
+                                                        day: 'numeric'
+                                                    })} at {new Date(room.createdAt).toLocaleTimeString('en-US', {
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                        
+                                        <Box sx={{ 
+                                            display: "flex", 
+                                            gap: 1.5, 
+                                            alignItems: "center", 
+                                            flexWrap: "wrap",
+                                            pt: 1
+                                        }}>
                                             <Button
                                                 variant="contained"
                                                 color="primary"
-                                                size="small"
+                                                size="medium"
                                                 onClick={() => joinRoom(room.joinUrl)}
                                                 startIcon={<VideoCallIcon />}
+                                                sx={{
+                                                    fontWeight: 600,
+                                                    px: 2.5,
+                                                    py: 1,
+                                                    borderRadius: 2
+                                                }}
                                             >
-                                                Join
+                                                Join Room
                                             </Button>
                                             <Button
                                                 variant="outlined"
                                                 color="info"
-                                                size="small"
+                                                size="medium"
                                                 onClick={() => handleShareVideoRoomLink()}
                                                 disabled={videoRoomLoading}
+                                                sx={{
+                                                    fontWeight: 500,
+                                                    px: 2,
+                                                    borderRadius: 2
+                                                }}
                                             >
                                                 Share
                                             </Button>
                                             <Button
                                                 variant="outlined"
                                                 color="primary"
-                                                size="small"
+                                                size="medium"
                                                 onClick={() => handleOpenVideoRoomSettings(room)}
                                                 startIcon={<SettingsIcon />}
                                                 disabled={videoRoomLoading}
+                                                sx={{
+                                                    fontWeight: 500,
+                                                    px: 2,
+                                                    borderRadius: 2
+                                                }}
                                             >
                                                 Settings
                                             </Button>
                                             <Button
                                                 variant="outlined"
                                                 color="error"
-                                                size="small"
+                                                size="medium"
                                                 onClick={() => {
                                                     if (room.id && room.telnyxRoomId) {
                                                         deleteRoom(room.id, room.telnyxRoomId, contact.name);
@@ -663,15 +731,19 @@ const ContactDetailsPage = () => {
                                                 }}
                                                 startIcon={<DeleteIcon />}
                                                 disabled={videoRoomLoading}
+                                                sx={{
+                                                    fontWeight: 500,
+                                                    px: 2,
+                                                    borderRadius: 2
+                                                }}
                                             >
                                                 Delete
                                             </Button>
                                         </Box>
-                                    </ListItem>
-                                    {index < existingRooms.length - 1 && <Divider />}
-                                </React.Fragment>
+                                    </Paper>
+                                </Grid>
                             ))}
-                        </List>
+                        </Grid>
                     </Box>
                 )}
 
