@@ -261,7 +261,7 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
         </form>
         
         {/* Attachment Input */}
-        <AttachmentInput onFilesSelected={handleFilesSelected} />
+        <AttachmentInput key={attachmentInputKey} onFilesSelected={handleFilesSelected} />
         
         {/* Display selected files to upload as chips */}
         {selectedFilesToUpload.length > 0 && (
