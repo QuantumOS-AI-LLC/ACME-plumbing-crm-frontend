@@ -977,6 +977,7 @@ export const createVideoRoom = async (contactId) => {
                 uniqueName: roomData.unique_name,
                 joinUrl: joinUrl,
                 maxParticipants: roomData.max_participants,
+                enableRecording: roomData.enable_recording,
                 createdAt: roomData.created_at,
                 clientToken: clientToken,
                 refreshToken: refreshToken
@@ -1341,6 +1342,7 @@ export const createRoomWithSync = async (contactId) => {
             uniqueName: telnyxRoom.uniqueName,
             joinUrl: telnyxRoom.joinUrl,
             maxParticipants: telnyxRoom.maxParticipants,
+            enableRecording: telnyxRoom.enableRecording,
             clientToken: telnyxRoom.clientToken,
             refreshToken: telnyxRoom.refreshToken,
             telnyxCreatedAt: telnyxRoom.createdAt,
@@ -1401,12 +1403,18 @@ export const updateRoomWithSync = async (systemId, telnyxRoomId, updateData) => 
         
         // Step 2: Update room metadata in our system
         console.log("💾 Updating room in system database...");
+        
+        // Only update the fields that were actually changed - preserve original joinUrl
         const systemUpdateData = {
-            uniqueName: telnyxResponse.data.uniqueName,
-            joinUrl: telnyxResponse.data.joinUrl,
-            maxParticipants: telnyxResponse.data.maxParticipants,
-            ...updateData
+            // Only include fields that should be updated, don't overwrite joinUrl unless explicitly requested
+            ...(updateData.max_participants && { maxParticipants: telnyxResponse.data.maxParticipants }),
+            ...(updateData.enable_recording !== undefined && { enableRecording: telnyxResponse.data.enableRecording }),
+            ...(updateData.unique_name && { uniqueName: telnyxResponse.data.uniqueName }),
+            // Only update joinUrl if it was explicitly requested in updateData
+            ...(updateData.joinUrl && { joinUrl: telnyxResponse.data.joinUrl })
         };
+        
+        console.log("📝 System update data (preserving original joinUrl):", systemUpdateData);
         
         const systemResponse = await updateRoomInSystem(systemId, systemUpdateData);
         
@@ -1416,12 +1424,17 @@ export const updateRoomWithSync = async (systemId, telnyxRoomId, updateData) => 
             console.log("✅ Room updated in system database");
         }
         
-        // Return combined data
+        // Return combined data - preserve original room data and only update changed fields
         return {
             success: true,
             data: {
-                ...telnyxResponse.data,
                 systemId: systemId,
+                telnyxRoomId: telnyxRoomId,
+                // Only return the fields that were actually updated
+                ...(updateData.max_participants && { maxParticipants: telnyxResponse.data.maxParticipants }),
+                ...(updateData.enable_recording !== undefined && { enableRecording: telnyxResponse.data.enableRecording }),
+                ...(updateData.unique_name && { uniqueName: telnyxResponse.data.uniqueName }),
+                // Preserve other room data from system response
                 ...systemResponse.data?.room
             }
         };

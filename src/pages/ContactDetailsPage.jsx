@@ -294,14 +294,12 @@ const ContactDetailsPage = () => {
         // Handle both newly created rooms and existing rooms
         const roomToUpdate = selectedRoomForUpdate || videoRoomData;
         
-        console.log('Room to update:', roomToUpdate);
-        
         // Check for the correct property names based on room source
         const systemId = roomToUpdate?.id || roomToUpdate?.systemId;
         const telnyxRoomId = roomToUpdate?.telnyxRoomId || roomToUpdate?.roomId;
         
         if (!systemId || !telnyxRoomId) {
-            console.error('Missing required room IDs:', { systemId, telnyxRoomId, roomToUpdate });
+            console.error('Missing required room IDs for update');
             return;
         }
         
@@ -311,8 +309,6 @@ const ContactDetailsPage = () => {
                 enable_recording: videoRoomSettings.enableRecording
             };
             
-            console.log('Updating room with:', { systemId, telnyxRoomId, updateData });
-            
             await updateRoom(systemId, telnyxRoomId, updateData, contact.name);
             setOpenVideoRoomDialog(false);
             setSelectedRoomForUpdate(null);
@@ -320,8 +316,6 @@ const ContactDetailsPage = () => {
             // Reload existing rooms to show updated data
             const rooms = await getRoomsForContact(id);
             setExistingRooms(rooms);
-            
-            console.log('Video room updated successfully');
         } catch (error) {
             console.error('Failed to update video room:', error);
         }
@@ -342,6 +336,9 @@ const ContactDetailsPage = () => {
                 maxParticipants: videoRoomData.maxParticipants || 10,
                 enableRecording: videoRoomData.enableRecording || false
             });
+        } else {
+            console.error('No room data available for settings');
+            return;
         }
         setOpenVideoRoomDialog(true);
     };
@@ -413,33 +410,56 @@ const ContactDetailsPage = () => {
         <Box>
             <PageHeader title="Contact Details" showBackButton={true} />
 
-            <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
+            <Paper sx={{ p: { xs: 1.5, sm: 3 }, mb: 3 }}>
                 <Box
                     sx={{
                         display: "flex",
                         flexDirection: { xs: "column", sm: "row" },
-                        gap: "16px",
+                        gap: { xs: 3, sm: 3 },
                         justifyContent: "space-between",
-                        alignItems: "flex-start",
+                        alignItems: { xs: "stretch", sm: "flex-start" },
                         mb: 3,
                     }}
                 >
-                    <Box sx={{ display: "flex" }}>
+                    <Box sx={{ 
+                        display: "flex", 
+                        flexDirection: { xs: "row", sm: "row" },
+                        alignItems: { xs: "flex-start", sm: "flex-start" },
+                        textAlign: { xs: "left", sm: "left" },
+                        width: { xs: "100%", sm: "auto" },
+                        gap: { xs: 2, sm: 2 }
+                    }}>
                         <Avatar
                             sx={{
                                 bgcolor: "primary.main",
-                                width: 52,
-                                height: 52,
-                                mr: 2,
+                                width: { xs: 56, sm: 52 },
+                                height: { xs: 56, sm: 52 },
+                                fontSize: { xs: "1.4rem", sm: "1.25rem" },
+                                flexShrink: 0
                             }}
                         >
                             {getInitials(contact.name)}
                         </Avatar>
-                        <Box>
-                            <Typography variant="h5">{contact.name}</Typography>
+                        <Box sx={{ width: "100%", minWidth: 0 }}>
+                            <Typography 
+                                variant="h5" 
+                                sx={{ 
+                                    fontSize: { xs: "1.4rem", sm: "2rem" },
+                                    mb: { xs: 0.5, sm: 0 },
+                                    fontWeight: 600,
+                                    lineHeight: 1.2
+                                }}
+                            >
+                                {contact.name}
+                            </Typography>
                             <Typography
                                 variant="subtitle1"
                                 color="text.secondary"
+                                sx={{ 
+                                    fontSize: { xs: "0.875rem", sm: "1rem" },
+                                    mb: { xs: 1.5, sm: 0 },
+                                    fontWeight: 500
+                                }}
                             >
                                 {contact.status === "client"
                                     ? "Client"
@@ -454,8 +474,9 @@ const ContactDetailsPage = () => {
                                     sx={{
                                         display: "flex",
                                         flexWrap: "wrap",
-                                        gap: 1,
-                                        mt: 1,
+                                        gap: 0.5,
+                                        mt: { xs: 0, sm: 1 },
+                                        justifyContent: { xs: "flex-start", sm: "flex-start" }
                                     }}
                                 >
                                     {contact.tags.map((tag, index) => (
@@ -464,18 +485,34 @@ const ContactDetailsPage = () => {
                                             label={tag}
                                             size="small"
                                             color="primary"
+                                            sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
                                         />
                                     ))}
                                 </Box>
                             )}
                         </Box>
                     </Box>
-                    <Box>
+                    <Box sx={{
+                        display: "flex",
+                        flexDirection: { xs: "row", sm: "row" },
+                        flexWrap: { xs: "wrap", sm: "nowrap" },
+                        gap: { xs: 1, sm: 1 },
+                        width: { xs: "100%", sm: "auto" },
+                        mt: { xs: 1, sm: 0 },
+                        "& > *": {
+                            flex: { xs: "1 1 calc(50% - 4px)", sm: "0 0 auto" }
+                        }
+                    }}>
                         <Button
                             variant="outlined"
                             color="primary"
                             onClick={handleAIAssistant}
-                            sx={{ mr: 1 }}
+                            size="medium"
+                            sx={{ 
+                                minWidth: { sm: "auto" },
+                                fontSize: { xs: "0.875rem", sm: "0.875rem" },
+                                width: { xs: "100%", sm: "auto" }
+                            }}
                         >
                             Text
                         </Button>
@@ -484,7 +521,12 @@ const ContactDetailsPage = () => {
                             color="primary"
                             startIcon={<EditIcon />}
                             onClick={handleEdit}
-                            sx={{ mr: 1 }}
+                            size="medium"
+                            sx={{ 
+                                minWidth: { sm: "auto" },
+                                fontSize: { xs: "0.875rem", sm: "0.875rem" },
+                                width: { xs: "100%", sm: "auto" }
+                            }}
                         >
                             Edit
                         </Button>
@@ -493,8 +535,13 @@ const ContactDetailsPage = () => {
                             color="primary"
                             startIcon={<PhoneIcon />}
                             onClick={handleCall}
-                            sx={{ mr: 1 }}
                             disabled={!contact.phoneNumber}
+                            size="medium"
+                            sx={{ 
+                                minWidth: { sm: "auto" },
+                                fontSize: { xs: "0.875rem", sm: "0.875rem" },
+                                width: { xs: "100%", sm: "auto" }
+                            }}
                         >
                             Call
                         </Button>
@@ -503,8 +550,13 @@ const ContactDetailsPage = () => {
                             color="success"
                             startIcon={<VideoCallIcon />}
                             onClick={handleVideoRoom}
-                            sx={{ mr: 1 }}
                             disabled={videoRoomLoading}
+                            size="medium"
+                            sx={{ 
+                                minWidth: { sm: "auto" },
+                                fontSize: { xs: "0.875rem", sm: "0.875rem" },
+                                width: { xs: "100%", sm: "auto" }
+                            }}
                         >
                             {videoRoomLoading ? "Creating..." : "Video Room"}
                         </Button>
@@ -514,6 +566,12 @@ const ContactDetailsPage = () => {
                             startIcon={<EmailIcon />}
                             onClick={handleEmail}
                             disabled={!contact.email}
+                            size="medium"
+                            sx={{ 
+                                minWidth: { sm: "auto" },
+                                fontSize: { xs: "0.875rem", sm: "0.875rem" },
+                                width: { xs: "100%", sm: "auto" }
+                            }}
                         >
                             Email
                         </Button>
@@ -595,9 +653,11 @@ const ContactDetailsPage = () => {
 
                         <Box sx={{ 
                             display: "flex", 
-                            gap: 1, 
+                            gap: { xs: 0.5, sm: 1 }, 
                             alignItems: "center", 
-                            flexWrap: "wrap"
+                            flexWrap: "wrap",
+                            flexDirection: { xs: "column", sm: "row" },
+                            width: { xs: "100%", sm: "auto" }
                         }}>
                             <Button
                                 variant="contained"
@@ -607,8 +667,10 @@ const ContactDetailsPage = () => {
                                 startIcon={<VideoCallIcon />}
                                 sx={{
                                     fontWeight: 600,
-                                    px: 2,
-                                    borderRadius: 1.5
+                                    px: { xs: 2, sm: 2 },
+                                    borderRadius: 1.5,
+                                    fontSize: { xs: "0.8rem", sm: "0.75rem" },
+                                    width: { xs: "100%", sm: "auto" }
                                 }}
                             >
                                 Join Now
@@ -621,8 +683,10 @@ const ContactDetailsPage = () => {
                                 disabled={videoRoomLoading}
                                 sx={{
                                     fontWeight: 500,
-                                    px: 1.5,
-                                    borderRadius: 1.5
+                                    px: { xs: 2, sm: 1.5 },
+                                    borderRadius: 1.5,
+                                    fontSize: { xs: "0.8rem", sm: "0.75rem" },
+                                    width: { xs: "100%", sm: "auto" }
                                 }}
                             >
                                 Share
@@ -631,13 +695,15 @@ const ContactDetailsPage = () => {
                                 variant="outlined"
                                 color="primary"
                                 size="small"
-                                onClick={handleOpenVideoRoomSettings}
+                                onClick={() => handleOpenVideoRoomSettings()}
                                 startIcon={<SettingsIcon />}
                                 disabled={videoRoomLoading}
                                 sx={{
                                     fontWeight: 500,
-                                    px: 1.5,
-                                    borderRadius: 1.5
+                                    px: { xs: 2, sm: 1.5 },
+                                    borderRadius: 1.5,
+                                    fontSize: { xs: "0.8rem", sm: "0.75rem" },
+                                    width: { xs: "100%", sm: "auto" }
                                 }}
                             >
                                 Settings
@@ -651,8 +717,10 @@ const ContactDetailsPage = () => {
                                 disabled={videoRoomLoading}
                                 sx={{
                                     fontWeight: 500,
-                                    px: 1.5,
-                                    borderRadius: 1.5
+                                    px: { xs: 2, sm: 1.5 },
+                                    borderRadius: 1.5,
+                                    fontSize: { xs: "0.8rem", sm: "0.75rem" },
+                                    width: { xs: "100%", sm: "auto" }
                                 }}
                             >
                                 Delete
@@ -664,8 +732,10 @@ const ContactDetailsPage = () => {
                                 onClick={clearRoomData}
                                 sx={{
                                     fontWeight: 500,
-                                    px: 1.5,
-                                    borderRadius: 1.5
+                                    px: { xs: 2, sm: 1.5 },
+                                    borderRadius: 1.5,
+                                    fontSize: { xs: "0.8rem", sm: "0.75rem" },
+                                    width: { xs: "100%", sm: "auto" }
                                 }}
                             >
                                 Dismiss
@@ -721,9 +791,21 @@ const ContactDetailsPage = () => {
                                     }
                                 }}
                             >
-                                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                                    <Box sx={{ flex: 1, mr: 2 }}>
-                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                                <Box sx={{ 
+                                    display: "flex", 
+                                    flexDirection: { xs: "column", sm: "row" },
+                                    justifyContent: "space-between", 
+                                    alignItems: { xs: "stretch", sm: "flex-start" },
+                                    gap: { xs: 2, sm: 0 }
+                                }}>
+                                    <Box sx={{ flex: 1, mr: { xs: 0, sm: 2 } }}>
+                                        <Box sx={{ 
+                                            display: "flex", 
+                                            alignItems: "center", 
+                                            gap: { xs: 1, sm: 1.5 }, 
+                                            mb: 1,
+                                            flexWrap: "wrap"
+                                        }}>
                                             <Box
                                                 sx={{
                                                     p: 0.5,
@@ -743,7 +825,8 @@ const ContactDetailsPage = () => {
                                                 variant="subtitle1" 
                                                 sx={{ 
                                                     fontWeight: 600,
-                                                    color: "text.primary"
+                                                    color: "text.primary",
+                                                    fontSize: { xs: "1rem", sm: "1.1rem" }
                                                 }}
                                             >
                                                 {room.uniqueName}
@@ -754,8 +837,8 @@ const ContactDetailsPage = () => {
                                                 color="primary" 
                                                 variant="filled"
                                                 sx={{ 
-                                                    fontSize: "0.75rem", 
-                                                    height: 22,
+                                                    fontSize: { xs: "0.7rem", sm: "0.75rem" }, 
+                                                    height: { xs: 20, sm: 22 },
                                                     fontWeight: 500
                                                 }}
                                             />
@@ -764,9 +847,9 @@ const ContactDetailsPage = () => {
                                             variant="body2" 
                                             color="text.secondary"
                                             sx={{ 
-                                                fontSize: "0.875rem",
+                                                fontSize: { xs: "0.8rem", sm: "0.875rem" },
                                                 fontWeight: 500,
-                                                ml: 4
+                                                ml: { xs: 0, sm: 4 }
                                             }}
                                         >
                                             Created {new Date(room.createdAt).toLocaleDateString('en-US', {
@@ -782,9 +865,11 @@ const ContactDetailsPage = () => {
                                     
                                     <Box sx={{ 
                                         display: "flex", 
-                                        gap: 1, 
+                                        gap: { xs: 0.5, sm: 1 }, 
                                         alignItems: "center",
-                                        flexWrap: "wrap"
+                                        flexWrap: "wrap",
+                                        flexDirection: { xs: "column", sm: "row" },
+                                        width: { xs: "100%", sm: "auto" }
                                     }}>
                                         <Button
                                             variant="contained"
@@ -793,12 +878,13 @@ const ContactDetailsPage = () => {
                                             onClick={() => joinRoom(room.joinUrl)}
                                             startIcon={<VideoCallIcon />}
                                             sx={{ 
-                                                px: 2, 
+                                                px: { xs: 2, sm: 2 }, 
                                                 py: 0.75,
-                                                fontSize: "0.8rem",
+                                                fontSize: { xs: "0.8rem", sm: "0.8rem" },
                                                 fontWeight: 600,
                                                 borderRadius: 1.5,
-                                                boxShadow: "0 2px 8px rgba(25, 118, 210, 0.3)"
+                                                boxShadow: "0 2px 8px rgba(25, 118, 210, 0.3)",
+                                                width: { xs: "100%", sm: "auto" }
                                             }}
                                         >
                                             Join
@@ -810,11 +896,12 @@ const ContactDetailsPage = () => {
                                             onClick={() => handleShareVideoRoomLink()}
                                             disabled={videoRoomLoading}
                                             sx={{ 
-                                                px: 1.5, 
+                                                px: { xs: 2, sm: 1.5 }, 
                                                 py: 0.75,
-                                                fontSize: "0.8rem",
+                                                fontSize: { xs: "0.8rem", sm: "0.8rem" },
                                                 fontWeight: 500,
-                                                borderRadius: 1.5
+                                                borderRadius: 1.5,
+                                                width: { xs: "100%", sm: "auto" }
                                             }}
                                         >
                                             Share
@@ -827,11 +914,12 @@ const ContactDetailsPage = () => {
                                             startIcon={<SettingsIcon />}
                                             disabled={videoRoomLoading}
                                             sx={{ 
-                                                px: 1.5, 
+                                                px: { xs: 2, sm: 1.5 }, 
                                                 py: 0.75,
-                                                fontSize: "0.8rem",
+                                                fontSize: { xs: "0.8rem", sm: "0.8rem" },
                                                 fontWeight: 500,
-                                                borderRadius: 1.5
+                                                borderRadius: 1.5,
+                                                width: { xs: "100%", sm: "auto" }
                                             }}
                                         >
                                             Settings
@@ -848,11 +936,12 @@ const ContactDetailsPage = () => {
                                             startIcon={<DeleteIcon />}
                                             disabled={videoRoomLoading}
                                             sx={{ 
-                                                px: 1.5, 
+                                                px: { xs: 2, sm: 1.5 }, 
                                                 py: 0.75,
-                                                fontSize: "0.8rem",
+                                                fontSize: { xs: "0.8rem", sm: "0.8rem" },
                                                 fontWeight: 500,
-                                                borderRadius: 1.5
+                                                borderRadius: 1.5,
+                                                width: { xs: "100%", sm: "auto" }
                                             }}
                                         >
                                             Delete
@@ -1214,7 +1303,7 @@ const ContactDetailsPage = () => {
                 <DialogActions>
                     <Button onClick={handleCloseVideoRoomDialog}>Cancel</Button>
                     <Button
-                        onClick={handleUpdateVideoRoom}
+                        onClick={() => handleUpdateVideoRoom()}
                         color="primary"
                         variant="contained"
                         disabled={videoRoomLoading}
