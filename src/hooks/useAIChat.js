@@ -99,7 +99,6 @@ export const useAIChat = (contactId, estimateId = null, initialConversationId = 
     if (!socket || (!message.trim() && attachments.length === 0) || isSending) return;
  
      setIsSending(true);
-     
      socket.emit('user_message', {
        message: message.trim(),
        contactId,

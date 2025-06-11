@@ -35,8 +35,8 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (inputMessage.trim() || attachments.length > 0) { // Allow sending with only attachments
-      sendMessage(inputMessage, attachments); // Pass attachments to sendMessage
+    if (inputMessage.trim() || attachments.length > 0) {
+      sendMessage(inputMessage, [...attachments]); // Pass a copy of attachments to sendMessage
       setInputMessage('');
       setAttachments([]); // Clear attachments after sending
       stopTyping();

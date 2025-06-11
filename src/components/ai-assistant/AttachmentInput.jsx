@@ -59,8 +59,16 @@ const AttachmentInput = ({ onAttachmentsChange }) => {
           throw new Error(`Cloudinary upload failed for ${file.name}: ${response.statusText}`);
         }
 
-        const data = await response.json();
-        const attachmentType = file.type.startsWith('image') ? 'photo' : 'video';
+        const data = await response.json(); // Parse the JSON response
+
+        let attachmentType;
+        if (file.type.startsWith('image')) {
+          attachmentType = 'photo';
+        } else if (file.type.startsWith('video')) {
+          attachmentType = 'video';
+        } else {
+          attachmentType = 'file'; // Default to 'file' if type cannot be determined
+        }
         newUploadedAttachments.push({
           type: attachmentType,
           url: data.secure_url,
@@ -75,8 +83,9 @@ const AttachmentInput = ({ onAttachmentsChange }) => {
       }
     }
 
-    setUploadedAttachments(prev => [...prev, ...newUploadedAttachments]);
-    onAttachmentsChange([...uploadedAttachments, ...newUploadedAttachments]); // Notify parent
+    const finalUploadedList = [...uploadedAttachments, ...newUploadedAttachments];
+    setUploadedAttachments(finalUploadedList);
+    onAttachmentsChange(finalUploadedList); // Notify parent with the complete list
     setSelectedFiles([]); // Clear selected files after upload
     setUploading(false);
   };
