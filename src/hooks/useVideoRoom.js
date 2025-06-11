@@ -97,7 +97,8 @@ export const useVideoRoom = () => {
             }
 
             const roomData = roomResponse.data;
-            setVideoRoomData(roomData);
+            // Don't set videoRoomData for updates - this is only for newly created rooms
+            // setVideoRoomData(roomData); // REMOVED - this was causing the "created" section to show
 
             toast.success(`Video room updated for ${contactName}!`, {
                 duration: 3000,

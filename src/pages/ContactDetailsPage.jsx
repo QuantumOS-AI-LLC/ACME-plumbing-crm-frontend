@@ -294,7 +294,16 @@ const ContactDetailsPage = () => {
         // Handle both newly created rooms and existing rooms
         const roomToUpdate = selectedRoomForUpdate || videoRoomData;
         
-        if (!roomToUpdate?.id || !roomToUpdate?.telnyxRoomId) return;
+        console.log('Room to update:', roomToUpdate);
+        
+        // Check for the correct property names based on room source
+        const systemId = roomToUpdate?.id || roomToUpdate?.systemId;
+        const telnyxRoomId = roomToUpdate?.telnyxRoomId || roomToUpdate?.roomId;
+        
+        if (!systemId || !telnyxRoomId) {
+            console.error('Missing required room IDs:', { systemId, telnyxRoomId, roomToUpdate });
+            return;
+        }
         
         try {
             const updateData = {
@@ -302,7 +311,9 @@ const ContactDetailsPage = () => {
                 enable_recording: videoRoomSettings.enableRecording
             };
             
-            await updateRoom(roomToUpdate.id, roomToUpdate.telnyxRoomId, updateData, contact.name);
+            console.log('Updating room with:', { systemId, telnyxRoomId, updateData });
+            
+            await updateRoom(systemId, telnyxRoomId, updateData, contact.name);
             setOpenVideoRoomDialog(false);
             setSelectedRoomForUpdate(null);
             
@@ -515,63 +526,149 @@ const ContactDetailsPage = () => {
                         sx={{
                             mb: 3,
                             p: 2,
-                            backgroundColor: "success.light",
+                            backgroundColor: "success.50",
                             borderRadius: 2,
                             border: "1px solid",
-                            borderColor: "success.main",
+                            borderColor: "success.main"
                         }}
                     >
-                        <Typography variant="h6" sx={{ mb: 1, color: "success.dark" }}>
-                            Video Room Created
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                            <Box
+                                sx={{
+                                    p: 0.5,
+                                    borderRadius: "50%",
+                                    backgroundColor: "success.main",
+                                    color: "white",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: 28,
+                                    height: 28
+                                }}
+                            >
+                                <VideoCallIcon sx={{ fontSize: 16 }} />
+                            </Box>
+                            <Typography 
+                                variant="subtitle1" 
+                                sx={{ 
+                                    color: "success.dark",
+                                    fontWeight: 600
+                                }}
+                            >
+                                Video Room Created Successfully!
+                            </Typography>
+                        </Box>
+
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                            <Typography 
+                                variant="body1" 
+                                sx={{ 
+                                    fontWeight: 600,
+                                    color: "text.primary"
+                                }}
+                            >
+                                {videoRoomData.uniqueName}
+                            </Typography>
+                            <Chip 
+                                label={`${videoRoomData.maxParticipants || 10} max`} 
+                                size="small" 
+                                color="success" 
+                                variant="filled"
+                                sx={{ fontSize: "0.7rem", height: 20 }}
+                            />
+                            <Chip 
+                                label="New" 
+                                size="small" 
+                                color="primary" 
+                                variant="outlined"
+                                sx={{ fontSize: "0.7rem", height: 20 }}
+                            />
+                        </Box>
+                        
+                        <Typography 
+                            variant="body2" 
+                            color="text.secondary"
+                            sx={{ mb: 1.5, fontSize: "0.875rem" }}
+                        >
+                            Ready for {contact.name}. Join now or share the link.
                         </Typography>
-                        <Typography variant="body2" sx={{ mb: 2, color: "success.dark" }}>
-                            Video room has been created for {contact.name}. Use "Share Link" to send join link via webhook.
-                        </Typography>
-                        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+
+                        <Box sx={{ 
+                            display: "flex", 
+                            gap: 1, 
+                            alignItems: "center", 
+                            flexWrap: "wrap"
+                        }}>
                             <Button
                                 variant="contained"
                                 color="success"
+                                size="small"
                                 onClick={handleJoinVideoRoom}
                                 startIcon={<VideoCallIcon />}
+                                sx={{
+                                    fontWeight: 600,
+                                    px: 2,
+                                    borderRadius: 1.5
+                                }}
                             >
-                                Join Video Room
+                                Join Now
                             </Button>
                             <Button
                                 variant="contained"
                                 color="info"
-                                onClick={handleShareVideoRoomLink}
                                 size="small"
+                                onClick={handleShareVideoRoomLink}
                                 disabled={videoRoomLoading}
+                                sx={{
+                                    fontWeight: 500,
+                                    px: 1.5,
+                                    borderRadius: 1.5
+                                }}
                             >
-                                Share Link
+                                Share
                             </Button>
                             <Button
                                 variant="outlined"
                                 color="primary"
+                                size="small"
                                 onClick={handleOpenVideoRoomSettings}
                                 startIcon={<SettingsIcon />}
-                                size="small"
                                 disabled={videoRoomLoading}
+                                sx={{
+                                    fontWeight: 500,
+                                    px: 1.5,
+                                    borderRadius: 1.5
+                                }}
                             >
                                 Settings
                             </Button>
                             <Button
                                 variant="outlined"
                                 color="error"
+                                size="small"
                                 onClick={handleDeleteVideoRoom}
                                 startIcon={<DeleteIcon />}
-                                size="small"
                                 disabled={videoRoomLoading}
+                                sx={{
+                                    fontWeight: 500,
+                                    px: 1.5,
+                                    borderRadius: 1.5
+                                }}
                             >
-                                Delete Room
+                                Delete
                             </Button>
                             <Button
-                                variant="outlined"
+                                variant="text"
                                 color="success"
-                                onClick={clearRoomData}
                                 size="small"
+                                onClick={clearRoomData}
+                                sx={{
+                                    fontWeight: 500,
+                                    px: 1.5,
+                                    borderRadius: 1.5
+                                }}
                             >
-                                Clear
+                                Dismiss
                             </Button>
                         </Box>
                     </Box>
