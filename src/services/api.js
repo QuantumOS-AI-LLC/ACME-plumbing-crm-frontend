@@ -1225,4 +1225,246 @@ export const sendVideoRoomWebhook = async (joinLink, contactId, userId) => {
     }
 };
 
+// Backend Room Management APIs (System Database)
+export const createRoomInSystem = async (roomData) => {
+    try {
+        const response = await api.post("/rooms", roomData);
+        
+        // Normalize response format: backend returns { status: "success" } but frontend expects { success: true }
+        const normalizedResponse = {
+            success: response.data.status === "success",
+            data: response.data.data,
+            message: response.data.message
+        };
+        
+        console.log("✅ Room creation response:", normalizedResponse);
+        return normalizedResponse;
+    } catch (error) {
+        console.error("Error creating room in system:", error);
+        throw error;
+    }
+};
+
+export const getRoomsFromSystem = async (params = {}) => {
+    try {
+        const response = await api.get("/rooms", { params });
+        
+        // Normalize response format
+        const normalizedResponse = {
+            success: response.data.status === "success",
+            data: response.data.data,
+            results: response.data.results
+        };
+        
+        return normalizedResponse;
+    } catch (error) {
+        console.error("Error fetching rooms from system:", error);
+        throw error;
+    }
+};
+
+export const getRoomFromSystem = async (id) => {
+    try {
+        const response = await api.get(`/rooms/${id}`);
+        
+        // Normalize response format
+        const normalizedResponse = {
+            success: response.data.status === "success",
+            data: response.data.data
+        };
+        
+        return normalizedResponse;
+    } catch (error) {
+        console.error(`Error fetching room ${id} from system:`, error);
+        throw error;
+    }
+};
+
+export const updateRoomInSystem = async (id, roomData) => {
+    try {
+        const response = await api.put(`/rooms/${id}`, roomData);
+        
+        // Normalize response format
+        const normalizedResponse = {
+            success: response.data.status === "success",
+            data: response.data.data
+        };
+        
+        return normalizedResponse;
+    } catch (error) {
+        console.error(`Error updating room ${id} in system:`, error);
+        throw error;
+    }
+};
+
+export const deleteRoomFromSystem = async (id) => {
+    try {
+        const response = await api.delete(`/rooms/${id}`);
+        
+        // Normalize response format - DELETE typically returns 204 with no content
+        const normalizedResponse = {
+            success: response.status === 204 || (response.data && response.data.status === "success"),
+            message: "Room deleted successfully"
+        };
+        
+        return normalizedResponse;
+    } catch (error) {
+        console.error(`Error deleting room ${id} from system:`, error);
+        throw error;
+    }
+};
+
+// Dual-API Room Management Functions (Telnyx + System Sync)
+export const createRoomWithSync = async (contactId) => {
+    let telnyxRoomId = null;
+    
+    try {
+        console.log("🎥 Creating video room with dual-API sync...");
+        
+        // Step 1: Create room in Telnyx
+        console.log("📡 Creating room in Telnyx...");
+        const telnyxResponse = await createVideoRoom(contactId);
+        
+        if (!telnyxResponse.success || !telnyxResponse.data) {
+            throw new Error("Failed to create room in Telnyx");
+        }
+        
+        const telnyxRoom = telnyxResponse.data;
+        telnyxRoomId = telnyxRoom.roomId;
+        
+        console.log("✅ Telnyx room created:", telnyxRoomId);
+        
+        // Step 2: Store room metadata in our system
+        console.log("💾 Storing room in system database...");
+        const systemRoomData = {
+            telnyxRoomId: telnyxRoom.roomId,
+            uniqueName: telnyxRoom.uniqueName,
+            joinUrl: telnyxRoom.joinUrl,
+            maxParticipants: telnyxRoom.maxParticipants,
+            clientToken: telnyxRoom.clientToken,
+            refreshToken: telnyxRoom.refreshToken,
+            telnyxCreatedAt: telnyxRoom.createdAt,
+            createdFor: contactId
+        };
+        
+        const systemResponse = await createRoomInSystem(systemRoomData);
+        
+        if (!systemResponse.success) {
+            throw new Error("Failed to store room in system database");
+        }
+        
+        console.log("✅ Room stored in system database");
+        
+        // Return combined data with system ID
+        return {
+            success: true,
+            data: {
+                ...telnyxRoom,
+                systemId: systemResponse.data.room.id,
+                createdFor: contactId,
+                user: systemResponse.data.room.user,
+                contact: systemResponse.data.room.contact
+            }
+        };
+        
+    } catch (error) {
+        console.error("❌ Error in createRoomWithSync:", error);
+        
+        // Cleanup: If Telnyx room was created but system storage failed, clean up Telnyx room
+        if (telnyxRoomId) {
+            console.log("🧹 Cleaning up Telnyx room due to system storage failure...");
+            try {
+                await deleteVideoRoom(telnyxRoomId);
+                console.log("✅ Telnyx room cleaned up");
+            } catch (cleanupError) {
+                console.error("❌ Failed to cleanup Telnyx room:", cleanupError);
+            }
+        }
+        
+        throw error;
+    }
+};
+
+export const updateRoomWithSync = async (systemId, telnyxRoomId, updateData) => {
+    try {
+        console.log("🎥 Updating video room with dual-API sync...");
+        
+        // Step 1: Update room in Telnyx
+        console.log("📡 Updating room in Telnyx...");
+        const telnyxResponse = await updateVideoRoom(telnyxRoomId, updateData);
+        
+        if (!telnyxResponse.success || !telnyxResponse.data) {
+            throw new Error("Failed to update room in Telnyx");
+        }
+        
+        console.log("✅ Telnyx room updated");
+        
+        // Step 2: Update room metadata in our system
+        console.log("💾 Updating room in system database...");
+        const systemUpdateData = {
+            uniqueName: telnyxResponse.data.uniqueName,
+            joinUrl: telnyxResponse.data.joinUrl,
+            maxParticipants: telnyxResponse.data.maxParticipants,
+            ...updateData
+        };
+        
+        const systemResponse = await updateRoomInSystem(systemId, systemUpdateData);
+        
+        if (!systemResponse.success) {
+            console.warn("⚠️ Failed to update room in system database, but Telnyx update succeeded");
+        } else {
+            console.log("✅ Room updated in system database");
+        }
+        
+        // Return combined data
+        return {
+            success: true,
+            data: {
+                ...telnyxResponse.data,
+                systemId: systemId,
+                ...systemResponse.data?.room
+            }
+        };
+        
+    } catch (error) {
+        console.error("❌ Error in updateRoomWithSync:", error);
+        throw error;
+    }
+};
+
+export const deleteRoomWithSync = async (systemId, telnyxRoomId) => {
+    try {
+        console.log("🎥 Deleting video room with dual-API sync...");
+        
+        // Step 1: Delete room from Telnyx
+        console.log("📡 Deleting room from Telnyx...");
+        const telnyxResponse = await deleteVideoRoom(telnyxRoomId);
+        
+        if (!telnyxResponse.success) {
+            throw new Error("Failed to delete room from Telnyx");
+        }
+        
+        console.log("✅ Telnyx room deleted");
+        
+        // Step 2: Delete room from our system
+        console.log("💾 Deleting room from system database...");
+        const systemResponse = await deleteRoomFromSystem(systemId);
+        
+        if (!systemResponse.success) {
+            console.warn("⚠️ Failed to delete room from system database, but Telnyx deletion succeeded");
+        } else {
+            console.log("✅ Room deleted from system database");
+        }
+        
+        return {
+            success: true,
+            message: "Room deleted successfully from both systems"
+        };
+        
+    } catch (error) {
+        console.error("❌ Error in deleteRoomWithSync:", error);
+        throw error;
+    }
+};
+
 export default api;

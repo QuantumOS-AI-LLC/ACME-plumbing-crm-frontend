@@ -56,12 +56,25 @@ const ContactDetailsPage = () => {
         navigate(`/ai-assistant?contactId=${id}&contactName=${contact.name}&conversationId=${conversationId}`);
     };
     const { sendWebhook } = useWebhook();
-    const { loading: videoRoomLoading, videoRoomData, createRoom, updateRoom, deleteRoom, joinRoom, shareRoomLink, clearRoomData } = useVideoRoom();
+    const { 
+        loading: videoRoomLoading, 
+        videoRoomData, 
+        roomsList,
+        createRoom, 
+        updateRoom, 
+        deleteRoom, 
+        getRoomsForContact,
+        joinRoom, 
+        shareRoomLink, 
+        clearRoomData 
+    } = useVideoRoom();
     const [openVideoRoomDialog, setOpenVideoRoomDialog] = useState(false);
     const [videoRoomSettings, setVideoRoomSettings] = useState({
         maxParticipants: 10,
         enableRecording: false
     });
+    const [existingRooms, setExistingRooms] = useState([]);
+    const [selectedRoomForUpdate, setSelectedRoomForUpdate] = useState(null);
     
     // Define pipeline stage options
     const pipelineStageOptions = [
@@ -101,7 +114,19 @@ const ContactDetailsPage = () => {
             }
         };
 
+        const loadExistingRooms = async () => {
+            try {
+                const rooms = await getRoomsForContact(id);
+                setExistingRooms(rooms);
+                console.log('Existing rooms for contact:', rooms);
+            } catch (error) {
+                console.error('Error loading existing rooms:', error);
+                // Don't show error toast for this, as it's not critical
+            }
+        };
+
         loadContactDetails();
+        loadExistingRooms();
     }, [id]);
 
     const getInitials = (name) => {
@@ -252,18 +277,24 @@ const ContactDetailsPage = () => {
     };
 
     const handleDeleteVideoRoom = async () => {
-        if (!videoRoomData?.roomId) return;
+        if (!videoRoomData?.systemId || !videoRoomData?.roomId) return;
         
         try {
-            await deleteRoom(videoRoomData.roomId, contact.name);
+            await deleteRoom(videoRoomData.systemId, videoRoomData.roomId, contact.name);
             console.log('Video room deleted successfully');
+            // Reload existing rooms after deletion
+            const rooms = await getRoomsForContact(id);
+            setExistingRooms(rooms);
         } catch (error) {
             console.error('Failed to delete video room:', error);
         }
     };
 
     const handleUpdateVideoRoom = async () => {
-        if (!videoRoomData?.roomId) return;
+        // Handle both newly created rooms and existing rooms
+        const roomToUpdate = selectedRoomForUpdate || videoRoomData;
+        
+        if (!roomToUpdate?.id || !roomToUpdate?.telnyxRoomId) return;
         
         try {
             const updateData = {
@@ -271,16 +302,31 @@ const ContactDetailsPage = () => {
                 enable_recording: videoRoomSettings.enableRecording
             };
             
-            await updateRoom(videoRoomData.roomId, updateData, contact.name);
+            await updateRoom(roomToUpdate.id, roomToUpdate.telnyxRoomId, updateData, contact.name);
             setOpenVideoRoomDialog(false);
+            setSelectedRoomForUpdate(null);
+            
+            // Reload existing rooms to show updated data
+            const rooms = await getRoomsForContact(id);
+            setExistingRooms(rooms);
+            
             console.log('Video room updated successfully');
         } catch (error) {
             console.error('Failed to update video room:', error);
         }
     };
 
-    const handleOpenVideoRoomSettings = () => {
-        if (videoRoomData) {
+    const handleOpenVideoRoomSettings = (room = null) => {
+        if (room) {
+            // Opening settings for an existing room
+            setSelectedRoomForUpdate(room);
+            setVideoRoomSettings({
+                maxParticipants: room.maxParticipants || 10,
+                enableRecording: room.enableRecording || false
+            });
+        } else if (videoRoomData) {
+            // Opening settings for newly created room
+            setSelectedRoomForUpdate(null);
             setVideoRoomSettings({
                 maxParticipants: videoRoomData.maxParticipants || 10,
                 enableRecording: videoRoomData.enableRecording || false
@@ -528,6 +574,104 @@ const ContactDetailsPage = () => {
                                 Clear
                             </Button>
                         </Box>
+                    </Box>
+                )}
+
+                {/* Existing Video Rooms Section */}
+                {existingRooms && existingRooms.length > 0 && (
+                    <Box
+                        sx={{
+                            mb: 3,
+                            p: 2,
+                            backgroundColor: "info.light",
+                            borderRadius: 2,
+                            border: "1px solid",
+                            borderColor: "info.main",
+                        }}
+                    >
+                        <Typography variant="h6" sx={{ mb: 2, color: "info.dark" }}>
+                            Existing Video Rooms ({existingRooms.length})
+                        </Typography>
+                        <List disablePadding>
+                            {existingRooms.map((room, index) => (
+                                <React.Fragment key={room.id}>
+                                    <ListItem sx={{ px: 0, py: 1 }}>
+                                        <ListItemText
+                                            primary={
+                                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                                        {room.uniqueName}
+                                                    </Typography>
+                                                    <Chip 
+                                                        label={`${room.maxParticipants} max`} 
+                                                        size="small" 
+                                                        color="primary" 
+                                                        variant="outlined"
+                                                    />
+                                                </Box>
+                                            }
+                                            secondary={
+                                                <Box sx={{ mt: 1 }}>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Created: {new Date(room.createdAt).toLocaleDateString()} at {new Date(room.createdAt).toLocaleTimeString()}
+                                                    </Typography>
+                                                    {room.user && (
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            Created by: {room.user.name}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            }
+                                        />
+                                        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+                                            <Button
+                                                variant="contained"
+                                                color="primary"
+                                                size="small"
+                                                onClick={() => joinRoom(room.joinUrl)}
+                                                startIcon={<VideoCallIcon />}
+                                            >
+                                                Join
+                                            </Button>
+                                            <Button
+                                                variant="outlined"
+                                                color="info"
+                                                size="small"
+                                                onClick={() => handleShareVideoRoomLink()}
+                                                disabled={videoRoomLoading}
+                                            >
+                                                Share
+                                            </Button>
+                                            <Button
+                                                variant="outlined"
+                                                color="primary"
+                                                size="small"
+                                                onClick={() => handleOpenVideoRoomSettings(room)}
+                                                startIcon={<SettingsIcon />}
+                                                disabled={videoRoomLoading}
+                                            >
+                                                Settings
+                                            </Button>
+                                            <Button
+                                                variant="outlined"
+                                                color="error"
+                                                size="small"
+                                                onClick={() => {
+                                                    if (room.id && room.telnyxRoomId) {
+                                                        deleteRoom(room.id, room.telnyxRoomId, contact.name);
+                                                    }
+                                                }}
+                                                startIcon={<DeleteIcon />}
+                                                disabled={videoRoomLoading}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </Box>
+                                    </ListItem>
+                                    {index < existingRooms.length - 1 && <Divider />}
+                                </React.Fragment>
+                            ))}
+                        </List>
                     </Box>
                 )}
 
