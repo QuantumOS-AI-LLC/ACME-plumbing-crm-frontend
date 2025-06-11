@@ -66,7 +66,10 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
           attachmentType = 'photo';
         } else if (file.type.startsWith('video')) {
           attachmentType = 'video';
-        } else {
+        } else if (file.type.startsWith('audio')) {
+          attachmentType = 'audio';
+        }
+        else {
           attachmentType = 'file';
         }
         newUploadedAttachments.push({
@@ -195,10 +198,17 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
                         } else if (attachment.type === 'video') {
                           return (
                             <Box key={attIndex} sx={{ mb: 0.5, maxWidth: '100%', height: 'auto' }}>
-                              <video controls src={attachment.url} style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px' }} />
+                              <video controls preload="auto" src={attachment.url} style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px' }} />
                             </Box>
                           );
-                        } else {
+                        } else if (attachment.type === 'audio') {
+                          return (
+                            <Box key={attIndex} sx={{ mb: 0.5, maxWidth: '100%', height: 'auto' }}>
+                              <audio controls preload="auto" src={attachment.url} style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px' }} />
+                            </Box>
+                          );
+                        }
+                        else {
                           return (
                             <Chip
                               key={attIndex}

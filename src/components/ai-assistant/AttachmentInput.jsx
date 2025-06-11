@@ -16,7 +16,7 @@ const AttachmentInput = ({ onFilesSelected }) => {
     const files = Array.from(event.target.files);
     const validFiles = files.filter(file => {
       const fileType = file.type.split('/')[0];
-      return fileType === 'image' || fileType === 'video';
+      return fileType === 'image' || fileType === 'video' || fileType === 'audio';
     });
 
     if (files.length !== validFiles.length) {
@@ -40,7 +40,7 @@ const AttachmentInput = ({ onFilesSelected }) => {
         hidden
         ref={fileInputRef}
         onChange={handleFileSelect}
-        accept="image/*,video/*"
+        accept="image/*,video/*,audio/*"
       />
       <Button
         variant="outlined"
