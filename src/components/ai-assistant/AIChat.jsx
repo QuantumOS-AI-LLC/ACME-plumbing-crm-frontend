@@ -185,15 +185,35 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
                   </Typography>
                   {message.attachments && message.attachments.length > 0 && (
                     <Box sx={{ mt: 1 }}>
-                      {message.attachments.map((attachment, attIndex) => (
-                        <Chip
-                          key={attIndex}
-                          label={`${attachment.type}: ${attachment.url.substring(0, 20)}...`}
-                          size="small"
-                          color="primary"
-                          sx={{ mr: 0.5, mb: 0.5 }}
-                        />
-                      ))}
+                      {message.attachments.map((attachment, attIndex) => {
+                        if (attachment.type === 'photo') {
+                          return (
+                            <Box key={attIndex} sx={{ mb: 0.5, maxWidth: '100%', height: 'auto' }}>
+                              <img src={attachment.url} alt="Attachment" style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px' }} />
+                            </Box>
+                          );
+                        } else if (attachment.type === 'video') {
+                          return (
+                            <Box key={attIndex} sx={{ mb: 0.5, maxWidth: '100%', height: 'auto' }}>
+                              <video controls src={attachment.url} style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px' }} />
+                            </Box>
+                          );
+                        } else {
+                          return (
+                            <Chip
+                              key={attIndex}
+                              label={`${attachment.type}: ${attachment.url.substring(0, 20)}...`}
+                              size="small"
+                              color="primary"
+                              component="a"
+                              href={attachment.url}
+                              target="_blank"
+                              clickable
+                              sx={{ mr: 0.5, mb: 0.5 }}
+                            />
+                          );
+                        }
+                      })}
                     </Box>
                   )}
                   <Typography
