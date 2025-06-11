@@ -10,9 +10,11 @@ import {
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import { useAIChat } from '../../hooks/useAIChat';
+import AttachmentInput from './AttachmentInput'; // Import the new component
 
 const AIChat = ({ contactId, estimateId = null, initialConversationId = null, onConversationSaved = () => {} }) => {
   const [inputMessage, setInputMessage] = useState('');
+  const [attachments, setAttachments] = useState([]); // New state for attachments
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   
@@ -33,9 +35,10 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (inputMessage.trim()) {
-      sendMessage(inputMessage);
+    if (inputMessage.trim() || attachments.length > 0) { // Allow sending with only attachments
+      sendMessage(inputMessage, attachments); // Pass attachments to sendMessage
       setInputMessage('');
+      setAttachments([]); // Clear attachments after sending
       stopTyping();
     }
   };
@@ -50,34 +53,38 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
     }
   };
 
+  const handleAttachmentsChange = (newAttachments) => {
+    setAttachments(newAttachments);
+  };
+
   const formatMessageTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Messages Container */}
-      <Paper 
-        sx={{ 
-          flexGrow: 1, 
-          p: 2, 
-          mb: 2, 
-          maxHeight: '500px', 
+      <Paper
+        sx={{
+          flexGrow: 1,
+          p: 2,
+          mb: 2,
+          maxHeight: '500px',
           overflowY: 'auto',
           backgroundColor: '#f8f9fa',
           position: 'relative' // Added for loader positioning
         }}
       >
         {isLoadingHistory ? (
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              height: '100%' 
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100%'
             }}
           >
             <CircularProgress />
@@ -94,9 +101,9 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
         ) : (
           <>
             {messages.map((message, index) => (
-              <Box 
+              <Box
                 key={message.id || index}
-                sx={{ 
+                sx={{
                   mb: 2,
                   display: 'flex',
                   justifyContent: message.senderType === 'USER' ? 'flex-end' : 'flex-start'
@@ -106,20 +113,33 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
                   sx={{
                     p: 2,
                     maxWidth: '70%',
-                    backgroundColor: message.senderType === 'USER' 
-                      ? 'primary.main' 
+                    backgroundColor: message.senderType === 'USER'
+                      ? 'primary.main'
                       : 'background.paper',
-                    color: message.senderType === 'USER' 
-                      ? 'primary.contrastText' 
+                    color: message.senderType === 'USER'
+                      ? 'primary.contrastText'
                       : 'text.primary'
                   }}
                 >
                   <Typography variant="body1" sx={{ mb: 1 }}>
                     {message.message}
                   </Typography>
-                  <Typography 
-                    variant="caption" 
-                    sx={{ 
+                  {message.attachments && message.attachments.length > 0 && (
+                    <Box sx={{ mt: 1 }}>
+                      {message.attachments.map((attachment, attIndex) => (
+                        <Chip
+                          key={attIndex}
+                          label={`${attachment.type}: ${attachment.url.substring(0, 20)}...`}
+                          size="small"
+                          color="primary"
+                          sx={{ mr: 0.5, mb: 0.5 }}
+                        />
+                      ))}
+                    </Box>
+                  )}
+                  <Typography
+                    variant="caption"
+                    sx={{
                       opacity: 0.7,
                       display: 'block',
                       textAlign: 'right'
@@ -166,10 +186,10 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
               variant="outlined"
               size="small"
             />
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               variant="contained"
-              disabled={!inputMessage.trim() || isSending}
+              disabled={(!inputMessage.trim() && attachments.length === 0) || isSending}
               sx={{ minWidth: 'auto', px: 2 }}
             >
               {isSending ? (
@@ -181,15 +201,33 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
           </Box>
         </form>
         
+        {/* Attachment Input */}
+        <AttachmentInput onAttachmentsChange={handleAttachmentsChange} />
+        
+        {/* Display selected attachments as chips */}
+        {attachments.length > 0 && (
+          <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {attachments.map((attachment, index) => (
+              <Chip
+                key={index}
+                label={`${attachment.type}: ${attachment.url.substring(0, 20)}...`}
+                size="small"
+                color="primary"
+                onDelete={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
+              />
+            ))}
+          </Box>
+        )}
+
         {/* Connection Status */}
         <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="caption" color="text.secondary">
             {contactId && `Contact: ${contactId}`}
             {estimateId && ` | Estimate: ${estimateId}`}
           </Typography>
-          <Chip 
-            label={isSending ? "Sending..." : "Ready"} 
-            size="small" 
+          <Chip
+            label={isSending ? "Sending..." : "Ready"}
+            size="small"
             color={isSending ? "warning" : "success"}
             variant="outlined"
           />
