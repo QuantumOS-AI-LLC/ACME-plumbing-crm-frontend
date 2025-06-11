@@ -14,7 +14,10 @@ import AttachmentInput from './AttachmentInput'; // Import the new component
 
 const AIChat = ({ contactId, estimateId = null, initialConversationId = null, onConversationSaved = () => {} }) => {
   const [inputMessage, setInputMessage] = useState('');
-  const [attachments, setAttachments] = useState([]); // New state for attachments
+  const [selectedFilesToUpload, setSelectedFilesToUpload] = useState([]); // New state for files selected but not yet uploaded
+  const [uploadedAttachments, setUploadedAttachments] = useState([]); // State for attachments that have been uploaded
+  const [isUploadingAttachments, setIsUploadingAttachments] = useState(false); // New state for upload progress
+  const [attachmentInputKey, setAttachmentInputKey] = useState(0); // Key to force remount of AttachmentInput
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   
@@ -33,14 +36,62 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (inputMessage.trim() || attachments.length > 0) {
-      sendMessage(inputMessage, [...attachments]); // Pass a copy of attachments to sendMessage
-      setInputMessage('');
-      setAttachments([]); // Clear attachments after sending
-      stopTyping();
+    if (!inputMessage.trim() && selectedFilesToUpload.length === 0) {
+      return; // Don't send if no message and no files
     }
+
+    setIsUploadingAttachments(true);
+    const newUploadedAttachments = [];
+
+    for (const file of selectedFilesToUpload) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'ml_default'); // Cloudinary upload preset
+
+      try {
+        const response = await fetch('https://api.cloudinary.com/v1_1/dvemjyp3n/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Cloudinary upload failed for ${file.name}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        let attachmentType;
+        if (file.type.startsWith('image')) {
+          attachmentType = 'photo';
+        } else if (file.type.startsWith('video')) {
+          attachmentType = 'video';
+        } else {
+          attachmentType = 'file';
+        }
+        newUploadedAttachments.push({
+          type: attachmentType,
+          url: data.secure_url,
+        });
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert(`Failed to upload ${file.name}: ${error.message}`);
+        // Continue with other files even if one fails
+      }
+    }
+
+    const finalAttachments = [...uploadedAttachments, ...newUploadedAttachments];
+    
+    sendMessage(inputMessage, finalAttachments); // Send message with all attachments
+    
+    // Clear all attachment-related states after sending
+    setSelectedFilesToUpload([]);
+    setUploadedAttachments([]);
+    setIsUploadingAttachments(false);
+    setAttachmentInputKey(prevKey => prevKey + 1); // Increment key to force remount of AttachmentInput
+
+    setInputMessage('');
+    stopTyping();
   };
 
   const handleInputChange = (e) => {
@@ -53,8 +104,16 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
     }
   };
 
-  const handleAttachmentsChange = (newAttachments) => {
-    setAttachments(newAttachments);
+  const handleFilesSelected = (newFiles) => {
+    setSelectedFilesToUpload(prev => [...prev, ...newFiles]);
+  };
+
+  const handleRemoveSelectedFile = (fileToRemove) => {
+    setSelectedFilesToUpload(prev => prev.filter(file => file !== fileToRemove));
+  };
+
+  const handleRemoveUploadedAttachment = (attachmentToRemove) => {
+    setUploadedAttachments(prev => prev.filter(att => att !== attachmentToRemove));
   };
 
   const formatMessageTime = (timestamp) => {
@@ -189,10 +248,10 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
             <Button
               type="submit"
               variant="contained"
-              disabled={(!inputMessage.trim() && attachments.length === 0) || isSending}
+              disabled={(!inputMessage.trim() && selectedFilesToUpload.length === 0 && uploadedAttachments.length === 0) || isSending || isUploadingAttachments}
               sx={{ minWidth: 'auto', px: 2 }}
             >
-              {isSending ? (
+              {isSending || isUploadingAttachments ? (
                 <CircularProgress size={20} color="inherit" />
               ) : (
                 <SendIcon />
@@ -202,18 +261,35 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
         </form>
         
         {/* Attachment Input */}
-        <AttachmentInput onAttachmentsChange={handleAttachmentsChange} />
+        <AttachmentInput onFilesSelected={handleFilesSelected} />
         
-        {/* Display selected attachments as chips */}
-        {attachments.length > 0 && (
+        {/* Display selected files to upload as chips */}
+        {selectedFilesToUpload.length > 0 && (
           <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {attachments.map((attachment, index) => (
+            <Typography variant="subtitle2" sx={{ width: '100%', mb: 0.5 }}>Files to Upload:</Typography>
+            {selectedFilesToUpload.map((file, index) => (
+              <Chip
+                key={index}
+                label={`${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`}
+                size="small"
+                color="info"
+                onDelete={() => handleRemoveSelectedFile(file)}
+              />
+            ))}
+          </Box>
+        )}
+
+        {/* Display already uploaded attachments as chips */}
+        {uploadedAttachments.length > 0 && (
+          <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            <Typography variant="subtitle2" sx={{ width: '100%', mb: 0.5 }}>Uploaded Attachments:</Typography>
+            {uploadedAttachments.map((attachment, index) => (
               <Chip
                 key={index}
                 label={`${attachment.type}: ${attachment.url.substring(0, 20)}...`}
                 size="small"
-                color="primary"
-                onDelete={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
+                color="success"
+                onDelete={() => handleRemoveUploadedAttachment(attachment)}
               />
             ))}
           </Box>
@@ -226,9 +302,9 @@ const AIChat = ({ contactId, estimateId = null, initialConversationId = null, on
             {estimateId && ` | Estimate: ${estimateId}`}
           </Typography>
           <Chip
-            label={isSending ? "Sending..." : "Ready"}
+            label={isSending || isUploadingAttachments ? "Sending..." : "Ready"}
             size="small"
-            color={isSending ? "warning" : "success"}
+            color={isSending || isUploadingAttachments ? "warning" : "success"}
             variant="outlined"
           />
         </Box>
