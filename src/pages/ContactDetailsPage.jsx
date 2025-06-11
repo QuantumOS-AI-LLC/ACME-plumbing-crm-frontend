@@ -326,14 +326,14 @@ const ContactDetailsPage = () => {
             // Opening settings for an existing room
             setSelectedRoomForUpdate(room);
             setVideoRoomSettings({
-                maxParticipants: room.maxParticipants || 10,
+                maxParticipants: room.maxParticipants || 2,
                 enableRecording: room.enableRecording || false
             });
         } else if (videoRoomData) {
             // Opening settings for newly created room
             setSelectedRoomForUpdate(null);
             setVideoRoomSettings({
-                maxParticipants: videoRoomData.maxParticipants || 10,
+                maxParticipants: videoRoomData.maxParticipants || 2,
                 enableRecording: videoRoomData.enableRecording || false
             });
         } else {

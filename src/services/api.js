@@ -933,7 +933,7 @@ export const createVideoRoom = async (contactId) => {
             'https://api.telnyx.com/v2/rooms',
             {
                 unique_name: `room_${contactId}_${Date.now()}`,
-                max_participants: 10,
+                max_participants: 2,
                 enable_recording: false,
                 webhook_event_url: import.meta.env.VITE_N8N_API_URL,
                 webhook_event_failover_url: null
