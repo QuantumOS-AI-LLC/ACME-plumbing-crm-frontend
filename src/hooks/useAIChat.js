@@ -95,17 +95,18 @@ export const useAIChat = (contactId, estimateId = null, initialConversationId = 
    loadHistory();
  }, [contactId, socket, initialConversationId, onConversationSaved]); // Rerun when contactId or socket changes
 
-  const sendMessage = useCallback((message) => {
-    if (!socket || !message.trim() || isSending) return;
-
-    setIsSending(true);
-    
-    socket.emit('user_message', {
-      message: message.trim(),
-      contactId,
-      estimateId
-    });
-  }, [socket, contactId, estimateId, isSending]);
+  const sendMessage = useCallback((message, attachments = []) => {
+    if (!socket || (!message.trim() && attachments.length === 0) || isSending) return;
+ 
+     setIsSending(true);
+     const messageToSend = message.trim() === '' && attachments.length > 0 ? null : message.trim();
+     socket.emit('user_message', {
+       message: messageToSend,
+       contactId,
+       estimateId,
+       attachments // Include attachments in the payload
+     });
+   }, [socket, contactId, estimateId, isSending]);
 
   const startTyping = useCallback(() => {
     if (socket) {
