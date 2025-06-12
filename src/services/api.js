@@ -126,7 +126,12 @@ api.interceptors.response.use(
         sessionStorage.getItem("isLoggedIn");
 
       if (!isLoggedIn || isLoggedIn !== "true") {
-        console.log("❌ User not logged in, skipping refresh");
+        console.log("❌ User not logged in, skipping refresh and clearing any stale tokens");
+        // Clear any stale tokens
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("refreshToken");
         return Promise.reject(error);
       }
 

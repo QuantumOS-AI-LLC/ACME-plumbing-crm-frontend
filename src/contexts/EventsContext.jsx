@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { fetchEvents } from "../services/api";
 import { useDashboardStats } from "./DashboardStatsContext";
+import { useAuth } from "../hooks/useAuth";
 
 const EventsContext = createContext();
 
@@ -17,6 +18,7 @@ export const EventsProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { updateEventsCount } = useDashboardStats();
+  const { isAuthenticated, isInitialized } = useAuth();
 
   const loadEvents = async () => {
     try {
@@ -42,10 +44,17 @@ export const EventsProvider = ({ children }) => {
     }
   };
 
-  // Load events on mount
+  // Load events only when authenticated and initialized
   useEffect(() => {
-    loadEvents();
-  }, []);
+    if (isInitialized && isAuthenticated()) {
+      loadEvents();
+    } else if (isInitialized && !isAuthenticated()) {
+      // Clear events when not authenticated
+      setEvents([]);
+      setLoading(false);
+      setError(null);
+    }
+  }, [isInitialized, isAuthenticated]);
 
   // Update a specific event in the state
   const updateEventInState = (updatedEvent) => {
