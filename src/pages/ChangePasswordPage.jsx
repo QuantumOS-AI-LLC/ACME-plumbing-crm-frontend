@@ -82,7 +82,7 @@ const ChangePasswordPage = () => {
       setSuccess(false);
 
       await changePassword({
-        phoneNumber: user.phoneNumber,
+        phoneNumber: user?.phoneNumber,
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
       });
