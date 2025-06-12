@@ -341,9 +341,8 @@ const AIAssistantPage = () => {
                 sx={{
                     display: "flex",
                     flexDirection: { xs: "column", sm: "row" },
-                    height: "calc(100vh - 180px)",
+                    minHeight: "calc(100vh - 180px)",
                     borderRadius: 2,
-                    overflow: "hidden",
                     boxShadow: 1,
                 }}
             >

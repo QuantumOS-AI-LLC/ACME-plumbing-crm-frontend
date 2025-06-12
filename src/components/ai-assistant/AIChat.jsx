@@ -9,6 +9,7 @@ import {
     Chip,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useAIChat } from "../../hooks/useAIChat";
 import AttachmentInput from "./AttachmentInput"; // Import the new component
 
@@ -58,16 +59,43 @@ const AIChat = ({
         for (const file of selectedFilesToUpload) {
             const formData = new FormData();
             formData.append("file", file);
-            formData.append("upload_preset", "ml_default"); // Cloudinary upload preset
+
+            // Determine if this is a non-media file (PDF, documents, etc.)
+            const isImage = file.type.startsWith("image");
+            const isVideo = file.type.startsWith("video");
+
+            // For PDF and other document files, use different upload approach
+            if (file.type === "application/pdf" || (!isImage && !isVideo)) {
+                // Use unsigned upload without preset for raw files
+                formData.append("upload_preset", "ml_default");
+                formData.append("resource_type", "raw");
+                console.log(
+                    "Using raw resource type for:",
+                    file.name,
+                    file.type
+                );
+
+                // Alternative: Try without preset if the above fails
+                // Just keep the file and resource_type
+            } else {
+                // For images and videos, use the regular preset
+                formData.append("upload_preset", "ml_default");
+            }
 
             try {
-                const response = await fetch(
-                    "https://api.cloudinary.com/v1_1/dvemjyp3n/upload",
-                    {
-                        method: "POST",
-                        body: formData,
-                    }
-                );
+                let uploadUrl =
+                    "https://api.cloudinary.com/v1_1/dvemjyp3n/upload";
+
+                // For raw files, use the raw upload endpoint
+                if (file.type === "application/pdf" || (!isImage && !isVideo)) {
+                    uploadUrl =
+                        "https://api.cloudinary.com/v1_1/dvemjyp3n/raw/upload";
+                }
+
+                const response = await fetch(uploadUrl, {
+                    method: "POST",
+                    body: formData,
+                });
 
                 if (!response.ok) {
                     throw new Error(
@@ -76,6 +104,8 @@ const AIChat = ({
                 }
 
                 const data = await response.json();
+                console.log("Upload successful:", data);
+
                 let attachmentType;
                 if (file.type.startsWith("image")) {
                     attachmentType = "photo";
@@ -86,6 +116,7 @@ const AIChat = ({
                 } else {
                     attachmentType = "file";
                 }
+
                 newUploadedAttachments.push({
                     type: attachmentType,
                     url: data.secure_url,
@@ -141,6 +172,101 @@ const AIChat = ({
         );
     };
 
+    const handleFileDownload = async (url, filename) => {
+        console.log("Downloading file:", url, filename);
+
+        try {
+            let downloadUrl = url;
+
+            if (url.includes("cloudinary.com")) {
+                const cloudName = "dvemjyp3n";
+
+                // Extract the file details from URL
+                const urlParts = url.split("/");
+                const fileWithExtension = urlParts[urlParts.length - 1];
+                const versionPart = urlParts.find((part) =>
+                    part.startsWith("v")
+                );
+
+                console.log(
+                    "File:",
+                    fileWithExtension,
+                    "Version:",
+                    versionPart
+                );
+
+                // For PDFs uploaded to /image/upload/, try different approaches
+                const testUrls = [
+                    // Try as raw upload (preferred)
+                    `https://res.cloudinary.com/${cloudName}/raw/upload/${fileWithExtension}`,
+                    // Try with fl_attachment in image upload
+                    url.replace("/upload/", "/upload/fl_attachment/"),
+                    // Try direct browser download header
+                    url.replace("/upload/", "/upload/fl_attachment:inline/"),
+                    // Original URL as last resort
+                    url,
+                ];
+
+                for (let testUrl of testUrls) {
+                    try {
+                        console.log("Trying URL:", testUrl);
+                        const response = await fetch(testUrl, {
+                            method: "HEAD", // Just check if it exists
+                        });
+
+                        if (response.ok) {
+                            console.log("Success with URL:", testUrl);
+
+                            // Now download with this working URL
+                            const downloadResponse = await fetch(testUrl);
+                            if (downloadResponse.ok) {
+                                const blob = await downloadResponse.blob();
+                                const objectUrl = URL.createObjectURL(blob);
+
+                                const link = document.createElement("a");
+                                link.href = objectUrl;
+                                link.download = filename || fileWithExtension;
+                                link.style.display = "none";
+
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+
+                                URL.revokeObjectURL(objectUrl);
+                                return; // Success, exit function
+                            }
+                        }
+                    } catch (testError) {
+                        console.log(
+                            "Failed with URL:",
+                            testUrl,
+                            testError.message
+                        );
+                        continue; // Try next URL
+                    }
+                }
+
+                throw new Error("All download URLs failed");
+            }
+
+            // If not a Cloudinary URL, just open it
+            window.open(url, "_blank");
+        } catch (error) {
+            console.error("All download methods failed:", error);
+
+            // Last resort: try to open in new tab
+            try {
+                window.open(url, "_blank");
+                console.log("Opened in new tab as fallback");
+            } catch (finalError) {
+                console.error("Even fallback failed:", finalError);
+                alert(
+                    `Failed to download ${filename}. Please try uploading the file again with the updated system.`
+                );
+            }
+        }
+    };
+
     const formatMessageTime = (timestamp) => {
         return new Date(timestamp).toLocaleTimeString([], {
             hour: "2-digit",
@@ -154,9 +280,12 @@ const AIChat = ({
             <Paper
                 sx={{
                     flexGrow: 1,
-                    p: 2,
+                    p: { xs: 1, sm: 2 }, // Less padding on mobile
                     mb: 2,
-                    maxHeight: "500px",
+                    maxHeight: {
+                        xs: "400px", // Smaller height on mobile
+                        sm: "500px", // Default height on larger screens
+                    },
                     overflowY: "auto",
                     backgroundColor: "#f8f9fa",
                     position: "relative", // Added for loader positioning
@@ -189,20 +318,12 @@ const AIChat = ({
                 ) : (
                     <>
                         {messages.map((message, index) => {
-                            // Check if message has only media attachments (no text)
                             const hasText =
                                 message.message &&
                                 message.message.trim().length > 0;
-                            const hasMediaOnly =
+                            const hasMedia =
                                 message.attachments &&
-                                message.attachments.length > 0 &&
-                                message.attachments.some(
-                                    (att) =>
-                                        att.type === "photo" ||
-                                        att.type === "video" ||
-                                        att.type === "audio"
-                                ) &&
-                                !hasText;
+                                message.attachments.length > 0;
 
                             return (
                                 <Box
@@ -216,387 +337,312 @@ const AIChat = ({
                                                 : "flex-start",
                                     }}
                                 >
-                                    {hasMediaOnly ? (
-                                        // Render media without Paper wrapper (no background/border)
-                                        <Box
-                                            sx={{
-                                                maxWidth: "70%",
-                                                display: "flex",
-                                                flexDirection: "column",
-                                                alignItems:
-                                                    message.senderType ===
-                                                    "USER"
-                                                        ? "flex-end"
-                                                        : "flex-start",
-                                            }}
-                                        >
-                                            {message.attachments &&
-                                                message.attachments.length >
-                                                    0 && (
-                                                    <Box sx={{ mb: 1 }}>
-                                                        {message.attachments.map(
-                                                            (
-                                                                attachment,
-                                                                attIndex
-                                                            ) => {
-                                                                if (
-                                                                    attachment.type ===
-                                                                    "photo"
-                                                                ) {
-                                                                    return (
-                                                                        <Box
-                                                                            key={
-                                                                                attIndex
-                                                                            }
-                                                                            sx={{
-                                                                                mb: 0.5,
-                                                                                width: "200px",
-                                                                                height: "200px",
-                                                                                display:
-                                                                                    "flex",
-                                                                                alignItems:
-                                                                                    "center",
-                                                                                justifyContent:
-                                                                                    "center",
-                                                                                overflow:
-                                                                                    "hidden",
-                                                                                borderRadius:
-                                                                                    "4px",
-                                                                            }}
-                                                                        >
-                                                                            <img
-                                                                                src={
-                                                                                    attachment.url
-                                                                                }
-                                                                                alt="Attachment"
-                                                                                style={{
-                                                                                    width: "100%",
-                                                                                    height: "100%",
-                                                                                    objectFit:
-                                                                                        "cover",
-                                                                                    borderRadius:
-                                                                                        "4px",
-                                                                                }}
-                                                                            />
-                                                                        </Box>
-                                                                    );
-                                                                } else if (
-                                                                    attachment.type ===
-                                                                    "video"
-                                                                ) {
-                                                                    return (
-                                                                        <Box
-                                                                            key={
-                                                                                attIndex
-                                                                            }
-                                                                            sx={{
-                                                                                mb: 0.5,
-                                                                                width: "200px",
-                                                                                height: "200px",
-                                                                                display:
-                                                                                    "flex",
-                                                                                alignItems:
-                                                                                    "center",
-                                                                                justifyContent:
-                                                                                    "center",
-                                                                                overflow:
-                                                                                    "hidden",
-                                                                                borderRadius:
-                                                                                    "4px",
-                                                                            }}
-                                                                        >
-                                                                            <video
-                                                                                controls
-                                                                                preload="auto"
-                                                                                src={
-                                                                                    attachment.url
-                                                                                }
-                                                                                style={{
-                                                                                    width: "100%",
-                                                                                    height: "100%",
-                                                                                    objectFit:
-                                                                                        "cover",
-                                                                                    borderRadius:
-                                                                                        "4px",
-                                                                                }}
-                                                                            />
-                                                                        </Box>
-                                                                    );
-                                                                } else if (
-                                                                    attachment.type ===
-                                                                    "audio"
-                                                                ) {
-                                                                    return (
-                                                                        <Box
-                                                                            key={
-                                                                                attIndex
-                                                                            }
-                                                                            sx={{
-                                                                                mb: 0.5,
-                                                                                maxWidth:
-                                                                                    "100%",
-                                                                                height: "auto",
-                                                                            }}
-                                                                        >
-                                                                            <audio
-                                                                                controls
-                                                                                preload="auto"
-                                                                                src={
-                                                                                    attachment.url
-                                                                                }
-                                                                                style={{
-                                                                                    maxWidth:
-                                                                                        "100%",
-                                                                                    height: "auto",
-                                                                                    borderRadius:
-                                                                                        "4px",
-                                                                                }}
-                                                                            />
-                                                                        </Box>
-                                                                    );
-                                                                } else {
-                                                                    return (
-                                                                        <Chip
-                                                                            key={
-                                                                                attIndex
-                                                                            }
-                                                                            label={`${
-                                                                                attachment.type
-                                                                            }: ${attachment.url.substring(
-                                                                                0,
-                                                                                20
-                                                                            )}...`}
-                                                                            size="small"
-                                                                            color="primary"
-                                                                            component="a"
-                                                                            href={
-                                                                                attachment.url
-                                                                            }
-                                                                            target="_blank"
-                                                                            clickable
-                                                                            sx={{
-                                                                                mr: 0.5,
-                                                                                mb: 0.5,
-                                                                            }}
-                                                                        />
-                                                                    );
-                                                                }
-                                                            }
-                                                        )}
-                                                    </Box>
-                                                )}
-                                            <Typography
-                                                variant="caption"
+                                    <Box
+                                        sx={{
+                                            maxWidth: {
+                                                xs: "90%", // Wider on mobile for better readability
+                                                sm: "80%", // Medium screens
+                                                md: "70%", // Desktop
+                                            },
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            alignItems:
+                                                message.senderType === "USER"
+                                                    ? "flex-end"
+                                                    : "flex-start",
+                                        }}
+                                    >
+                                        {/* Render text in Paper wrapper if exists */}
+                                        {hasText && (
+                                            <Paper
                                                 sx={{
-                                                    opacity: 0.7,
-                                                    textAlign: "right",
-                                                    alignSelf: "flex-end",
+                                                    p: 2,
+                                                    mb: hasMedia ? 1 : 0,
+                                                    backgroundColor:
+                                                        message.senderType ===
+                                                        "USER"
+                                                            ? "primary.main"
+                                                            : "background.paper",
+                                                    color:
+                                                        message.senderType ===
+                                                        "USER"
+                                                            ? "primary.contrastText"
+                                                            : "text.primary",
                                                 }}
                                             >
-                                                {formatMessageTime(
-                                                    message.createdAt
-                                                )}
-                                            </Typography>
-                                        </Box>
-                                    ) : (
-                                        // Render with Paper wrapper (normal background/border)
-                                        <Paper
-                                            sx={{
-                                                p: 2,
-                                                maxWidth: "70%",
-                                                backgroundColor:
-                                                    message.senderType ===
-                                                    "USER"
-                                                        ? "primary.main"
-                                                        : "background.paper",
-                                                color:
-                                                    message.senderType ===
-                                                    "USER"
-                                                        ? "primary.contrastText"
-                                                        : "text.primary",
-                                            }}
-                                        >
-                                            {hasText && (
-                                                <Typography
-                                                    variant="body1"
-                                                    sx={{ mb: 1 }}
-                                                >
+                                                <Typography variant="body1">
                                                     {message.message}
                                                 </Typography>
+                                            </Paper>
+                                        )}
+
+                                        {/* Render media without background */}
+                                        {hasMedia && (
+                                            <Box sx={{ mb: 1 }}>
+                                                {message.attachments.map(
+                                                    (attachment, attIndex) => {
+                                                        if (
+                                                            attachment.type ===
+                                                            "photo"
+                                                        ) {
+                                                            return (
+                                                                <Box
+                                                                    key={
+                                                                        attIndex
+                                                                    }
+                                                                    sx={{
+                                                                        mb: 0.5,
+                                                                        width: {
+                                                                            xs: "100%", // Full width on mobile
+                                                                            sm: "200px", // Fixed width on larger screens
+                                                                        },
+                                                                        height: {
+                                                                            xs: "150px", // Smaller height on mobile
+                                                                            sm: "200px", // Fixed height on larger screens
+                                                                        },
+                                                                        maxWidth:
+                                                                            "100%",
+                                                                        display:
+                                                                            "flex",
+                                                                        alignItems:
+                                                                            "center",
+                                                                        justifyContent:
+                                                                            "center",
+                                                                        overflow:
+                                                                            "hidden",
+                                                                        borderRadius:
+                                                                            "4px",
+                                                                    }}
+                                                                >
+                                                                    <img
+                                                                        src={
+                                                                            attachment.url
+                                                                        }
+                                                                        alt="Attachment"
+                                                                        style={{
+                                                                            width: "100%",
+                                                                            height: "100%",
+                                                                            objectFit:
+                                                                                "cover",
+                                                                            borderRadius:
+                                                                                "4px",
+                                                                        }}
+                                                                    />
+                                                                </Box>
+                                                            );
+                                                        } else if (
+                                                            attachment.type ===
+                                                            "video"
+                                                        ) {
+                                                            return (
+                                                                <Box
+                                                                    key={
+                                                                        attIndex
+                                                                    }
+                                                                    sx={{
+                                                                        mb: 0.5,
+                                                                        width: {
+                                                                            xs: "100%", // Full width on mobile
+                                                                            sm: "200px", // Fixed width on larger screens
+                                                                        },
+                                                                        height: {
+                                                                            xs: "150px", // Smaller height on mobile
+                                                                            sm: "200px", // Fixed height on larger screens
+                                                                        },
+                                                                        maxWidth:
+                                                                            "100%",
+                                                                        display:
+                                                                            "flex",
+                                                                        alignItems:
+                                                                            "center",
+                                                                        justifyContent:
+                                                                            "center",
+                                                                        overflow:
+                                                                            "hidden",
+                                                                        borderRadius:
+                                                                            "4px",
+                                                                    }}
+                                                                >
+                                                                    <video
+                                                                        controls
+                                                                        preload="auto"
+                                                                        src={
+                                                                            attachment.url
+                                                                        }
+                                                                        style={{
+                                                                            width: "100%",
+                                                                            height: "100%",
+                                                                            objectFit:
+                                                                                "cover",
+                                                                            borderRadius:
+                                                                                "4px",
+                                                                        }}
+                                                                    />
+                                                                </Box>
+                                                            );
+                                                        } else if (
+                                                            attachment.type ===
+                                                            "audio"
+                                                        ) {
+                                                            return (
+                                                                <Box
+                                                                    key={
+                                                                        attIndex
+                                                                    }
+                                                                    sx={{
+                                                                        mb: 0.5,
+                                                                        width: {
+                                                                            xs: "100%", // Full width on mobile
+                                                                            sm: "300px", // Fixed width on larger screens
+                                                                        },
+                                                                        maxWidth:
+                                                                            "100%",
+                                                                        minWidth:
+                                                                            {
+                                                                                xs: "250px", // Minimum width on mobile
+                                                                                sm: "300px",
+                                                                            },
+                                                                        height: {
+                                                                            xs: "50px", // Smaller height on mobile
+                                                                            sm: "60px",
+                                                                        },
+                                                                        display:
+                                                                            "flex",
+                                                                        alignItems:
+                                                                            "center",
+                                                                        justifyContent:
+                                                                            "center",
+                                                                        backgroundColor:
+                                                                            "#f5f5f5",
+                                                                        borderRadius:
+                                                                            "8px",
+                                                                        border: "1px solid #e0e0e0",
+                                                                        p: 1,
+                                                                    }}
+                                                                >
+                                                                    <audio
+                                                                        controls
+                                                                        preload="metadata"
+                                                                        src={
+                                                                            attachment.url
+                                                                        }
+                                                                        style={{
+                                                                            width: "100%",
+                                                                            height: "35px",
+                                                                            maxWidth:
+                                                                                "100%",
+                                                                        }}
+                                                                    >
+                                                                        Your
+                                                                        browser
+                                                                        does not
+                                                                        support
+                                                                        the
+                                                                        audio
+                                                                        element.
+                                                                    </audio>
+                                                                </Box>
+                                                            );
+                                                        } else if (
+                                                            attachment.type ===
+                                                            "file"
+                                                        ) {
+                                                            return (
+                                                                <Box
+                                                                    key={
+                                                                        attIndex
+                                                                    }
+                                                                    sx={{
+                                                                        mb: 0.5,
+                                                                        p: 2,
+                                                                        border: "1px solid #e0e0e0",
+                                                                        borderRadius:
+                                                                            "8px",
+                                                                        backgroundColor:
+                                                                            "#f9f9f9",
+                                                                        display:
+                                                                            "flex",
+                                                                        alignItems:
+                                                                            "center",
+                                                                        gap: 1,
+                                                                        cursor: "pointer",
+                                                                        "&:hover":
+                                                                            {
+                                                                                backgroundColor:
+                                                                                    "#f0f0f0",
+                                                                            },
+                                                                    }}
+                                                                    onClick={() =>
+                                                                        handleFileDownload(
+                                                                            attachment.url,
+                                                                            attachment.filename
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <DownloadIcon
+                                                                        sx={{
+                                                                            color: "primary.main",
+                                                                        }}
+                                                                    />
+                                                                    <Typography
+                                                                        variant="body2"
+                                                                        sx={{
+                                                                            color: "primary.main",
+                                                                            textDecoration:
+                                                                                "underline",
+                                                                        }}
+                                                                    >
+                                                                        {attachment.filename ||
+                                                                            "Download File"}
+                                                                    </Typography>
+                                                                </Box>
+                                                            );
+                                                        } else {
+                                                            return (
+                                                                <Chip
+                                                                    key={
+                                                                        attIndex
+                                                                    }
+                                                                    label={`${
+                                                                        attachment.type
+                                                                    }: ${attachment.url.substring(
+                                                                        0,
+                                                                        20
+                                                                    )}...`}
+                                                                    size="small"
+                                                                    color="primary"
+                                                                    component="a"
+                                                                    href={
+                                                                        attachment.url
+                                                                    }
+                                                                    target="_blank"
+                                                                    clickable
+                                                                    sx={{
+                                                                        mr: 0.5,
+                                                                        mb: 0.5,
+                                                                    }}
+                                                                />
+                                                            );
+                                                        }
+                                                    }
+                                                )}
+                                            </Box>
+                                        )}
+
+                                        {/* Timestamp */}
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                opacity: 0.7,
+                                                textAlign: "right",
+                                                alignSelf: "flex-end",
+                                            }}
+                                        >
+                                            {formatMessageTime(
+                                                message.createdAt
                                             )}
-                                            {message.attachments &&
-                                                message.attachments.length >
-                                                    0 && (
-                                                    <Box
-                                                        sx={{
-                                                            mt: hasText ? 1 : 0,
-                                                        }}
-                                                    >
-                                                        {message.attachments.map(
-                                                            (
-                                                                attachment,
-                                                                attIndex
-                                                            ) => {
-                                                                if (
-                                                                    attachment.type ===
-                                                                    "photo"
-                                                                ) {
-                                                                    return (
-                                                                        <Box
-                                                                            key={
-                                                                                attIndex
-                                                                            }
-                                                                            sx={{
-                                                                                mb: 0.5,
-                                                                                width: "200px",
-                                                                                height: "200px",
-                                                                                display:
-                                                                                    "flex",
-                                                                                alignItems:
-                                                                                    "center",
-                                                                                justifyContent:
-                                                                                    "center",
-                                                                                overflow:
-                                                                                    "hidden",
-                                                                                borderRadius:
-                                                                                    "4px",
-                                                                            }}
-                                                                        >
-                                                                            <img
-                                                                                src={
-                                                                                    attachment.url
-                                                                                }
-                                                                                alt="Attachment"
-                                                                                style={{
-                                                                                    width: "100%",
-                                                                                    height: "100%",
-                                                                                    objectFit:
-                                                                                        "cover",
-                                                                                    borderRadius:
-                                                                                        "4px",
-                                                                                }}
-                                                                            />
-                                                                        </Box>
-                                                                    );
-                                                                } else if (
-                                                                    attachment.type ===
-                                                                    "video"
-                                                                ) {
-                                                                    return (
-                                                                        <Box
-                                                                            key={
-                                                                                attIndex
-                                                                            }
-                                                                            sx={{
-                                                                                mb: 0.5,
-                                                                                width: "200px",
-                                                                                height: "200px",
-                                                                                display:
-                                                                                    "flex",
-                                                                                alignItems:
-                                                                                    "center",
-                                                                                justifyContent:
-                                                                                    "center",
-                                                                                overflow:
-                                                                                    "hidden",
-                                                                                borderRadius:
-                                                                                    "4px",
-                                                                            }}
-                                                                        >
-                                                                            <video
-                                                                                controls
-                                                                                preload="auto"
-                                                                                src={
-                                                                                    attachment.url
-                                                                                }
-                                                                                style={{
-                                                                                    width: "100%",
-                                                                                    height: "100%",
-                                                                                    objectFit:
-                                                                                        "cover",
-                                                                                    borderRadius:
-                                                                                        "4px",
-                                                                                }}
-                                                                            />
-                                                                        </Box>
-                                                                    );
-                                                                } else if (
-                                                                    attachment.type ===
-                                                                    "audio"
-                                                                ) {
-                                                                    return (
-                                                                        <Box
-                                                                            key={
-                                                                                attIndex
-                                                                            }
-                                                                            sx={{
-                                                                                mb: 0.5,
-                                                                                maxWidth:
-                                                                                    "100%",
-                                                                                height: "auto",
-                                                                            }}
-                                                                        >
-                                                                            <audio
-                                                                                controls
-                                                                                preload="auto"
-                                                                                src={
-                                                                                    attachment.url
-                                                                                }
-                                                                                style={{
-                                                                                    maxWidth:
-                                                                                        "100%",
-                                                                                    height: "auto",
-                                                                                    borderRadius:
-                                                                                        "4px",
-                                                                                }}
-                                                                            />
-                                                                        </Box>
-                                                                    );
-                                                                } else {
-                                                                    return (
-                                                                        <Chip
-                                                                            key={
-                                                                                attIndex
-                                                                            }
-                                                                            label={`${
-                                                                                attachment.type
-                                                                            }: ${attachment.url.substring(
-                                                                                0,
-                                                                                20
-                                                                            )}...`}
-                                                                            size="small"
-                                                                            color="primary"
-                                                                            component="a"
-                                                                            href={
-                                                                                attachment.url
-                                                                            }
-                                                                            target="_blank"
-                                                                            clickable
-                                                                            sx={{
-                                                                                mr: 0.5,
-                                                                                mb: 0.5,
-                                                                            }}
-                                                                        />
-                                                                    );
-                                                                }
-                                                            }
-                                                        )}
-                                                    </Box>
-                                                )}
-                                            <Typography
-                                                variant="caption"
-                                                sx={{
-                                                    opacity: 0.7,
-                                                    display: "block",
-                                                    textAlign: "right",
-                                                }}
-                                            >
-                                                {formatMessageTime(
-                                                    message.createdAt
-                                                )}
-                                            </Typography>
-                                        </Paper>
-                                    )}
+                                        </Typography>
+                                    </Box>
                                 </Box>
                             );
                         })}
@@ -683,6 +729,7 @@ const AIChat = ({
                 <AttachmentInput
                     key={attachmentInputKey}
                     onFilesSelected={handleFilesSelected}
+                    onFileRemoved={handleRemoveSelectedFile}
                 />
 
                 {/* Display selected files to upload as chips */}
