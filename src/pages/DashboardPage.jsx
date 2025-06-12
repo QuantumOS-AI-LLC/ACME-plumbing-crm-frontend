@@ -21,10 +21,12 @@ const DashboardPage = () => {
     loadDashboardStats,
   } = useDashboardStats();
 
-  // Load dashboard stats when component mounts (only if not already loaded)
+  // Load dashboard stats when component mounts and user is authenticated
   useEffect(() => {
-    loadDashboardStats();
-  }, []); // Empty dependency array to run only once on mount
+    if (user) {
+      loadDashboardStats();
+    }
+  }, [user, loadDashboardStats]);
 
   const gradients = {
     aiAssistant: "linear-gradient(45deg, #9D4EE9 0%, #8A2BE2 100%)",

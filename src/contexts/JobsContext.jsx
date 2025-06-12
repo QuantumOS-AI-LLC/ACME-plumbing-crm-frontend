@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { fetchJobs } from "../services/api";
 import { useDashboardStats } from "./DashboardStatsContext";
+import { useAuth } from "../hooks/useAuth";
 
 const JobsContext = createContext();
 
@@ -17,6 +18,7 @@ export const JobsProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { updateJobsCount } = useDashboardStats();
+  const { isAuthenticated, isInitialized } = useAuth();
 
   const loadJobs = async () => {
     try {
@@ -42,10 +44,17 @@ export const JobsProvider = ({ children }) => {
     }
   };
 
-  // Load jobs on mount
+  // Load jobs only when authenticated and initialized
   useEffect(() => {
-    loadJobs();
-  }, []);
+    if (isInitialized && isAuthenticated()) {
+      loadJobs();
+    } else if (isInitialized && !isAuthenticated()) {
+      // Clear jobs when not authenticated
+      setJobs([]);
+      setLoading(false);
+      setError(null);
+    }
+  }, [isInitialized, isAuthenticated]);
 
   // Update a specific job in the state
   const updateJobInState = (updatedJob) => {
