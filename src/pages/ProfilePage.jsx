@@ -78,14 +78,13 @@ const ProfilePage = () => {
 
         if (response && response.data) {
           setFormData({
-            name: response.data.name || "",
-            email: response.data.email || "",
-            phoneNumber: response.data.phoneNumber || "",
-            // title: response.data.title || "",
+            name: response.data.user?.name || "",
+            email: response.data.user?.email || "",
+            phoneNumber: response.data.user?.phoneNumber || "",
           });
           // Set initial state of GPS toggle from fetched profile data
-          if (response.data.isLiveTrackingEnabled !== undefined) {
-            setIsGpsTrackingEnabled(response.data.isLiveTrackingEnabled);
+          if (response.data.user?.isLiveTrackingEnabled !== undefined) {
+            setIsGpsTrackingEnabled(response.data.user.isLiveTrackingEnabled);
           }
         }
       } catch (error) {
