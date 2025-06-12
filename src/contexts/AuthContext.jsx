@@ -16,6 +16,7 @@ export const AuthProvider = ({ children }) => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState(null);
     const [rememberMe, setRememberMe] = useState(false);
 
@@ -67,6 +68,7 @@ export const AuthProvider = ({ children }) => {
                 setUser(null);
             } finally {
                 setLoading(false);
+                setIsInitialized(true);
             }
         };
 
@@ -121,6 +123,7 @@ export const AuthProvider = ({ children }) => {
         setIsLoggedIn(false);
         setUser(null);
         setError(null);
+        // Keep isInitialized as true since we're still initialized, just logged out
     };
 
     const updateUserData = (userData) => {
@@ -148,6 +151,7 @@ export const AuthProvider = ({ children }) => {
                 isLoggedIn,
                 user,
                 loading,
+                isInitialized,
                 error,
                 login,
                 logout,

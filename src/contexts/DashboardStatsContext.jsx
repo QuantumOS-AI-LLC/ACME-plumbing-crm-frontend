@@ -4,6 +4,7 @@ import {
   fetchEstimatesCount,
   fetchEventsCount,
 } from "../services/api";
+import { useAuth } from "../hooks/useAuth";
 
 const DashboardStatsContext = createContext();
 
@@ -26,9 +27,24 @@ export const DashboardStatsProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   const loadDashboardStats = useCallback(
     async (force = false) => {
+      // Check authentication first
+      if (!isAuthenticated()) {
+        console.log("Not authenticated, skipping dashboard stats load");
+        setStats({
+          openJobsCount: 0,
+          pendingEstimatesCount: 0,
+          todaysEventsCount: 0,
+        });
+        setHasLoaded(false);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+
       // Prevent multiple loads unless forced
       if (hasLoaded && !force) {
         console.log("Dashboard stats already loaded, skipping...");
@@ -82,7 +98,7 @@ export const DashboardStatsProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [hasLoaded, loading]
+    [hasLoaded, loading, isAuthenticated]
   );
 
   // Smart count update functions to avoid unnecessary API calls

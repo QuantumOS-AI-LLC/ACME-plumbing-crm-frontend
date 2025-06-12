@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { fetchEstimates } from "../services/api";
 import { useDashboardStats } from "./DashboardStatsContext";
+import { useAuth } from "../hooks/useAuth";
 
 const EstimatesContext = createContext();
 
@@ -17,6 +18,7 @@ export const EstimatesProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { updateEstimatesCount } = useDashboardStats();
+  const { isAuthenticated, isInitialized } = useAuth();
 
   const loadEstimates = async () => {
     try {
@@ -42,10 +44,17 @@ export const EstimatesProvider = ({ children }) => {
     }
   };
 
-  // Load estimates on mount
+  // Load estimates only when authenticated and initialized
   useEffect(() => {
-    loadEstimates();
-  }, []);
+    if (isInitialized && isAuthenticated()) {
+      loadEstimates();
+    } else if (isInitialized && !isAuthenticated()) {
+      // Clear estimates when not authenticated
+      setEstimates([]);
+      setLoading(false);
+      setError(null);
+    }
+  }, [isInitialized, isAuthenticated]);
 
   // Update a specific estimate in the state
   const updateEstimateInState = (updatedEstimate) => {
