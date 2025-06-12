@@ -45,8 +45,8 @@ const SetTimeZonePage = () => {
         setLoading(true);
         const response = await fetchUserProfile();
         console.log("fetch time", response);
-        if (response && response.data && response.data.timezone) {
-          setSelectedTimeZone(response.data.timezone);
+        if (response?.data?.data?.user?.timezone) {
+          setSelectedTimeZone(response.data.data.user.timezone);
         }
       } catch (error) {
         console.error("Error loading time zone:", error);
