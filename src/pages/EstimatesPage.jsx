@@ -170,7 +170,7 @@ const EstimatesPage = () => {
                     onChange={handleTabChange}
                     aria-label="estimate tabs"
                 >
-                    <Tab label="Active Estimates" value="active" />
+                    <Tab label="Pending Estimates" value="active" />
                     <Tab label="Accepted" value="accepted" />
                     <Tab label="Rejected" value="rejected" />
                     <Tab label="Reports" value="reports" />
