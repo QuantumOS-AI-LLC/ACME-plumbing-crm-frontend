@@ -97,19 +97,19 @@ const AttachmentInput = ({ onFilesSelected }) => {
                                 color="info"
                                 variant="outlined"
                                 size="small"
-                                sx={{
-                                    maxWidth: { xs: "100%", sm: "200px" }, // Full width on mobile, limited on desktop
-                                    "& .MuiChip-label": {
-                                        fontSize: {
-                                            xs: "0.75rem",
-                                            sm: "0.8125rem",
-                                        }, // Smaller font on mobile
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
-                                        maxWidth: { xs: "150px", sm: "160px" }, // Truncate long filenames
-                                    },
-                                }}
+                                // sx={{
+                                //     maxWidth: { xs: "100%", sm: "200px" }, // Full width on mobile, limited on desktop
+                                //     "& .MuiChip-label": {
+                                //         fontSize: {
+                                //             xs: "0.75rem",
+                                //             sm: "0.8125rem",
+                                //         }, // Smaller font on mobile
+                                //         overflow: "hidden",
+                                //         textOverflow: "ellipsis",
+                                //         whiteSpace: "nowrap",
+                                //         maxWidth: { xs: "150px", sm: "160px" }, // Truncate long filenames
+                                //     },
+                                // }}
                             />
                         ))}
                     </Box>
