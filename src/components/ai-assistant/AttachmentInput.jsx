@@ -12,8 +12,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { Cloudinary } from "@cloudinary/url-gen";
 
-const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dvemjyp3n/upload"; // Base URL for upload
-const cld = new Cloudinary({ cloud: { cloudName: "dvemjyp3n" } });
+const CLOUDINARY_URL = import.meta.env.VITE_CLOUDINARY_UPLOAD_URL; // Base URL for upload
+const cld = new Cloudinary({ cloud: { cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME } });
 
 const AttachmentInput = ({ onFilesSelected }) => {
     const [selectedFiles, setSelectedFiles] = useState([]);

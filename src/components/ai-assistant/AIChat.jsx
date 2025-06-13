@@ -805,10 +805,10 @@ const AIChat = ({
                         alignItems: "center",
                     }}
                 >
-                    <Typography variant="caption" color="text.secondary">
+                    {/* <Typography variant="caption" color="text.secondary">
                         {contactId && `Contact: ${contactId}`}
                         {estimateId && ` | Estimate: ${estimateId}`}
-                    </Typography>
+                    </Typography> */}
                     <Chip
                         label={
                             isSending || isUploadingAttachments
