@@ -1,5 +1,5 @@
 // ... (Previous imports remain unchanged)
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Box,
     Typography,
@@ -86,6 +86,18 @@ const ContactDetailsPage = () => {
         { value: "won", label: "Won" },
     ];
 
+    const loadExistingRooms = useCallback(async () => {
+        try {
+            const rooms = await getRoomsForContact(id);
+            setExistingRooms(rooms);
+            console.log('Existing rooms for contact:', rooms);
+        } catch (error) {
+            console.error('Error loading existing rooms:', error);
+            // Don't show error toast for this, as it's not critical
+        }
+    }, [id, getRoomsForContact]); // Add dependencies
+
+
     useEffect(() => {
         const loadContactDetails = async () => {
             try {
@@ -114,20 +126,9 @@ const ContactDetailsPage = () => {
             }
         };
 
-        const loadExistingRooms = async () => {
-            try {
-                const rooms = await getRoomsForContact(id);
-                setExistingRooms(rooms);
-                console.log('Existing rooms for contact:', rooms);
-            } catch (error) {
-                console.error('Error loading existing rooms:', error);
-                // Don't show error toast for this, as it's not critical
-            }
-        };
-
         loadContactDetails();
         loadExistingRooms();
-    }, [id]);
+    }, [id, loadExistingRooms]); // Add loadExistingRooms as a dependency
 
     const getInitials = (name) => {
         if (!name) return "?";
@@ -265,6 +266,8 @@ const ContactDetailsPage = () => {
         try {
             const roomData = await createRoom(id, contact.name);
             console.log('Video room created:', roomData);
+            // Refresh the list of existing rooms after a new one is created
+            await loadExistingRooms();
         } catch (error) {
             console.error('Failed to create video room:', error);
         }
@@ -276,15 +279,21 @@ const ContactDetailsPage = () => {
         }
     };
 
-    const handleDeleteVideoRoom = async () => {
-        if (!videoRoomData?.systemId || !videoRoomData?.roomId) return;
+    const handleDeleteVideoRoom = async (systemIdToDelete, telnyxRoomIdToDelete) => {
+        // Use the passed IDs, or fallback to videoRoomData if not provided (e.g., for the "current" room)
+        const targetSystemId = systemIdToDelete || videoRoomData?.systemId;
+        const targetTelnyxRoomId = telnyxRoomIdToDelete || videoRoomData?.roomId;
+
+        if (!targetSystemId || !targetTelnyxRoomId) {
+            console.error('Missing required room IDs for deletion');
+            return;
+        }
         
         try {
-            await deleteRoom(videoRoomData.systemId, videoRoomData.roomId, contact.name);
+            await deleteRoom(targetSystemId, targetTelnyxRoomId, contact.name);
             console.log('Video room deleted successfully');
             // Reload existing rooms after deletion
-            const rooms = await getRoomsForContact(id);
-            setExistingRooms(rooms);
+            await loadExistingRooms(); // Call the helper function
         } catch (error) {
             console.error('Failed to delete video room:', error);
         }
@@ -928,9 +937,10 @@ const ContactDetailsPage = () => {
                                             variant="outlined"
                                             color="error"
                                             size="small"
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 if (room.id && room.telnyxRoomId) {
-                                                    deleteRoom(room.id, room.telnyxRoomId, contact.name);
+                                                    await deleteRoom(room.id, room.telnyxRoomId, contact.name);
+                                                    await loadExistingRooms(); // Refresh the list after deletion
                                                 }
                                             }}
                                             startIcon={<DeleteIcon />}
