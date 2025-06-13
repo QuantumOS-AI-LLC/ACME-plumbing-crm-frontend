@@ -358,7 +358,7 @@ const AddJobModal = ({ open, onClose, onJobCreated }) => {
                                                 value={client.id}
                                             >
                                                 {client.name
-                                                    ? "Name: " + client.name
+                                                    ? client.name
                                                     : "Unnamed Client"}
                                             </MenuItem>
                                         ))
