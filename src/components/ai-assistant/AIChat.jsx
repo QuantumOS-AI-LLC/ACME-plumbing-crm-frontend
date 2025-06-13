@@ -7,9 +7,12 @@ import {
     Typography,
     CircularProgress,
     Chip,
+    Modal,
+    IconButton,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import DownloadIcon from "@mui/icons-material/Download";
+import CloseIcon from "@mui/icons-material/Close";
 import { useAIChat } from "../../hooks/useAIChat";
 import AttachmentInput from "./AttachmentInput"; // Import the new component
 
@@ -24,6 +27,8 @@ const AIChat = ({
     const [uploadedAttachments, setUploadedAttachments] = useState([]); // State for attachments that have been uploaded
     const [isUploadingAttachments, setIsUploadingAttachments] = useState(false); // New state for upload progress
     const [attachmentInputKey, setAttachmentInputKey] = useState(0); // Key to force remount of AttachmentInput
+    const [imageModalOpen, setImageModalOpen] = useState(false);
+    const [selectedImage, setSelectedImage] = useState(null);
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -274,6 +279,16 @@ const AIChat = ({
         });
     };
 
+    const handleImageClick = (imageUrl) => {
+        setSelectedImage(imageUrl);
+        setImageModalOpen(true);
+    };
+
+    const handleCloseImageModal = () => {
+        setImageModalOpen(false);
+        setSelectedImage(null);
+    };
+
     return (
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
             {/* Messages Container */}
@@ -419,6 +434,11 @@ const AIChat = ({
                                                                             attachment.url
                                                                         }
                                                                         alt="Attachment"
+                                                                        onClick={() =>
+                                                                            handleImageClick(
+                                                                                attachment.url
+                                                                            )
+                                                                        }
                                                                         style={{
                                                                             width: "100%",
                                                                             height: "100%",
@@ -426,6 +446,7 @@ const AIChat = ({
                                                                                 "cover",
                                                                             borderRadius:
                                                                                 "4px",
+                                                                            cursor: "pointer",
                                                                         }}
                                                                     />
                                                                 </Box>
@@ -805,10 +826,6 @@ const AIChat = ({
                         alignItems: "center",
                     }}
                 >
-                    {/* <Typography variant="caption" color="text.secondary">
-                        {contactId && `Contact: ${contactId}`}
-                        {estimateId && ` | Estimate: ${estimateId}`}
-                    </Typography> */}
                     <Chip
                         label={
                             isSending || isUploadingAttachments
@@ -825,6 +842,66 @@ const AIChat = ({
                     />
                 </Box>
             </Paper>
+
+            {/* Simple Image Modal */}
+            <Modal
+                open={imageModalOpen}
+                onClose={handleCloseImageModal}
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backdropFilter: "blur(5px)",
+                }}
+            >
+                <Box
+                    sx={{
+                        position: "relative",
+                        maxWidth: "90vw",
+                        maxHeight: "90vh",
+                        bgcolor: "background.paper",
+                        borderRadius: "8px",
+                        boxShadow: 24,
+                        overflow: "hidden",
+                        display: "flex",
+                        flexDirection: "column",
+                    }}
+                >
+                    {/* Close Button */}
+                    <IconButton
+                        onClick={handleCloseImageModal}
+                        sx={{
+                            position: "absolute",
+                            top: 8,
+                            right: 8,
+                            bgcolor: "rgba(0, 0, 0, 0.5)",
+                            color: "white",
+                            zIndex: 1,
+                            "&:hover": {
+                                bgcolor: "rgba(0, 0, 0, 0.7)",
+                            },
+                        }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+
+                    {/* Large Image */}
+                    {selectedImage && (
+                        <img
+                            src={selectedImage}
+                            alt="Large view"
+                            style={{
+                                maxWidth: "100%",
+                                maxHeight: "90vh",
+                                width: "auto",
+                                height: "auto",
+                                objectFit: "contain",
+                                display: "block",
+                            }}
+                        />
+                    )}
+                </Box>
+            </Modal>
         </Box>
     );
 };
