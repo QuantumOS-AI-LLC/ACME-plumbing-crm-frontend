@@ -733,7 +733,7 @@ const AIChat = ({
                 />
 
                 {/* Display selected files to upload as chips */}
-                {/* {selectedFilesToUpload.length > 0 && (
+                {selectedFilesToUpload.length > 0 && (
                     <Box
                         sx={{
                             mt: 1,
@@ -762,7 +762,7 @@ const AIChat = ({
                             />
                         ))}
                     </Box>
-                )} */}
+                )}
 
                 {/* Display already uploaded attachments as chips */}
                 {uploadedAttachments.length > 0 && (

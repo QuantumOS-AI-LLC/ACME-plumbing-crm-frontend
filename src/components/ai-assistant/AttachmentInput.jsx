@@ -67,7 +67,7 @@ const AttachmentInput = ({ onFilesSelected }) => {
                 Add Attachments
             </Button>
 
-            {selectedFiles.length > 0 && (
+            {/* {selectedFiles.length > 0 && (
                 <Box sx={{ mb: 1 }}>
                     <Typography
                         variant="subtitle2"
@@ -114,7 +114,7 @@ const AttachmentInput = ({ onFilesSelected }) => {
                         ))}
                     </Box>
                 </Box>
-            )}
+            )} */}
         </Box>
     );
 };
