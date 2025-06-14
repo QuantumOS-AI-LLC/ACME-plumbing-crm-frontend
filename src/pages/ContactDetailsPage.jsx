@@ -364,21 +364,27 @@ const ContactDetailsPage = () => {
         }));
     };
 
-    const handleShareVideoRoomLink = async () => {
-        if (!videoRoomData?.joinUrl) return;
+    const handleShareVideoRoomLink = async (joinUrlToShare) => {
+        const urlToShare = joinUrlToShare || videoRoomData?.joinUrl;
+        if (!urlToShare) {
+            toast.error('No video room link available to share.', { duration: 3000 });
+            return;
+        }
         
         try {
             // Get current user data
             const userProfile = JSON.parse(
-                localStorage.getItem('userProfile') || 
-                sessionStorage.getItem('userProfile') || 
+                localStorage.getItem('userProfile') ||
+                sessionStorage.getItem('userProfile') ||
                 '{}'
             );
             
-            await shareRoomLink(videoRoomData.joinUrl, contact.name, contact.id, userProfile.id);
+            await shareRoomLink(urlToShare, contact.name, contact.id, userProfile.id);
             console.log('Video room link shared successfully');
+            toast.success('Video room link shared successfully!', { duration: 3000 });
         } catch (error) {
             console.error('Failed to share video room link:', error);
+            toast.error('Failed to share video room link. Please try again.', { duration: 3000 });
         }
     };
 
@@ -688,7 +694,7 @@ const ContactDetailsPage = () => {
                                 variant="contained"
                                 color="info"
                                 size="small"
-                                onClick={handleShareVideoRoomLink}
+                                onClick={() => handleShareVideoRoomLink(videoRoomData.joinUrl)}
                                 disabled={videoRoomLoading}
                                 sx={{
                                     fontWeight: 500,
@@ -902,7 +908,7 @@ const ContactDetailsPage = () => {
                                             variant="outlined"
                                             color="info"
                                             size="small"
-                                            onClick={handleShareVideoRoomLink}
+                                            onClick={() => handleShareVideoRoomLink(room.joinUrl)}
                                             disabled={videoRoomLoading}
                                             sx={{ 
                                                 px: { xs: 2, sm: 1.5 }, 
