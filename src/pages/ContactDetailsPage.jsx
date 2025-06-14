@@ -902,7 +902,7 @@ const ContactDetailsPage = () => {
                                             variant="outlined"
                                             color="info"
                                             size="small"
-                                            onClick={() => handleShareVideoRoomLink()}
+                                            onClick={handleShareVideoRoomLink}
                                             disabled={videoRoomLoading}
                                             sx={{ 
                                                 px: { xs: 2, sm: 1.5 }, 
