@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import {
     Box,
     Typography,
@@ -8,9 +8,14 @@ import {
     Paper,
     Button,
     CircularProgress,
+    TextField,
+    InputAdornment,
+    IconButton,
 } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
 
 import PageHeader from "../components/common/PageHeader";
 import EstimateCard from "../components/estimates/EstimateCard";
@@ -28,6 +33,8 @@ const ESTIMATE_STATUS = {
 
 const EstimatesPage = () => {
     const { user } = useContext(AuthContext);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState("active");
     const [openForm, setOpenForm] = useState(false);
     const [editingEstimate, setEditingEstimate] = useState(null);
@@ -46,40 +53,26 @@ const EstimatesPage = () => {
         updateEstimateInState,
     } = useEstimates();
 
+    // Debounce search term
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 500);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchTerm]);
+
     // Ensure at least 1 page if there are estimates
     const totalPages = Math.max(
         pagination.totalPages,
-        estimates.length > 0 ? 2 : 0
+        estimates.length > 0 ? 1 : 0
     );
     const pages = [...Array(totalPages).keys()];
 
-    // Debug pagination state
-    console.log("Estimates Pagination Debug:", {
-        originalTotalPages: pagination.totalPages,
-        calculatedTotalPages: totalPages,
-        currentPage: pagination.page,
-        totalItems: pagination.totalItems,
-        estimatesLength: estimates.length,
-        activeTab,
-        pages: pages.length,
-    });
-
-    // Load estimates when component mounts or tab changes
-    useEffect(() => {
-        const statusFilter = getStatusFilters();
-        loadEstimatesWithPagination(
-            1,
-            statusFilter.length > 0 ? statusFilter[0] : null
-        );
-    }, [activeTab]);
-
-    const handleTabChange = (event, newValue) => {
-        setActiveTab(newValue);
-        // The pagination reset will be handled in the useEffect
-    };
-
-    const getStatusFilters = () => {
-        switch (activeTab) {
+    const getStatusFilters = (tab) => {
+        switch (tab) {
             case "active":
                 return [ESTIMATE_STATUS.PENDING];
             case "accepted":
@@ -88,6 +81,53 @@ const EstimatesPage = () => {
                 return [ESTIMATE_STATUS.REJECTED];
             default:
                 return [];
+        }
+    };
+
+    // Load estimates when debounced search term or tab changes
+    useEffect(() => {
+        const statusFilter = getStatusFilters(activeTab);
+        console.log("Loading estimates with:", {
+            activeTab,
+            debouncedSearchTerm,
+            statusFilter,
+            status: statusFilter.length > 0 ? statusFilter[0] : null,
+        });
+
+        loadEstimatesWithPagination(
+            1,
+            statusFilter.length > 0 ? statusFilter[0] : null,
+            debouncedSearchTerm
+        );
+    }, [activeTab, debouncedSearchTerm]);
+
+    const handleTabChange = (event, newValue) => {
+        setActiveTab(newValue);
+        setSearchTerm(""); // This will trigger the debounce and eventually clear debouncedSearchTerm
+    };
+
+    // Handle search button click
+    const handleSearchClick = () => {
+        if (searchTerm.trim()) {
+            const statusFilter = getStatusFilters(activeTab);
+            loadEstimatesWithPagination(
+                1,
+                statusFilter.length > 0 ? statusFilter[0] : null,
+                searchTerm.trim()
+            );
+        }
+    };
+
+    // Handle clear search
+    const handleClearSearch = () => {
+        setSearchTerm("");
+        // This will trigger the debounce and reload estimates without search
+    };
+
+    // Handle Enter key press
+    const handleKeyPress = (event) => {
+        if (event.key === "Enter") {
+            handleSearchClick();
         }
     };
 
@@ -127,7 +167,13 @@ const EstimatesPage = () => {
                     : "Estimate created successfully"
             );
 
-            // No need to refetch - context handles updates automatically
+            // Refresh the current tab with search term
+            const statusFilter = getStatusFilters(activeTab);
+            loadEstimatesWithPagination(
+                1,
+                statusFilter.length > 0 ? statusFilter[0] : null,
+                debouncedSearchTerm
+            );
         } catch (error) {
             console.error("Error after form submission:", error);
             toast.error("Failed to refresh estimates data");
@@ -145,15 +191,28 @@ const EstimatesPage = () => {
     };
 
     // For pagination
-    const handlePageChange = (newPage) => {
-        if (newPage !== pagination.page) {
-            const statusFilter = getStatusFilters();
-            loadEstimatesWithPagination(
-                newPage,
-                statusFilter.length > 0 ? statusFilter[0] : null
-            );
-        }
-    };
+    const handlePageChange = useCallback(
+        (newPage) => {
+            if (newPage !== pagination.page) {
+                const statusFilter = getStatusFilters(activeTab);
+                loadEstimatesWithPagination(
+                    newPage,
+                    statusFilter.length > 0 ? statusFilter[0] : null,
+                    debouncedSearchTerm
+                );
+            }
+        },
+        [pagination.page, activeTab, debouncedSearchTerm]
+    );
+
+    const handleRetry = useCallback(() => {
+        const statusFilter = getStatusFilters(activeTab);
+        loadEstimatesWithPagination(
+            1,
+            statusFilter.length > 0 ? statusFilter[0] : null,
+            debouncedSearchTerm
+        );
+    }, [activeTab, debouncedSearchTerm]);
 
     return (
         <Box>
@@ -163,6 +222,147 @@ const EstimatesPage = () => {
                 actionText="Add Estimate"
                 onAction={() => handleOpenForm()}
             />
+
+            {/* Enhanced Search Section - Full Width Button */}
+            <Box sx={{ mb: 3, width: "100%" }}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "stretch",
+                        gap: 2,
+                        width: "100%", // Full width container
+                        // Stack on mobile, side by side on larger screens
+                        flexDirection: { xs: "column", sm: "row" },
+                    }}
+                >
+                    <TextField
+                        label="Search estimates"
+                        value={searchTerm}
+                        onChange={(e) => {
+                            console.log(
+                                "Search term changed to:",
+                                e.target.value
+                            );
+                            setSearchTerm(e.target.value);
+                        }}
+                        onKeyPress={handleKeyPress}
+                        fullWidth
+                        size="medium"
+                        sx={{
+                            flex: 1,
+                            "& .MuiOutlinedInput-root": {
+                                borderRadius: "8px",
+                                transition: "all 0.3s ease",
+                                height: "48px", // Reduced height
+                                fontSize: "0.95rem",
+                                "&:hover": {
+                                    boxShadow:
+                                        "0 2px 8px rgba(156, 39, 176, 0.15)",
+                                },
+                                "&.Mui-focused": {
+                                    boxShadow:
+                                        "0 4px 12px rgba(156, 39, 176, 0.25)",
+                                },
+                            },
+                            "& .MuiInputLabel-root": {
+                                fontSize: "0.95rem",
+                            },
+                        }}
+                        variant="outlined"
+                        placeholder="Enter lead name..."
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon
+                                        sx={{
+                                            color: "primary.main",
+                                            fontSize: "1.1rem",
+                                        }}
+                                    />
+                                </InputAdornment>
+                            ),
+                            endAdornment: searchTerm && (
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        onClick={handleClearSearch}
+                                        edge="end"
+                                        size="small"
+                                        sx={{
+                                            color: "text.secondary",
+                                            "&:hover": {
+                                                color: "error.main",
+                                                backgroundColor: "error.light",
+                                                opacity: 0.1,
+                                            },
+                                        }}
+                                    >
+                                        <ClearIcon fontSize="small" />
+                                    </IconButton>
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+
+                    {/* Full Width Search Button with White Text */}
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleSearchClick}
+                        disabled={!searchTerm.trim() || loading}
+                        sx={{
+                            height: "48px", // Match TextField height
+                            minWidth: { xs: "100%", sm: "200px" }, // Wider on desktop
+                            borderRadius: "8px",
+                            fontWeight: "600",
+                            fontSize: "0.9rem",
+                            textTransform: "none",
+                            color: "#ffffff", // Force white text
+                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                            boxShadow: (theme) =>
+                                `0 3px 12px ${theme.palette.primary.main}40`,
+                            "&:hover": {
+                                transform: "translateY(-1px)",
+                                boxShadow: (theme) =>
+                                    `0 5px 16px ${theme.palette.primary.main}50`,
+                                color: "#ffffff", // Keep white on hover
+                            },
+                            "&:active": {
+                                transform: "translateY(0px)",
+                                color: "#ffffff", // Keep white on active
+                            },
+                            "&:disabled": {
+                                transform: "none",
+                                boxShadow: "none",
+                                color: "rgba(255, 255, 255, 0.7)", // Semi-transparent white when disabled
+                            },
+                            // Subtle shine effect
+                            position: "relative",
+                            overflow: "hidden",
+                            "&::before": {
+                                content: '""',
+                                position: "absolute",
+                                top: 0,
+                                left: "-100%",
+                                width: "100%",
+                                height: "100%",
+                                background:
+                                    "linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)",
+                                transition: "left 0.6s",
+                            },
+                            "&:hover::before": {
+                                left: "100%",
+                            },
+                        }}
+                        startIcon={
+                            <SearchIcon
+                                sx={{ fontSize: "1rem", color: "#ffffff" }}
+                            />
+                        }
+                    >
+                        {loading ? "Searching" : "Search"}
+                    </Button>
+                </Box>
+            </Box>
 
             <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
                 <Tabs
@@ -208,7 +408,7 @@ const EstimatesPage = () => {
                         variant="outlined"
                         color="primary"
                         sx={{ mt: 2 }}
-                        onClick={() => window.location.reload()}
+                        onClick={handleRetry}
                     >
                         Retry
                     </Button>
@@ -228,6 +428,15 @@ const EstimatesPage = () => {
                                             : "rejected"}{" "}
                                         estimates found.
                                     </Typography>
+                                    {debouncedSearchTerm && (
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{ mt: 1 }}
+                                        >
+                                            Search term: "{debouncedSearchTerm}"
+                                        </Typography>
+                                    )}
                                 </Box>
                             </Grid>
                         ) : (

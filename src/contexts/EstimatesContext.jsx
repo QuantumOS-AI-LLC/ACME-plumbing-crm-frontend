@@ -39,25 +39,21 @@ export const EstimatesProvider = ({ children }) => {
                 ...params,
             };
 
+            console.log("Estimates API call with params:", requestParams); // Debug log
+
             const response = await fetchEstimates(requestParams);
 
             if (response && response.data) {
+                // Backend should handle filtering, so no need for frontend filtering
                 setEstimates(response.data);
 
-                // Update pagination info from response or calculate it
+                // Update pagination info from response
                 const newPagination = {
                     page: requestParams.page,
                     limit: requestParams.limit,
-                    totalPages:
-                        response.totalPages ||
-                        Math.ceil(
-                            (response.total || response.data.length) /
-                                requestParams.limit
-                        ),
+                    totalPages: response.pagination?.pages || 1,
                     totalItems:
-                        response.total ||
-                        response.totalItems ||
-                        response.data.length,
+                        response.pagination?.total || response.data.length,
                 };
 
                 setPagination(newPagination);
@@ -84,8 +80,12 @@ export const EstimatesProvider = ({ children }) => {
         }
     };
 
-    // Load estimates with pagination support
-    const loadEstimatesWithPagination = async (page = 1, status = null) => {
+    // Load estimates with pagination support - UPDATED: Added search parameter
+    const loadEstimatesWithPagination = async (
+        page = 1,
+        status = null,
+        search = null
+    ) => {
         const params = {
             page,
             limit: pagination.limit,
@@ -94,6 +94,18 @@ export const EstimatesProvider = ({ children }) => {
         if (status) {
             params.status = Array.isArray(status) ? status : [status];
         }
+
+        // Add search parameter if provided
+        if (search && search.trim() !== "") {
+            params.search = search.trim(); // Backend expects 'search' parameter for leadName search
+        }
+
+        console.log("loadEstimatesWithPagination called with:", {
+            page,
+            status,
+            search,
+            params,
+        }); // Debug log
 
         await loadEstimates(params);
     };

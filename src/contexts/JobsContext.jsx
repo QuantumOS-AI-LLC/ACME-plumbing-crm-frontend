@@ -37,25 +37,21 @@ export const JobsProvider = ({ children }) => {
                 ...params,
             };
 
+            console.log("API call with params:", requestParams); // Debug log
+
             const response = await fetchJobs(requestParams);
 
             if (response && response.data) {
+                // Backend should handle filtering, so no need for frontend filtering
                 setJobs(response.data);
 
-                // Update pagination info from response or calculate it
+                // Update pagination info from response
                 const newPagination = {
                     page: requestParams.page,
                     limit: requestParams.limit,
-                    totalPages:
-                        response.totalPages ||
-                        Math.ceil(
-                            (response.total || response.data.length) /
-                                requestParams.limit
-                        ),
+                    totalPages: response.pagination?.pages || 1,
                     totalItems:
-                        response.total ||
-                        response.totalItems ||
-                        response.data.length,
+                        response.pagination?.total || response.data.length,
                 };
 
                 setPagination(newPagination);
@@ -82,8 +78,12 @@ export const JobsProvider = ({ children }) => {
         }
     };
 
-    // Load jobs with pagination support
-    const loadJobsWithPagination = async (page = 1, status = null) => {
+    // Load jobs with pagination support - FIXED: Added search parameter
+    const loadJobsWithPagination = async (
+        page = 1,
+        status = null,
+        search = null
+    ) => {
         const params = {
             page,
             limit: pagination.limit,
@@ -92,6 +92,18 @@ export const JobsProvider = ({ children }) => {
         if (status) {
             params.status = Array.isArray(status) ? status : [status];
         }
+
+        // Add search parameter if provided
+        if (search && search.trim() !== "") {
+            params.search = search.trim(); // Changed from 'name' to 'search' to match backend
+        }
+
+        console.log("loadJobsWithPagination called with:", {
+            page,
+            status,
+            search,
+            params,
+        }); // Debug log
 
         await loadJobs(params);
     };
