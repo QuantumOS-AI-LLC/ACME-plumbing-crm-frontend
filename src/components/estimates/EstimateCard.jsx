@@ -195,13 +195,13 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                 }}
                 onClick={handleCardClick}
             >
-                <CardContent sx={{ padding: 3, paddingTop: 4 }}>
+                <CardContent sx={{ padding: 3, paddingTop: 2, paddingBottom:2 }}>
                     <Box
                         sx={{
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "flex-start",
-                            mb: 3,
+                            mb: 1,
                             gap: 2,
                         }}
                     >
@@ -238,14 +238,14 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                         />
                     </Box>
 
-                    <Grid container spacing={3} sx={{ mb: 3 }}>
+                    <Grid container spacing={2} sx={{ mb: 2 }}>
                         <Grid item xs={12} sm={6}>
                             <Box
                                 sx={{
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 1,
-                                    mb: 1,
+                                    mb: 0.5,
                                 }}
                             >
                                 <PersonIcon
@@ -284,7 +284,7 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 1,
-                                    mb: 1,
+                                    mb: 0.5,
                                 }}
                             >
                                 <LocationIcon
@@ -325,7 +325,7 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 1,
-                                    mb: 1,
+                                    mb: 0.5,
                                 }}
                             >
                                 <ScheduleIcon
@@ -360,7 +360,7 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 1,
-                                    mb: 1,
+                                    mb: 0.5,
                                 }}
                             >
                                 <MoneyIcon
@@ -397,7 +397,7 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 1,
-                                        mb: 1,
+                                        mb: 0.5,
                                     }}
                                 >
                                     <AssignmentIcon
@@ -436,7 +436,7 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                         )}
                     </Grid>
 
-                    <Divider sx={{ mb: 3, backgroundColor: "divider" }} />
+                    <Divider sx={{ mb: 2, backgroundColor: "divider" }} />
 
                     <Box
                         sx={{
