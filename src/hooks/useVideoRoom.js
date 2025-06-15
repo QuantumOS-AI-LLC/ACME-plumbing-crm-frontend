@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
-import { 
-    createRoomWithSync, 
-    updateRoomWithSync, 
-    deleteRoomWithSync, 
-    getRoomsFromSystem, 
+import { useSocket } from '../contexts/SocketContext';
+import { useAuth } from '../hooks/useAuth';
+import {
+    createRoomWithSync,
+    updateRoomWithSync,
+    deleteRoomWithSync,
+    getRoomsFromSystem,
     getRoomFromSystem,
-    sendVideoRoomWebhook 
+    sendVideoRoomWebhook
 } from '../services/api';
 import { toast } from 'sonner';
 
@@ -13,6 +15,8 @@ export const useVideoRoom = () => {
     const [loading, setLoading] = useState(false);
     const [videoRoomData, setVideoRoomData] = useState(null);
     const [roomsList, setRoomsList] = useState([]);
+    const { socket } = useSocket();
+    const { user } = useAuth();
 
     const createRoom = async (contactId, contactName) => {
         try {
@@ -297,6 +301,16 @@ export const useVideoRoom = () => {
             // Send webhook notification with join link, contactId, and userId
             await sendVideoRoomWebhook(joinUrl, contactId, userId);
             
+            // Emit user_message WebSocket event to AI conversation page
+            if (socket && user) {
+                socket.emit('user_message', {
+                    message: `Video meeting link shared: ${joinUrl}`,
+                    contactId: contactId,
+                    estimateId: null,
+                    attachments: []
+                });
+            }
+
             toast.success(`Video room link shared for ${contactName}!`, {
                 duration: 3000,
                 description: 'Join link has been sent via webhook'
