@@ -21,6 +21,8 @@ const ChatMessage = ({ message, isUser }) => {
                 justifyContent: isUser ? "flex-end" : "flex-start",
                 mb: { xs: 1.5, sm: 2 }, // Smaller margin on mobile
                 px: { xs: 1, sm: 0 }, // Add horizontal padding on mobile
+                maxWidth: "100%",
+                overflow: "hidden", // Prevent container overflow
             }}
         >
             {/* Avatar for non-user messages */}
@@ -32,6 +34,7 @@ const ChatMessage = ({ message, isUser }) => {
                         width: { xs: 32, sm: 40 }, // Smaller avatar on mobile
                         height: { xs: 32, sm: 40 },
                         fontSize: { xs: "0.875rem", sm: "1rem" },
+                        flexShrink: 0, // Prevent avatar from shrinking
                     }}
                 >
                     AI
@@ -71,10 +74,9 @@ const ChatMessage = ({ message, isUser }) => {
                                       sm: "20px 20px 20px 0",
                                   },
                             mb: message.attachments?.length > 0 ? 1 : 0,
-                            wordBreak: "break-all", // Force break long words
-                            overflowWrap: "anywhere", // Break anywhere if needed
                             maxWidth: "100%", // Ensure container doesn't overflow
                             minWidth: 0, // Allow shrinking below content size
+                            overflow: "hidden", // Prevent overflow
                         }}
                     >
                         <Typography
@@ -82,10 +84,11 @@ const ChatMessage = ({ message, isUser }) => {
                             sx={{
                                 fontSize: { xs: "0.875rem", sm: "1rem" }, // Smaller text on mobile
                                 lineHeight: { xs: 1.4, sm: 1.5 },
-                                wordBreak: "break-all", // Force break long words
+                                wordBreak: "break-word", // Break long words properly
                                 overflowWrap: "anywhere", // Break anywhere if needed
-                                hyphens: "auto", // Add hyphens where appropriate
                                 whiteSpace: "pre-wrap", // Preserve whitespace and wrap
+                                hyphens: "auto", // Add hyphens where appropriate
+                                maxWidth: "100%",
                             }}
                         >
                             {message.text}
@@ -95,9 +98,22 @@ const ChatMessage = ({ message, isUser }) => {
 
                 {/* Attachments */}
                 {message.attachments && message.attachments.length > 0 && (
-                    <Box sx={{ mt: message.text ? 0 : 0 }}>
+                    <Box
+                        sx={{
+                            mt: message.text ? 0 : 0,
+                            maxWidth: "100%",
+                            overflow: "hidden",
+                        }}
+                    >
                         {message.attachments.map((attachment, index) => (
-                            <Box key={index} sx={{ mb: 1 }}>
+                            <Box
+                                key={index}
+                                sx={{
+                                    mb: 1,
+                                    maxWidth: "100%",
+                                    overflow: "hidden",
+                                }}
+                            >
                                 {/* Photo */}
                                 {attachment.type === "photo" && (
                                     <Box
@@ -181,6 +197,7 @@ const ChatMessage = ({ message, isUser }) => {
                                             display: "flex",
                                             alignItems: "center",
                                             justifyContent: "center",
+                                            overflow: "hidden",
                                         }}
                                     >
                                         <audio
@@ -212,6 +229,7 @@ const ChatMessage = ({ message, isUser }) => {
                                             gap: 1,
                                             cursor: "pointer",
                                             maxWidth: "100%",
+                                            overflow: "hidden",
                                             "&:hover": {
                                                 backgroundColor: "#f0f0f0",
                                             },
@@ -230,6 +248,7 @@ const ChatMessage = ({ message, isUser }) => {
                                                     xs: "1.2rem",
                                                     sm: "1.5rem",
                                                 },
+                                                flexShrink: 0,
                                             }}
                                         />
                                         <Typography
@@ -244,8 +263,8 @@ const ChatMessage = ({ message, isUser }) => {
                                                 wordBreak: "break-word",
                                                 overflow: "hidden",
                                                 textOverflow: "ellipsis",
-                                                whiteSpace: "nowrap",
                                                 flex: 1,
+                                                minWidth: 0,
                                             }}
                                         >
                                             {attachment.filename ||
@@ -265,6 +284,7 @@ const ChatMessage = ({ message, isUser }) => {
                                             color: "info.contrastText",
                                             borderRadius: "8px",
                                             maxWidth: "100%",
+                                            overflow: "hidden",
                                         }}
                                     >
                                         <Typography
@@ -275,6 +295,9 @@ const ChatMessage = ({ message, isUser }) => {
                                                     sm: "0.875rem",
                                                 },
                                                 wordBreak: "break-word",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
                                             }}
                                         >
                                             {attachment.type}:{" "}
@@ -297,6 +320,7 @@ const ChatMessage = ({ message, isUser }) => {
                         width: { xs: 32, sm: 40 }, // Smaller avatar on mobile
                         height: { xs: 32, sm: 40 },
                         fontSize: { xs: "0.875rem", sm: "1rem" },
+                        flexShrink: 0, // Prevent avatar from shrinking
                     }}
                 >
                     U
