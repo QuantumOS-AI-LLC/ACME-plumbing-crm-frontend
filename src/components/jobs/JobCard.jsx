@@ -247,6 +247,10 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
         <>
             <Card
                 sx={{
+                    width: '100%',
+                    maxWidth: { xs: '100%', md: '700px' },
+                    margin: '0 auto',
+                    mb: 3,
                     cursor: "pointer",
                     transition: "all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)",
                     borderRadius: 4,
