@@ -7,9 +7,12 @@ import {
     Typography,
     CircularProgress,
     Chip,
+    Modal,
+    IconButton,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import DownloadIcon from "@mui/icons-material/Download";
+import CloseIcon from "@mui/icons-material/Close";
 import { useAIChat } from "../../hooks/useAIChat";
 import AttachmentInput from "./AttachmentInput"; // Import the new component
 
@@ -24,6 +27,8 @@ const AIChat = ({
     const [uploadedAttachments, setUploadedAttachments] = useState([]); // State for attachments that have been uploaded
     const [isUploadingAttachments, setIsUploadingAttachments] = useState(false); // New state for upload progress
     const [attachmentInputKey, setAttachmentInputKey] = useState(0); // Key to force remount of AttachmentInput
+    const [imageModalOpen, setImageModalOpen] = useState(false);
+    const [selectedImage, setSelectedImage] = useState(null);
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -274,6 +279,16 @@ const AIChat = ({
         });
     };
 
+    const handleImageClick = (imageUrl) => {
+        setSelectedImage(imageUrl);
+        setImageModalOpen(true);
+    };
+
+    const handleCloseImageModal = () => {
+        setImageModalOpen(false);
+        setSelectedImage(null);
+    };
+
     return (
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
             {/* Messages Container */}
@@ -344,12 +359,14 @@ const AIChat = ({
                                                 sm: "80%", // Medium screens
                                                 md: "70%", // Desktop
                                             },
+                                            minWidth: 0, // Allow shrinking
                                             display: "flex",
                                             flexDirection: "column",
                                             alignItems:
                                                 message.senderType === "USER"
                                                     ? "flex-end"
                                                     : "flex-start",
+                                            overflow: "hidden", // Prevent container overflow
                                         }}
                                     >
                                         {/* Render text in Paper wrapper if exists */}
@@ -368,9 +385,22 @@ const AIChat = ({
                                                         "USER"
                                                             ? "primary.contrastText"
                                                             : "text.primary",
+                                                    maxWidth: "100%",
+                                                    minWidth: 0, // Allow shrinking
+                                                    overflow: "hidden", // Prevent overflow
                                                 }}
                                             >
-                                                <Typography variant="body1">
+                                                <Typography
+                                                    variant="body1"
+                                                    sx={{
+                                                        wordBreak: "break-word", // Break long words
+                                                        overflowWrap:
+                                                            "anywhere", // Break anywhere if needed
+                                                        whiteSpace: "pre-wrap", // Preserve whitespace and wrap
+                                                        maxWidth: "100%",
+                                                        hyphens: "auto", // Add hyphens where appropriate
+                                                    }}
+                                                >
                                                     {message.message}
                                                 </Typography>
                                             </Paper>
@@ -378,7 +408,13 @@ const AIChat = ({
 
                                         {/* Render media without background */}
                                         {hasMedia && (
-                                            <Box sx={{ mb: 1 }}>
+                                            <Box
+                                                sx={{
+                                                    mb: 1,
+                                                    maxWidth: "100%",
+                                                    overflow: "hidden",
+                                                }}
+                                            >
                                                 {message.attachments.map(
                                                     (attachment, attIndex) => {
                                                         if (
@@ -419,6 +455,11 @@ const AIChat = ({
                                                                             attachment.url
                                                                         }
                                                                         alt="Attachment"
+                                                                        onClick={() =>
+                                                                            handleImageClick(
+                                                                                attachment.url
+                                                                            )
+                                                                        }
                                                                         style={{
                                                                             width: "100%",
                                                                             height: "100%",
@@ -426,6 +467,7 @@ const AIChat = ({
                                                                                 "cover",
                                                                             borderRadius:
                                                                                 "4px",
+                                                                            cursor: "pointer",
                                                                         }}
                                                                     />
                                                                 </Box>
@@ -518,6 +560,8 @@ const AIChat = ({
                                                                             "8px",
                                                                         border: "1px solid #e0e0e0",
                                                                         p: 1,
+                                                                        overflow:
+                                                                            "hidden",
                                                                     }}
                                                                 >
                                                                     <audio
@@ -566,6 +610,10 @@ const AIChat = ({
                                                                             "center",
                                                                         gap: 1,
                                                                         cursor: "pointer",
+                                                                        maxWidth:
+                                                                            "100%",
+                                                                        overflow:
+                                                                            "hidden",
                                                                         "&:hover":
                                                                             {
                                                                                 backgroundColor:
@@ -582,6 +630,7 @@ const AIChat = ({
                                                                     <DownloadIcon
                                                                         sx={{
                                                                             color: "primary.main",
+                                                                            flexShrink: 0,
                                                                         }}
                                                                     />
                                                                     <Typography
@@ -590,6 +639,14 @@ const AIChat = ({
                                                                             color: "primary.main",
                                                                             textDecoration:
                                                                                 "underline",
+                                                                            wordBreak:
+                                                                                "break-word",
+                                                                            overflow:
+                                                                                "hidden",
+                                                                            textOverflow:
+                                                                                "ellipsis",
+                                                                            maxWidth:
+                                                                                "100%",
                                                                         }}
                                                                     >
                                                                         {attachment.filename ||
@@ -620,6 +677,17 @@ const AIChat = ({
                                                                     sx={{
                                                                         mr: 0.5,
                                                                         mb: 0.5,
+                                                                        maxWidth:
+                                                                            "100%",
+                                                                        "& .MuiChip-label":
+                                                                            {
+                                                                                overflow:
+                                                                                    "hidden",
+                                                                                textOverflow:
+                                                                                    "ellipsis",
+                                                                                whiteSpace:
+                                                                                    "nowrap",
+                                                                            },
                                                                     }}
                                                                 />
                                                             );
@@ -703,6 +771,12 @@ const AIChat = ({
                             disabled={isSending}
                             variant="outlined"
                             size="small"
+                            sx={{
+                                "& .MuiInputBase-input": {
+                                    wordBreak: "break-word",
+                                    overflowWrap: "anywhere",
+                                },
+                            }}
                         />
                         <Button
                             type="submit"
@@ -740,6 +814,8 @@ const AIChat = ({
                             display: "flex",
                             flexWrap: "wrap",
                             gap: 0.5,
+                            maxWidth: "100%",
+                            overflow: "hidden",
                         }}
                     >
                         <Typography
@@ -759,6 +835,15 @@ const AIChat = ({
                                 size="small"
                                 color="info"
                                 onDelete={() => handleRemoveSelectedFile(file)}
+                                sx={{
+                                    maxWidth: "100%",
+                                    "& .MuiChip-label": {
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                        maxWidth: "200px",
+                                    },
+                                }}
                             />
                         ))}
                     </Box>
@@ -772,6 +857,8 @@ const AIChat = ({
                             display: "flex",
                             flexWrap: "wrap",
                             gap: 0.5,
+                            maxWidth: "100%",
+                            overflow: "hidden",
                         }}
                     >
                         <Typography
@@ -791,6 +878,15 @@ const AIChat = ({
                                 onDelete={() =>
                                     handleRemoveUploadedAttachment(attachment)
                                 }
+                                sx={{
+                                    maxWidth: "100%",
+                                    "& .MuiChip-label": {
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                        maxWidth: "200px",
+                                    },
+                                }}
                             />
                         ))}
                     </Box>
@@ -805,10 +901,6 @@ const AIChat = ({
                         alignItems: "center",
                     }}
                 >
-                    {/* <Typography variant="caption" color="text.secondary">
-                        {contactId && `Contact: ${contactId}`}
-                        {estimateId && ` | Estimate: ${estimateId}`}
-                    </Typography> */}
                     <Chip
                         label={
                             isSending || isUploadingAttachments
@@ -825,6 +917,66 @@ const AIChat = ({
                     />
                 </Box>
             </Paper>
+
+            {/* Simple Image Modal */}
+            <Modal
+                open={imageModalOpen}
+                onClose={handleCloseImageModal}
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backdropFilter: "blur(5px)",
+                }}
+            >
+                <Box
+                    sx={{
+                        position: "relative",
+                        maxWidth: "90vw",
+                        maxHeight: "90vh",
+                        bgcolor: "background.paper",
+                        borderRadius: "8px",
+                        boxShadow: 24,
+                        overflow: "hidden",
+                        display: "flex",
+                        flexDirection: "column",
+                    }}
+                >
+                    {/* Close Button */}
+                    <IconButton
+                        onClick={handleCloseImageModal}
+                        sx={{
+                            position: "absolute",
+                            top: 8,
+                            right: 8,
+                            bgcolor: "rgba(0, 0, 0, 0.5)",
+                            color: "white",
+                            zIndex: 1,
+                            "&:hover": {
+                                bgcolor: "rgba(0, 0, 0, 0.7)",
+                            },
+                        }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+
+                    {/* Large Image */}
+                    {selectedImage && (
+                        <img
+                            src={selectedImage}
+                            alt="Large view"
+                            style={{
+                                maxWidth: "100%",
+                                maxHeight: "90vh",
+                                width: "auto",
+                                height: "auto",
+                                objectFit: "contain",
+                                display: "block",
+                            }}
+                        />
+                    )}
+                </Box>
+            </Modal>
         </Box>
     );
 };
