@@ -148,8 +148,11 @@ const ContactsPage = () => {
   };
 
   const handleContactCreated = (newContact) => {
-    setContacts((prev) => [newContact, ...prev]);
-    setFilteredContacts((prev) => [newContact, ...prev]);
+    // Introduce a small delay to allow the backend to fully process and index the new contact
+    // before reloading contacts to ensure accurate pagination information.
+    setTimeout(() => {
+      loadContacts(1); // Load the first page to ensure the new contact is visible immediately.
+    }, 1000); // 1000ms delay, adjust as needed
   };
 
   const handlePageChange = (newPage) => {
