@@ -12,13 +12,15 @@ import {
     deleteNotification,
 } from "../services/api";
 import { useSocketNotifications } from "../hooks/useSocketNotifications";
+import { useNotificationSettings } from "./NotificationSettingsContext";
 
 const NotificationContext = createContext();
 
 export const useNotifications = () => useContext(NotificationContext);
 
 export const NotificationProvider = ({ children }) => {
-    const [notifications, setNotifications] = useState([]);
+    const [allNotifications, setAllNotifications] = useState([]); // Store all notifications
+    const [notifications, setNotifications] = useState([]); // Filtered notifications for display
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -32,6 +34,13 @@ export const NotificationProvider = ({ children }) => {
     // Socket.IO real-time notifications
     const socketNotifications = useSocketNotifications();
 
+    // Notification settings for filtering
+    const {
+        filterNotifications,
+        isNotificationTypeEnabled,
+        getNotificationTypeFromNotification,
+    } = useNotificationSettings();
+
     // Check if user is authenticated
     const isAuthenticated = useCallback(() => {
         const token =
@@ -41,6 +50,20 @@ export const NotificationProvider = ({ children }) => {
             sessionStorage.getItem("isLoggedIn");
         return !!(token && isLoggedIn === "true");
     }, []);
+
+    // Apply notification filtering
+    const applyNotificationFiltering = useCallback(
+        (notificationList) => {
+            if (
+                !filterNotifications ||
+                typeof filterNotifications !== "function"
+            ) {
+                return notificationList; // Return unfiltered if filterNotifications is not available
+            }
+            return filterNotifications(notificationList);
+        },
+        [filterNotifications]
+    );
 
     // Load notifications
     const loadNotifications = useCallback(
@@ -59,11 +82,29 @@ export const NotificationProvider = ({ children }) => {
                 const response = await fetchNotifications(page, limit, isRead);
 
                 if (response.success) {
-                    setNotifications(response.data);
-                    setPagination(response.pagination);
+                    // Store all notifications
+                    setAllNotifications(response.data);
+
+                    // Filter notifications based on settings
+                    const filteredNotifications = applyNotificationFiltering(
+                        response.data
+                    );
+                    setNotifications(filteredNotifications);
+
+                    // Update pagination for filtered results
+                    setPagination({
+                        ...response.pagination,
+                        total: filteredNotifications.length,
+                        pages: Math.ceil(filteredNotifications.length / limit),
+                    });
+
                     // Update unreadCount only if fetching unread notifications
                     if (isRead === false) {
-                        setUnreadCount(response.pagination.total);
+                        const filteredUnreadCount =
+                            filteredNotifications.filter(
+                                (n) => !n.isRead
+                            ).length;
+                        setUnreadCount(filteredUnreadCount);
                     }
                 }
             } catch (err) {
@@ -73,7 +114,7 @@ export const NotificationProvider = ({ children }) => {
                 setLoading(false);
             }
         },
-        [isAuthenticated]
+        [isAuthenticated, applyNotificationFiltering]
     );
 
     // Mark notification as read
@@ -87,7 +128,10 @@ export const NotificationProvider = ({ children }) => {
             }
 
             try {
-                // Optimistically update UI
+                // Optimistically update UI for both arrays
+                setAllNotifications((prev) =>
+                    prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+                );
                 setNotifications((prev) =>
                     prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
                 );
@@ -101,7 +145,12 @@ export const NotificationProvider = ({ children }) => {
                 // Persist to server via API
                 const response = await markNotificationAsRead(id);
                 if (!response.success) {
-                    // Rollback on failure
+                    // Rollback on failure for both arrays
+                    setAllNotifications((prev) =>
+                        prev.map((n) =>
+                            n.id === id ? { ...n, isRead: false } : n
+                        )
+                    );
                     setNotifications((prev) =>
                         prev.map((n) =>
                             n.id === id ? { ...n, isRead: false } : n
@@ -130,7 +179,10 @@ export const NotificationProvider = ({ children }) => {
         }
 
         try {
-            // Optimistically update UI
+            // Optimistically update UI for both arrays
+            setAllNotifications((prev) =>
+                prev.map((n) => ({ ...n, isRead: true }))
+            );
             setNotifications((prev) =>
                 prev.map((n) => ({ ...n, isRead: true }))
             );
@@ -172,10 +224,11 @@ export const NotificationProvider = ({ children }) => {
             }
 
             try {
-                // Optimistically update UI
-                const notificationToRemove = notifications.find(
+                // Optimistically update UI for both arrays
+                const notificationToRemove = allNotifications.find(
                     (n) => n.id === id
                 );
+                setAllNotifications((prev) => prev.filter((n) => n.id !== id));
                 setNotifications((prev) => prev.filter((n) => n.id !== id));
                 if (notificationToRemove && !notificationToRemove.isRead) {
                     setUnreadCount((prev) => Math.max(0, prev - 1));
@@ -189,7 +242,11 @@ export const NotificationProvider = ({ children }) => {
                 // Persist to server via API
                 const response = await deleteNotification(id);
                 if (!response.success) {
-                    // Rollback on failure
+                    // Rollback on failure for both arrays
+                    setAllNotifications((prev) => [
+                        notificationToRemove,
+                        ...prev,
+                    ]);
                     setNotifications((prev) => [notificationToRemove, ...prev]);
                     if (notificationToRemove && !notificationToRemove.isRead) {
                         setUnreadCount((prev) => prev + 1);
@@ -203,16 +260,33 @@ export const NotificationProvider = ({ children }) => {
                 throw err;
             }
         },
-        [notifications, socketNotifications, isAuthenticated]
+        [allNotifications, socketNotifications, isAuthenticated]
     );
 
     // Add a new notification (used with WebSocket)
-    const addNotification = useCallback((notification) => {
-        setNotifications((prev) => [notification, ...prev]);
-        if (!notification.isRead) {
-            setUnreadCount((prev) => prev + 1);
-        }
-    }, []);
+    const addNotification = useCallback(
+        (notification) => {
+            // Add to all notifications first
+            setAllNotifications((prev) => [notification, ...prev]);
+
+            // Check if this notification type is enabled
+            const notificationType = getNotificationTypeFromNotification
+                ? getNotificationTypeFromNotification(notification)
+                : null;
+            const isEnabled = isNotificationTypeEnabled
+                ? isNotificationTypeEnabled(notificationType)
+                : true;
+
+            // Only add to displayed notifications if the type is enabled
+            if (isEnabled) {
+                setNotifications((prev) => [notification, ...prev]);
+                if (!notification.isRead) {
+                    setUnreadCount((prev) => prev + 1);
+                }
+            }
+        },
+        [getNotificationTypeFromNotification, isNotificationTypeEnabled]
+    );
 
     // Handle WebSocket notifications
     useEffect(() => {
@@ -325,10 +399,33 @@ export const NotificationProvider = ({ children }) => {
         fetchInitialData();
     }, [loadNotifications, pagination.limit, isAuthenticated]);
 
+    // Re-filter notifications when settings change
+    useEffect(() => {
+        if (allNotifications.length > 0 && filterNotifications) {
+            const filteredNotifications =
+                applyNotificationFiltering(allNotifications);
+            setNotifications(filteredNotifications);
+
+            // Recalculate unread count for filtered notifications
+            const filteredUnreadCount = filteredNotifications.filter(
+                (n) => !n.isRead
+            ).length;
+            setUnreadCount(filteredUnreadCount);
+
+            // Update pagination for filtered results
+            setPagination((prev) => ({
+                ...prev,
+                total: filteredNotifications.length,
+                pages: Math.ceil(filteredNotifications.length / prev.limit),
+            }));
+        }
+    }, [allNotifications, applyNotificationFiltering, filterNotifications]);
+
     // Reset state when user logs out
     useEffect(() => {
         if (!isAuthenticated()) {
             setNotifications([]);
+            setAllNotifications([]);
             setUnreadCount(0);
             setError(null);
             setPagination({
