@@ -34,11 +34,17 @@ import {
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
-export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onServiceDelete }) => {
+export const ServiceViewModal = ({
+    open,
+    onClose,
+    service,
+    onServiceUpdate,
+    onServiceDelete,
+}) => {
     const [isEditMode, setIsEditMode] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    
+
     // Edit form state
     const [editedData, setEditedData] = useState({
         name: "",
@@ -48,9 +54,9 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
         category: "",
         tags: [],
         includedServices: [],
-        status: "active"
+        status: "active",
     });
-    
+
     // Input states for adding new items
     const [newTagInput, setNewTagInput] = useState("");
     const [newIncludedServiceInput, setNewIncludedServiceInput] = useState("");
@@ -61,12 +67,15 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
             setEditedData({
                 name: service.name || "",
                 description: service.description || "",
-                price: typeof service.price === 'number' ? service.price.toString() : (service.price || ""),
+                price:
+                    typeof service.price === "number"
+                        ? service.price.toString()
+                        : service.price || "",
                 duration: service.duration || "",
                 category: service.category || "",
                 tags: service.tags || [],
                 includedServices: service.includedServices || [],
-                status: service.status || "active"
+                status: service.status || "active",
             });
         }
     }, [service]);
@@ -104,10 +113,10 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
     };
 
     const formatPrice = (price) => {
-        if (typeof price === 'number') {
+        if (typeof price === "number") {
             return `$${price.toFixed(2)}`;
         }
-        return price || 'N/A';
+        return price || "N/A";
     };
 
     const handleEditMode = () => {
@@ -124,39 +133,52 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
         setEditedData({
             name: service.name || "",
             description: service.description || "",
-            price: typeof service.price === 'number' ? service.price.toString() : (service.price || ""),
+            price:
+                typeof service.price === "number"
+                    ? service.price.toString()
+                    : service.price || "",
             duration: service.duration || "",
             category: service.category || "",
             tags: service.tags || [],
             includedServices: service.includedServices || [],
-            status: service.status || "active"
+            status: service.status || "active",
         });
     };
 
     // Helper function to detect changed fields
     const getChangedFields = (original, edited) => {
         const changes = {};
-        
+
         // Compare name
         const trimmedName = edited.name.trim();
         if (original.name !== trimmedName) {
             changes.name = trimmedName;
         }
-        
+
         // Compare description (handle null/empty)
         const trimmedDescription = edited.description.trim() || null;
         if (original.description !== trimmedDescription) {
             changes.description = trimmedDescription;
         }
-        
+
         // Compare price with string comparison to prevent false positives
-        const originalPriceStr = (original.price === null || original.price === undefined) ? '' : original.price.toString();
-        const editedPriceStr = (edited.price === null || edited.price === undefined) ? '' : edited.price.toString();
-        
+        const originalPriceStr =
+            original.price === null || original.price === undefined
+                ? ""
+                : original.price.toString();
+        const editedPriceStr =
+            edited.price === null || edited.price === undefined
+                ? ""
+                : edited.price.toString();
+
         if (originalPriceStr !== editedPriceStr) {
             // Convert to proper format for API
             let newPrice = null;
-            if (edited.price !== '' && edited.price !== null && edited.price !== undefined) {
+            if (
+                edited.price !== "" &&
+                edited.price !== null &&
+                edited.price !== undefined
+            ) {
                 const parsed = parseFloat(edited.price);
                 if (!isNaN(parsed)) {
                     newPrice = parsed;
@@ -164,62 +186,68 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
             }
             changes.price = newPrice;
         }
-        
+
         // Compare duration (handle null/empty)
         const trimmedDuration = edited.duration.trim() || null;
         if (original.duration !== trimmedDuration) {
             changes.duration = trimmedDuration;
         }
-        
+
         // Compare category
         if (original.category !== edited.category) {
             changes.category = edited.category;
         }
-        
+
         // Compare status
         if (original.status !== edited.status) {
             changes.status = edited.status;
         }
-        
+
         // Compare tags array (deep comparison)
         const originalTags = original.tags || [];
         const editedTags = edited.tags || [];
         // Create copies for sorting to avoid mutating original arrays
         const sortedOriginalTags = [...originalTags].sort();
         const sortedEditedTags = [...editedTags].sort();
-        
-        if (JSON.stringify(sortedOriginalTags) !== JSON.stringify(sortedEditedTags)) {
+
+        if (
+            JSON.stringify(sortedOriginalTags) !==
+            JSON.stringify(sortedEditedTags)
+        ) {
             changes.tags = editedTags;
         }
-        
+
         // Compare includedServices array (deep comparison)
         const originalServices = original.includedServices || [];
         const editedServices = edited.includedServices || [];
         // Create copies for sorting to avoid mutating original arrays
         const sortedOriginalServices = [...originalServices].sort();
         const sortedEditedServices = [...editedServices].sort();
-        
-        if (JSON.stringify(sortedOriginalServices) !== JSON.stringify(sortedEditedServices)) {
+
+        if (
+            JSON.stringify(sortedOriginalServices) !==
+            JSON.stringify(sortedEditedServices)
+        ) {
             changes.includedServices = editedServices;
         }
-        
+
         // Debug logging to help identify issues
-        console.log('Change detection debug:', {
+        console.log("Change detection debug:", {
             original: {
                 price: original.price,
                 priceStr: originalPriceStr,
                 includedServices: original.includedServices,
-                tags: original.tags
+                tags: original.tags,
             },
             edited: {
                 price: edited.price,
                 priceStr: editedPriceStr,
                 includedServices: edited.includedServices,
-                tags: edited.tags
+                tags: edited.tags,
             },
-            changes
+            changes,
         });
-        
+
         return changes;
     };
 
@@ -230,7 +258,7 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
 
             // Detect only the changed fields
             const changedFields = getChangedFields(service, editedData);
-            
+
             // Check if there are any changes
             if (Object.keys(changedFields).length === 0) {
                 toast.info("No changes detected");
@@ -245,13 +273,13 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
             // Create update object with only changed fields
             const updateData = {
                 id: service.id,
-                ...changedFields
+                ...changedFields,
             };
 
             if (onServiceUpdate) {
                 await onServiceUpdate(updateData);
                 setIsEditMode(false);
-                
+
                 // Show success message with what was changed
                 const changedFieldNames = Object.keys(changedFields).join(", ");
                 toast.success(`Updated: ${changedFieldNames}`);
@@ -265,7 +293,11 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
     };
 
     const handleDeleteService = async () => {
-        if (window.confirm("Are you sure you want to delete this service? This action cannot be undone.")) {
+        if (
+            window.confirm(
+                "Are you sure you want to delete this service? This action cannot be undone."
+            )
+        ) {
             try {
                 if (onServiceDelete) {
                     await onServiceDelete(service.id);
@@ -278,40 +310,53 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
     };
 
     const handleInputChange = (field, value) => {
-        setEditedData(prev => ({ ...prev, [field]: value }));
+        setEditedData((prev) => ({ ...prev, [field]: value }));
     };
 
     const handleAddTag = () => {
-        if (newTagInput.trim() && !editedData.tags.includes(newTagInput.trim())) {
-            setEditedData(prev => ({
+        if (
+            newTagInput.trim() &&
+            !editedData.tags.includes(newTagInput.trim())
+        ) {
+            setEditedData((prev) => ({
                 ...prev,
-                tags: [...prev.tags, newTagInput.trim()]
+                tags: [...prev.tags, newTagInput.trim()],
             }));
             setNewTagInput("");
         }
     };
 
     const handleRemoveTag = (tagToRemove) => {
-        setEditedData(prev => ({
+        setEditedData((prev) => ({
             ...prev,
-            tags: prev.tags.filter(tag => tag !== tagToRemove)
+            tags: prev.tags.filter((tag) => tag !== tagToRemove),
         }));
     };
 
     const handleAddIncludedService = () => {
-        if (newIncludedServiceInput.trim() && !editedData.includedServices.includes(newIncludedServiceInput.trim())) {
-            setEditedData(prev => ({
+        if (
+            newIncludedServiceInput.trim() &&
+            !editedData.includedServices.includes(
+                newIncludedServiceInput.trim()
+            )
+        ) {
+            setEditedData((prev) => ({
                 ...prev,
-                includedServices: [...prev.includedServices, newIncludedServiceInput.trim()]
+                includedServices: [
+                    ...prev.includedServices,
+                    newIncludedServiceInput.trim(),
+                ],
             }));
             setNewIncludedServiceInput("");
         }
     };
 
     const handleRemoveIncludedService = (serviceToRemove) => {
-        setEditedData(prev => ({
+        setEditedData((prev) => ({
             ...prev,
-            includedServices: prev.includedServices.filter(svc => svc !== serviceToRemove)
+            includedServices: prev.includedServices.filter(
+                (svc) => svc !== serviceToRemove
+            ),
         }));
     };
 
@@ -349,10 +394,10 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
     );
 
     return (
-        <Dialog 
-            open={open} 
-            onClose={onClose} 
-            maxWidth="sm" 
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="sm"
             fullWidth
             PaperProps={{
                 sx: {
@@ -360,7 +405,7 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                     overflow: "hidden",
                     boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
                     maxHeight: "90vh",
-                }
+                },
             }}
             TransitionComponent={Fade}
         >
@@ -386,7 +431,7 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                     >
                         {service.name}
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
                         <Chip
                             label={service.category}
                             sx={{
@@ -396,21 +441,35 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                 borderRadius: "6px",
                                 textTransform: "capitalize",
                             }}
-                            icon={<CategoryIcon sx={{ color: categoryColors.color + " !important" }} />}
+                            icon={
+                                <CategoryIcon
+                                    sx={{
+                                        color:
+                                            categoryColors.color +
+                                            " !important",
+                                    }}
+                                />
+                            }
                         />
                         <Chip
                             label={service.status}
                             size="small"
                             sx={{
-                                backgroundColor: service.status === 'active' ? '#e8f5e9' : '#ffebee',
-                                color: service.status === 'active' ? '#4caf50' : '#f44336',
+                                backgroundColor:
+                                    service.status === "active"
+                                        ? "#e8f5e9"
+                                        : "#ffebee",
+                                color:
+                                    service.status === "active"
+                                        ? "#4caf50"
+                                        : "#f44336",
                                 fontWeight: 500,
-                                textTransform: 'capitalize'
+                                textTransform: "capitalize",
                             }}
                         />
                     </Box>
                 </Box>
-                
+
                 {/* Action Buttons */}
                 <Box sx={{ display: "flex", alignItems: "center" }}>
                     {!isEditMode ? (
@@ -419,11 +478,13 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                 <IconButton
                                     onClick={handleEditMode}
                                     sx={{
-                                        backgroundColor: "rgba(138, 43, 226, 0.1)",
+                                        backgroundColor:
+                                            "rgba(138, 43, 226, 0.1)",
                                         color: "primary.main",
                                         mr: 1,
                                         "&:hover": {
-                                            backgroundColor: "rgba(138, 43, 226, 0.2)",
+                                            backgroundColor:
+                                                "rgba(138, 43, 226, 0.2)",
                                         },
                                     }}
                                 >
@@ -434,11 +495,13 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                 <IconButton
                                     onClick={handleDeleteService}
                                     sx={{
-                                        backgroundColor: "rgba(244, 67, 54, 0.1)",
+                                        backgroundColor:
+                                            "rgba(244, 67, 54, 0.1)",
                                         color: "error.main",
                                         mr: 1,
                                         "&:hover": {
-                                            backgroundColor: "rgba(244, 67, 54, 0.2)",
+                                            backgroundColor:
+                                                "rgba(244, 67, 54, 0.2)",
                                         },
                                     }}
                                 >
@@ -453,11 +516,13 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                     onClick={handleSaveChanges}
                                     disabled={loading}
                                     sx={{
-                                        backgroundColor: "rgba(76, 175, 80, 0.1)",
+                                        backgroundColor:
+                                            "rgba(76, 175, 80, 0.1)",
                                         color: "success.main",
                                         mr: 1,
                                         "&:hover": {
-                                            backgroundColor: "rgba(76, 175, 80, 0.2)",
+                                            backgroundColor:
+                                                "rgba(76, 175, 80, 0.2)",
                                         },
                                         "&:disabled": {
                                             backgroundColor: "rgba(0,0,0,0.05)",
@@ -473,11 +538,13 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                     onClick={handleCancelEdit}
                                     disabled={loading}
                                     sx={{
-                                        backgroundColor: "rgba(244, 67, 54, 0.1)",
+                                        backgroundColor:
+                                            "rgba(244, 67, 54, 0.1)",
                                         color: "error.main",
                                         mr: 1,
                                         "&:hover": {
-                                            backgroundColor: "rgba(244, 67, 54, 0.2)",
+                                            backgroundColor:
+                                                "rgba(244, 67, 54, 0.2)",
                                         },
                                     }}
                                 >
@@ -532,7 +599,12 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                             editComponent={
                                 <TextField
                                     value={editedData.name}
-                                    onChange={(e) => handleInputChange('name', e.target.value)}
+                                    onChange={(e) =>
+                                        handleInputChange(
+                                            "name",
+                                            e.target.value
+                                        )
+                                    }
                                     variant="outlined"
                                     size="small"
                                     fullWidth
@@ -550,7 +622,12 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                     multiline
                                     rows={3}
                                     value={editedData.description}
-                                    onChange={(e) => handleInputChange('description', e.target.value)}
+                                    onChange={(e) =>
+                                        handleInputChange(
+                                            "description",
+                                            e.target.value
+                                        )
+                                    }
                                     variant="outlined"
                                     fullWidth
                                     size="small"
@@ -568,7 +645,12 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                         <TextField
                                             type="number"
                                             value={editedData.price}
-                                            onChange={(e) => handleInputChange('price', e.target.value)}
+                                            onChange={(e) =>
+                                                handleInputChange(
+                                                    "price",
+                                                    e.target.value
+                                                )
+                                            }
                                             variant="outlined"
                                             size="small"
                                             fullWidth
@@ -585,7 +667,12 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                     editComponent={
                                         <TextField
                                             value={editedData.duration}
-                                            onChange={(e) => handleInputChange('duration', e.target.value)}
+                                            onChange={(e) =>
+                                                handleInputChange(
+                                                    "duration",
+                                                    e.target.value
+                                                )
+                                            }
                                             variant="outlined"
                                             size="small"
                                             fullWidth
@@ -605,12 +692,25 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                         <FormControl fullWidth size="small">
                                             <Select
                                                 value={editedData.category}
-                                                onChange={(e) => handleInputChange('category', e.target.value)}
+                                                onChange={(e) =>
+                                                    handleInputChange(
+                                                        "category",
+                                                        e.target.value
+                                                    )
+                                                }
                                             >
-                                                <MenuItem value="Emergency">Emergency</MenuItem>
-                                                <MenuItem value="Installation">Installation</MenuItem>
-                                                <MenuItem value="Repair">Repair</MenuItem>
-                                                <MenuItem value="Maintenance">Maintenance</MenuItem>
+                                                <MenuItem value="Emergency">
+                                                    Emergency
+                                                </MenuItem>
+                                                <MenuItem value="Installation">
+                                                    Installation
+                                                </MenuItem>
+                                                <MenuItem value="Repair">
+                                                    Repair
+                                                </MenuItem>
+                                                <MenuItem value="Maintenance">
+                                                    Maintenance
+                                                </MenuItem>
                                             </Select>
                                         </FormControl>
                                     }
@@ -624,11 +724,22 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                         <FormControl fullWidth size="small">
                                             <Select
                                                 value={editedData.status}
-                                                onChange={(e) => handleInputChange('status', e.target.value)}
+                                                onChange={(e) =>
+                                                    handleInputChange(
+                                                        "status",
+                                                        e.target.value
+                                                    )
+                                                }
                                             >
-                                                <MenuItem value="active">Active</MenuItem>
-                                                <MenuItem value="inactive">Inactive</MenuItem>
-                                                <MenuItem value="archived">Archived</MenuItem>
+                                                <MenuItem value="active">
+                                                    Active
+                                                </MenuItem>
+                                                <MenuItem value="inactive">
+                                                    Inactive
+                                                </MenuItem>
+                                                <MenuItem value="archived">
+                                                    Archived
+                                                </MenuItem>
                                             </Select>
                                         </FormControl>
                                     }
@@ -641,16 +752,25 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                             isEditing={true}
                             editComponent={
                                 <Box>
-                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 1,
+                                            mb: 1,
+                                        }}
+                                    >
                                         <TextField
                                             placeholder="Add tag"
                                             value={newTagInput}
-                                            onChange={(e) => setNewTagInput(e.target.value)}
+                                            onChange={(e) =>
+                                                setNewTagInput(e.target.value)
+                                            }
                                             variant="outlined"
                                             size="small"
                                             sx={{ flexGrow: 1 }}
                                             onKeyPress={(e) => {
-                                                if (e.key === 'Enter') {
+                                                if (e.key === "Enter") {
                                                     e.preventDefault();
                                                     handleAddTag();
                                                 }
@@ -670,15 +790,24 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                             Add
                                         </Button>
                                     </Box>
-                                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            flexWrap: "wrap",
+                                            gap: 1,
+                                        }}
+                                    >
                                         {editedData.tags.map((tag, index) => (
                                             <Chip
                                                 key={index}
                                                 label={tag}
-                                                onDelete={() => handleRemoveTag(tag)}
+                                                onDelete={() =>
+                                                    handleRemoveTag(tag)
+                                                }
                                                 size="small"
                                                 sx={{
-                                                    backgroundColor: "rgba(138, 43, 226, 0.1)",
+                                                    backgroundColor:
+                                                        "rgba(138, 43, 226, 0.1)",
                                                     color: "primary.main",
                                                     "& .MuiChip-deleteIcon": {
                                                         color: "primary.main",
@@ -734,7 +863,11 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
 
                         <DetailItem
                             label="Tags"
-                            value={service.tags && service.tags.length > 0 ? service.tags.join(", ") : "No tags"}
+                            value={
+                                service.tags && service.tags.length > 0
+                                    ? service.tags.join(", ")
+                                    : "No tags"
+                            }
                         />
                     </Box>
                 )}
@@ -754,18 +887,27 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                     <CheckCircleIcon sx={{ mr: 1, color: "primary.main" }} />
                     Included Services
                 </Typography>
-                
+
                 {isEditMode && (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            mb: 2,
+                        }}
+                    >
                         <TextField
                             label="Add included service"
                             variant="outlined"
                             size="small"
                             fullWidth
                             value={newIncludedServiceInput}
-                            onChange={(e) => setNewIncludedServiceInput(e.target.value)}
+                            onChange={(e) =>
+                                setNewIncludedServiceInput(e.target.value)
+                            }
                             onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
+                                if (e.key === "Enter") {
                                     e.preventDefault();
                                     handleAddIncludedService();
                                 }
@@ -790,9 +932,15 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                 )}
 
                 {/* Services List */}
-                {(isEditMode ? editedData.includedServices : service.includedServices)?.length > 0 ? (
+                {(isEditMode
+                    ? editedData.includedServices
+                    : service.includedServices
+                )?.length > 0 ? (
                     <List sx={{ p: 0 }}>
-                        {(isEditMode ? editedData.includedServices : service.includedServices).map((svc, index) => (
+                        {(isEditMode
+                            ? editedData.includedServices
+                            : service.includedServices
+                        ).map((svc, index) => (
                             <ListItem
                                 key={index}
                                 sx={{
@@ -806,13 +954,18 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                 secondaryAction={
                                     isEditMode && (
                                         <Tooltip title="Remove service" arrow>
-                                            <IconButton 
-                                                edge="end" 
-                                                onClick={() => handleRemoveIncludedService(svc)}
+                                            <IconButton
+                                                edge="end"
+                                                onClick={() =>
+                                                    handleRemoveIncludedService(
+                                                        svc
+                                                    )
+                                                }
                                                 sx={{
                                                     color: "error.main",
                                                     "&:hover": {
-                                                        backgroundColor: "rgba(244, 67, 54, 0.1)",
+                                                        backgroundColor:
+                                                            "rgba(244, 67, 54, 0.1)",
                                                     },
                                                 }}
                                             >
@@ -828,7 +981,7 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                                             variant="body1"
                                             sx={{
                                                 fontWeight: 500,
-                                                color: "text.primary"
+                                                color: "text.primary",
                                             }}
                                         >
                                             {svc}
@@ -845,17 +998,19 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
                             textAlign: "center",
                             backgroundColor: "rgba(0,0,0,0.02)",
                             borderRadius: "8px",
-                            border: "2px dashed rgba(0,0,0,0.1)"
+                            border: "2px dashed rgba(0,0,0,0.1)",
                         }}
                     >
                         <Typography
                             variant="body2"
-                            sx={{ color: "text.secondary", fontStyle: "italic" }}
+                            sx={{
+                                color: "text.secondary",
+                                fontStyle: "italic",
+                            }}
                         >
-                            {isEditMode 
+                            {isEditMode
                                 ? "No included services added yet. Add some services above to get started."
-                                : "No included services added yet."
-                            }
+                                : "No included services added yet."}
                         </Typography>
                     </Box>
                 )}
@@ -863,10 +1018,10 @@ export const ServiceViewModal = ({ open, onClose, service, onServiceUpdate, onSe
 
             {/* Footer */}
             <Divider />
-            <DialogActions 
-                sx={{ 
-                    p: 2, 
-                    backgroundColor: "#f8f9fa"
+            <DialogActions
+                sx={{
+                    p: 2,
+                    backgroundColor: "#f8f9fa",
                 }}
             >
                 <Button

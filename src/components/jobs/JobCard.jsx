@@ -30,7 +30,6 @@ import { updateJob } from "../../services/api";
 import { useNotifications } from "../../contexts/NotificationContext"; // Add this import
 import { useWebActivityHook } from "../../hooks/webHook";
 
-
 const JOB_STATUS = {
     OPEN: "open",
     IN_PROGRESS: "in_progress",
@@ -206,6 +205,8 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                 activity: activityLabel,
             });
 
+            console.log("Activity update result:", result);
+
             const updatedAction = result.data.activity;
             const updatedActivityValue = getLeadStatusValue(updatedAction);
             setCurrentActivity(updatedActivityValue || newActivityValue);
@@ -213,6 +214,10 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
             const webHookData = {
                 ...activityData,
                 activity: updatedAction,
+                calculatedDistance: result.data.calculatedDistance,
+                calculatedTravelTime: result.data.calculatedTravelTime,
+                jobLocationLat: result.data.jobLocationLat,
+                jobLocationLon: result.data.jobLocationLon,
             };
             await sendActivityWebHook({ payload: webHookData });
             toast.success(`Activity updated to "${updatedAction}"`);
@@ -268,13 +273,13 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                 }}
                 onClick={handleCardClick}
             >
-                <CardContent sx={{ padding: 3, paddingTop: 4 }}>
+                <CardContent sx={{ paddingLeft: 3,paddingRight:3, paddingTop: 2 }}>
                     <Box
                         sx={{
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "flex-start",
-                            mb: 3,
+                            mb: 1,
                             gap: 2,
                         }}
                     >
@@ -311,14 +316,14 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                         />
                     </Box>
 
-                    <Grid container spacing={3} sx={{ mb: 3 }}>
+                    <Grid container spacing={2} sx={{ mb: 1 }}>
                         <Grid item xs={12} sm={6}>
                             <Box
                                 sx={{
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 1,
-                                    mb: 1,
+                                    mb: 0.5,
                                 }}
                             >
                                 <PersonIcon
@@ -357,7 +362,7 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 1,
-                                    mb: 1,
+                                    mb: 0.5,
                                 }}
                             >
                                 <LocationIcon
@@ -398,7 +403,7 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 1,
-                                    mb: 1,
+                                    mb: 0.5,
                                 }}
                             >
                                 <ScheduleIcon
@@ -441,7 +446,7 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 1,
-                                    mb: 1,
+                                    mb: 0.5,
                                 }}
                             >
                                 <MoneyIcon
@@ -474,7 +479,7 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
 
                     {transformedJob.status === JOB_STATUS.IN_PROGRESS &&
                         typeof transformedJob.progress === "number" && (
-                            <Box sx={{ mb: 3 }}>
+                            <Box sx={{ mb: 2 }}>
                                 <Box
                                     sx={{
                                         display: "flex",
@@ -518,7 +523,7 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                             </Box>
                         )}
 
-                    <Divider sx={{ mb: 3, backgroundColor: "divider" }} />
+                    <Divider sx={{ mb: 2, backgroundColor: "divider" }} />
 
                     <Box
                         sx={{
@@ -598,7 +603,7 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
 
                             <Box
                                 sx={{
-                                    mb: 3,
+                                    mb: 0,
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 2,

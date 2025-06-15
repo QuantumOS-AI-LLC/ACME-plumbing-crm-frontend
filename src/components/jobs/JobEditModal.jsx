@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Modal,
     Box,
@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { updateJob } from "../../services/api";
 import { toast } from "sonner";
+import { useJobs } from "../../contexts/JobsContext";
 import { useWebhook } from "../../hooks/webHook";
 
 const JOB_STATUS = {
@@ -52,14 +53,15 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
         client: defaultClient,
         user: null,
     });
-
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const [activeTab, setActiveTab] = useState(0);
+    const { updateJobInState } = useJobs();
     const { sendWebhook } = useWebhook();
 
+    // Initialize form data when job or open changes
     useEffect(() => {
-        if (job) {
+        if (open && job) {
             setFormData({
                 id: job.id || "",
                 name: job.name || "",
@@ -83,35 +85,24 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                 },
                 user: job.user || null,
             });
+            setErrors({});
         }
-        setErrors({});
-    }, [job]);
+    }, [job, open]); // Only run when job or open changes
 
-    const handleChange = (e) => {
+    const handleChange = useCallback((e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
         setErrors((prev) => ({ ...prev, [name]: "" }));
-    };
+    }, []);
 
-    const validateForm = () => {
+    const validateForm = useCallback(() => {
         const newErrors = {};
-
-        if (!formData.name.trim()) {
-            newErrors.name = "Job Name is required";
-        }
-        if (!formData.address.trim()) {
-            newErrors.address = "Address is required";
-        }
-        if (!formData.price || parseFloat(formData.price) <= 0) {
+        if (!formData.name.trim()) newErrors.name = "Job Name is required";
+        if (!formData.address.trim()) newErrors.address = "Address is required";
+        if (!formData.price || parseFloat(formData.price) <= 0)
             newErrors.price = "Valid price is required";
-        }
-        if (!formData.status) {
-            newErrors.status = "Status is required";
-        }
-        if (!formData.clientId) {
-            newErrors.clientId = "Client is required";
-        }
-
+        if (!formData.status) newErrors.status = "Status is required";
+        if (!formData.clientId) newErrors.clientId = "Client is required";
         if (formData.invoiceUrl && formData.invoiceUrl.trim()) {
             try {
                 new URL(formData.invoiceUrl);
@@ -119,19 +110,16 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                 newErrors.invoiceUrl = "Please enter a valid URL";
             }
         }
-
         if (formData.startDate && formData.endDate) {
             const start = new Date(formData.startDate);
             const end = new Date(formData.endDate);
-            if (start >= end) {
+            if (start >= end)
                 newErrors.endDate = "End date must be after start date";
-            }
         }
-
         return newErrors;
-    };
+    }, [formData]);
 
-    const handleSubmit = async () => {
+    const handleSubmit = useCallback(async () => {
         const validationErrors = validateForm();
         if (Object.keys(validationErrors).length > 0) {
             setErrors(validationErrors);
@@ -140,8 +128,6 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
 
         try {
             setLoading(true);
-            setErrors({});
-
             const jobDataToSubmit = {
                 name: formData.name.trim(),
                 address: formData.address.trim(),
@@ -157,20 +143,17 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                 clientId: formData.clientId,
             };
 
+            const result = await updateJob(job.id, jobDataToSubmit);
             const webHookData = {
                 webhookEvent: "JobEdited",
                 jobId: job.id,
                 createdBy: job.createdBy,
-                ...jobDataToSubmit,
+                ...result.data,
             };
 
-            // Make API call to update job
-            const result = await updateJob(job.id, jobDataToSubmit);
-
-            // Construct the complete updated job object
             const completeUpdatedJob = {
-                ...job, // Preserve original data (e.g., client, createdBy, etc.)
-                ...result.data, // Update with API response data
+                ...job,
+                ...result.data,
                 name: jobDataToSubmit.name,
                 address: jobDataToSubmit.address,
                 price: jobDataToSubmit.price,
@@ -179,16 +162,12 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                 endDate: jobDataToSubmit.endDate,
                 invoiceUrl: jobDataToSubmit.invoiceUrl,
                 clientId: jobDataToSubmit.clientId,
-                client: job.client, // Preserve client data
+                client: job.client,
             };
 
-            // Send data to webhook
             await sendWebhook({ payload: webHookData });
-
-            // Notify parent to update state
-            if (onUpdate) {
-                onUpdate(completeUpdatedJob);
-            }
+            updateJobInState(completeUpdatedJob);
+            onUpdate?.(completeUpdatedJob); // Optional chaining to avoid errors if onUpdate is undefined
 
             toast.success("Job updated successfully");
             onClose();
@@ -199,22 +178,19 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [formData, job, onClose, onUpdate, updateJobInState, sendWebhook]);
 
-    const handleTabChange = (event, newValue) => {
+    const handleTabChange = useCallback((event, newValue) => {
         setActiveTab(newValue);
-    };
+    }, []);
 
-    const getClientFieldValue = (
-        field,
-        defaultText = "No information provided"
-    ) => {
-        const value = formData.client?.[field];
-        if (!value || value.trim() === "") {
-            return defaultText;
-        }
-        return value;
-    };
+    const getClientFieldValue = useCallback(
+        (field, defaultText = "No information provided") => {
+            const value = formData.client?.[field];
+            return value && value.trim() ? value : defaultText;
+        },
+        [formData.client]
+    );
 
     return (
         <Modal
@@ -271,13 +247,9 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                             textTransform: "none",
                             fontSize: "0.85rem",
                             minWidth: "auto",
-                            "&:hover": {
-                                color: "#6d28d9",
-                            },
+                            "&:hover": { color: "#6d28d9" },
                         },
-                        "& .Mui-selected": {
-                            color: "#6d28d9 !important",
-                        },
+                        "& .Mui-selected": { color: "#6d28d9 !important" },
                         "& .MuiTabs-indicator": {
                             background: "#6d28d9",
                             height: "3px",
@@ -318,9 +290,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                                     },
                                     "& .MuiInputLabel-root": {
                                         color: "#4b5563",
-                                        "&.Mui-focused": {
-                                            color: "#6d28d9",
-                                        },
+                                        "&.Mui-focused": { color: "#6d28d9" },
                                     },
                                     "& .MuiFormHelperText-root": {
                                         color: "#dc2626",
@@ -357,9 +327,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                                     },
                                     "& .MuiInputLabel-root": {
                                         color: "#4b5563",
-                                        "&.Mui-focused": {
-                                            color: "#6d28d9",
-                                        },
+                                        "&.Mui-focused": { color: "#6d28d9" },
                                     },
                                     "& .MuiFormHelperText-root": {
                                         color: "#dc2626",
@@ -398,9 +366,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                                     },
                                     "& .MuiInputLabel-root": {
                                         color: "#4b5563",
-                                        "&.Mui-focused": {
-                                            color: "#6d28d9",
-                                        },
+                                        "&.Mui-focused": { color: "#6d28d9" },
                                     },
                                     "& .MuiFormHelperText-root": {
                                         color: "#dc2626",
@@ -438,9 +404,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                                     },
                                     "& .MuiInputLabel-root": {
                                         color: "#4b5563",
-                                        "&.Mui-focused": {
-                                            color: "#6d28d9",
-                                        },
+                                        "&.Mui-focused": { color: "#6d28d9" },
                                     },
                                     "& .MuiFormHelperText-root": {
                                         color: "#dc2626",
@@ -452,12 +416,6 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                                     <MenuItem
                                         key={option.value}
                                         value={option.value}
-                                        sx={{
-                                            "&:hover": {
-                                                bgcolor: "#f3e8ff",
-                                                color: "#6d28d9",
-                                            },
-                                        }}
                                     >
                                         {option.label}
                                     </MenuItem>
@@ -493,9 +451,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                                     },
                                     "& .MuiInputLabel-root": {
                                         color: "#4b5563",
-                                        "&.Mui-focused": {
-                                            color: "#6d28d9",
-                                        },
+                                        "&.Mui-focused": { color: "#6d28d9" },
                                     },
                                     "& .MuiFormHelperText-root": {
                                         color: "#dc2626",
@@ -533,9 +489,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                                     },
                                     "& .MuiInputLabel-root": {
                                         color: "#4b5563",
-                                        "&.Mui-focused": {
-                                            color: "#6d28d9",
-                                        },
+                                        "&.Mui-focused": { color: "#6d28d9" },
                                     },
                                     "& .MuiFormHelperText-root": {
                                         color: "#dc2626",
@@ -575,9 +529,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
                                     },
                                     "& .MuiInputLabel-root": {
                                         color: "#4b5563",
-                                        "&.Mui-focused": {
-                                            color: "#6d28d9",
-                                        },
+                                        "&.Mui-focused": { color: "#6d28d9" },
                                     },
                                     "& .MuiFormHelperText-root": {
                                         color: errors.invoiceUrl
@@ -593,12 +545,7 @@ const JobEditModal = ({ open, onClose, job, onUpdate }) => {
 
                 {activeTab === 1 && (
                     <Box
-                        sx={{
-                            p: 2,
-                            bgcolor: "#f1f5f9",
-                            borderRadius: "12px",
-                            boxShadow: "inset 0 2px 4px rgba(0, 0, 0, 0.05)",
-                        }}
+                        sx={{ p: 2, bgcolor: "#f1f5f9", borderRadius: "12px" }}
                     >
                         <Typography
                             variant="body2"

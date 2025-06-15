@@ -21,11 +21,12 @@ import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import { AuthContext } from "../../contexts/AuthContext";
-import { toast } from "sonner";
+import { useJobs } from "../../contexts/JobsContext";
 import { useWebhook } from "../../hooks/webHook";
 
 const AddJobModal = ({ open, onClose, onJobCreated }) => {
     const { user } = useContext(AuthContext);
+    const { addJobToState } = useJobs();
     const { sendWebhook } = useWebhook();
     const [formData, setFormData] = useState({
         name: "",
@@ -38,6 +39,7 @@ const AddJobModal = ({ open, onClose, onJobCreated }) => {
         createdBy: user?.id || "", // This matches the schema field name
     });
     const [clients, setClients] = useState([]);
+    console.log("Initial Form Data:", clients);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [clientLoading, setClientLoading] = useState(true);
@@ -114,16 +116,25 @@ const AddJobModal = ({ open, onClose, onJobCreated }) => {
                 clientId: formData.clientId,
                 createdBy: formData.createdBy,
                 activity: "",
+                jobLocationLat: formData.jobLocationLat || 0,
+                jobLocationLon: formData.jobLocationLon || 0,
+                calculatedDistance: formData.calculatedDistance || 0,
+                calculatedTravelTime: formData.calculatedTravelTime || 0,
             };
 
             console.log("Job Data being sent:", jobData);
 
-            await createJob(jobData);
-            // Send to N8N webhook (if configured)
+            const newJob = await createJob(jobData);
+            console.log("New Job Created:", newJob);
 
+            // Add the new job to local state (this will also update dashboard stats)
+            addJobToState(newJob.data);
+
+            // Send to N8N webhook (if configured)
             const webHookData = {
-                ...jobData,
+                ...newJob.data,
                 webhookEvent: "JobCreated",
+                jobId: newJob.data.id,
             };
 
             await sendWebhook({ payload: webHookData });
@@ -346,7 +357,9 @@ const AddJobModal = ({ open, onClose, onJobCreated }) => {
                                                 key={client.id}
                                                 value={client.id}
                                             >
-                                                {client.name}
+                                                {client.name
+                                                    ? client.name
+                                                    : "Unnamed Client"}
                                             </MenuItem>
                                         ))
                                     )}

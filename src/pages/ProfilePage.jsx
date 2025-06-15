@@ -20,9 +20,20 @@ import LocationMap from "../components/common/LocationMap"; // Import the new ma
 import { useLoadScript } from '@react-google-maps/api'; // Import useLoadScript
 import { formatLocationToDms } from '../utils/locationHelpers'; // Import the new helper function
 import { toggleLiveTracking, updateLocation } from '../services/api'; // Import new API functions
+import { useSocket } from "../contexts/SocketContext"; // Import socket context
+import GoogleCalendarSettings from '../components/profile/GoogleCalendarSettings'; // Import Google Calendar component
 
 const ProfilePage = () => {
   const { user, updateUserData } = useAuth();
+  const { 
+    isConnected, 
+    connectionError, 
+    isLocationSharing, 
+    locationError, 
+    startLocationSharing, 
+    stopLocationSharing, 
+    updateLocation: socketUpdateLocation 
+  } = useSocket();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -36,7 +47,7 @@ const ProfilePage = () => {
   const [success, setSuccess] = useState(false);
   const [isGpsTrackingEnabled, setIsGpsTrackingEnabled] = useState(false); // Add state for GPS toggle
 
-  const { location, error: gpsError } = useGPSLocation(isGpsTrackingEnabled); // Use the new hook
+  const { location, error: gpsError } = useGPSLocation(isGpsTrackingEnabled, socketUpdateLocation); // Use the new hook with socket callback
 
   const { isLoaded, loadError } = useLoadScript({ // Use the useLoadScript hook
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
@@ -67,14 +78,13 @@ const ProfilePage = () => {
 
         if (response && response.data) {
           setFormData({
-            name: response.data.name || "",
-            email: response.data.email || "",
-            phoneNumber: response.data.phoneNumber || "",
-            // title: response.data.title || "",
+            name: response.data.user?.name || "",
+            email: response.data.user?.email || "",
+            phoneNumber: response.data.user?.phoneNumber || "",
           });
           // Set initial state of GPS toggle from fetched profile data
-          if (response.data.isLiveTrackingEnabled !== undefined) {
-            setIsGpsTrackingEnabled(response.data.isLiveTrackingEnabled);
+          if (response.data.user?.isLiveTrackingEnabled !== undefined) {
+            setIsGpsTrackingEnabled(response.data.user.isLiveTrackingEnabled);
           }
         }
       } catch (error) {
@@ -149,13 +159,22 @@ const ProfilePage = () => {
       .toUpperCase();
   };
 
-  // Handle toggle change and call backend API
+  // Handle toggle change and call backend API + socket
   const handleGpsToggleChange = async (event) => {
     const isChecked = event.target.checked;
     setIsGpsTrackingEnabled(isChecked);
+    
     try {
+      // Call existing API
       await toggleLiveTracking(isChecked);
       console.log(`Live tracking ${isChecked ? 'enabled' : 'disabled'} on backend.`);
+      
+      // Start/stop socket location sharing
+      if (isChecked) {
+        startLocationSharing();
+      } else {
+        stopLocationSharing();
+      }
     } catch (error) {
       console.error("Failed to toggle live tracking on backend:", error);
       // Optionally revert the toggle state in UI or show an error message
@@ -264,6 +283,28 @@ const ProfilePage = () => {
                   }
                   label="Enable Live GPS Tracking"
                 />
+                
+                {/* Socket Status Indicators */}
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="body2" color={isConnected ? "success.main" : "error.main"}>
+                    Socket: {isConnected ? "Connected" : "Disconnected"}
+                  </Typography>
+                  {isGpsTrackingEnabled && (
+                    <Typography variant="body2" color={isLocationSharing ? "success.main" : "warning.main"}>
+                      Location Sharing: {isLocationSharing ? "Active" : "Inactive"}
+                    </Typography>
+                  )}
+                  {connectionError && (
+                    <Typography variant="body2" color="error.main">
+                      Connection Error: {connectionError}
+                    </Typography>
+                  )}
+                  {locationError && (
+                    <Typography variant="body2" color="error.main">
+                      Location Error: {locationError}
+                    </Typography>
+                  )}
+                </Box>
               </Grid>
 
               {/* Placeholder for Live Location Display */}
@@ -308,6 +349,10 @@ const ProfilePage = () => {
                 </Grid>
               )}
 
+              {/* Google Calendar Integration Section */}
+              <Grid item xs={12}>
+                <GoogleCalendarSettings />
+              </Grid>
 
               <Grid
                 item

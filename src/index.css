@@ -1,46 +1,141 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
 
-html, body, #root {
-  height: 100%;
+html,
+body,
+#root {
+    height: 100%;
 }
 
 body {
-  font-family: 'Poppins', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    font-family: "Poppins", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Material UI - Text Selection Fix */
+.MuiTypography-root {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    cursor: default !important;
+}
+
+/* MUI Buttons */
+.MuiButton-root,
+.MuiButtonBase-root,
+.MuiIconButton-root,
+.MuiFab-root {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    cursor: pointer !important;
+}
+
+/* MUI Navigation */
+.MuiListItemButton-root,
+.MuiMenuItem-root,
+.MuiTab-root,
+.MuiBottomNavigationAction-root {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    cursor: pointer !important;
+}
+
+/* MUI Cards & Papers */
+.MuiCard-root,
+.MuiPaper-root,
+.MuiAccordion-root,
+.MuiAlert-root {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+/* MUI Chips & Badges */
+.MuiChip-root,
+.MuiBadge-root,
+.MuiAvatar-root {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+/* MUI Headers & Toolbars */
+.MuiAppBar-root,
+.MuiToolbar-root,
+.MuiDrawer-root {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+/* MUI Form Labels (non-input) */
+.MuiFormLabel-root,
+.MuiInputLabel-root,
+.MuiFormHelperText-root {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    cursor: default !important;
+}
+
+/* Allow selection for input fields */
+.MuiInputBase-input,
+.MuiOutlinedInput-input,
+.MuiFilledInput-input,
+.MuiInput-input,
+.MuiTextarea-root {
+    user-select: auto !important;
+    -webkit-user-select: auto !important;
+    cursor: text !important;
+}
+
+/* MUI Data Display */
+.MuiTableHead-root,
+.MuiTableRow-root,
+.MuiTableCell-root {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+/* MUI Progress & Loading */
+.MuiCircularProgress-root,
+.MuiLinearProgress-root,
+.MuiSkeleton-root {
+    user-select: none !important;
+    -webkit-user-select: none !important;
 }
 
 /* iOS optimizations */
 @supports (-webkit-touch-callout: none) {
-  input, select, textarea {
-    font-size: 16px !important;
-  }
-  
-  body {
-    -webkit-overflow-scrolling: touch;
-  }
+    .MuiInputBase-input,
+    .MuiOutlinedInput-input,
+    .MuiFilledInput-input {
+        font-size: 16px !important;
+    }
+
+    body {
+        -webkit-overflow-scrolling: touch;
+    }
 }
 
 /* Prevent pull-to-refresh on iOS */
 html {
-  overscroll-behavior-y: none;
+    overscroll-behavior-y: none;
 }
 
 /* For iOS notched devices */
 .safe-area-top {
-  padding-top: env(safe-area-inset-top);
+    padding-top: env(safe-area-inset-top);
 }
 
 .safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: env(safe-area-inset-bottom);
 }
-.MuiListItemButton-root.Mui-selected{
-  background-color: rgba(255, 255, 255, 0.15) !important;
+
+.MuiListItemButton-root.Mui-selected {
+    background-color: rgba(255, 255, 255, 0.15) !important;
 }

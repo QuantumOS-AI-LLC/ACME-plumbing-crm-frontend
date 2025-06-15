@@ -8,6 +8,84 @@ const api = axios.create({
     },
 });
 
+// Global refresh token promise to prevent race conditions
+let refreshTokenPromise = null;
+
+// Token refresh function
+const refreshTokenAPI = async () => {
+    try {
+        console.log("🔄 Starting token refresh...");
+
+        // Get refresh token from storage
+        const refreshToken =
+            localStorage.getItem("refreshToken") ||
+            sessionStorage.getItem("refreshToken");
+
+        if (!refreshToken) {
+            console.log("❌ No refresh token found in storage");
+            throw new Error("No refresh token available");
+        }
+
+        console.log("🔍 Making refresh token API call...");
+        const response = await axios.post(
+            `${import.meta.env.VITE_API_BASE_URL}/auth/refresh-token`,
+            { refreshToken },
+            {
+                headers: { "Content-Type": "application/json" },
+            }
+        );
+
+        console.log("✅ Refresh token response:", response.data);
+
+        if (!response.data.success || !response.data.data) {
+            throw new Error("Invalid refresh response format");
+        }
+
+        const { accessToken, refreshToken: newRefreshToken } =
+            response.data.data;
+
+        if (!accessToken) {
+            throw new Error("No access token in refresh response");
+        }
+
+        console.log("💾 Updating tokens in storage...");
+
+        // Update tokens in storage
+        const isSessionStorage = sessionStorage.getItem("token");
+        if (isSessionStorage) {
+            sessionStorage.setItem("token", accessToken);
+            if (newRefreshToken) {
+                sessionStorage.setItem("refreshToken", newRefreshToken);
+            }
+        } else {
+            localStorage.setItem("token", accessToken);
+            if (newRefreshToken) {
+                localStorage.setItem("refreshToken", newRefreshToken);
+            }
+        }
+
+        console.log("✅ Token refresh successful");
+        return accessToken;
+    } catch (error) {
+        console.error("❌ Token refresh failed:", error);
+
+        // Refresh failed, clear all tokens and redirect to login
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("isLoggedIn");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("isLoggedIn");
+
+        if (!window.location.pathname.includes("/login")) {
+            console.log("🔄 Redirecting to login...");
+            window.location.href = "/login";
+        }
+
+        throw error;
+    }
+};
+
 // Add token to requests
 api.interceptors.request.use(
     (config) => {
@@ -25,15 +103,80 @@ api.interceptors.request.use(
     }
 );
 
-// Handle response errors
+// Handle response errors with automatic token refresh - RACE CONDITION FIXED
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
+        console.log("=== API INTERCEPTOR ERROR ===");
+        console.log("Error status:", error.response?.status);
+        console.log("Error URL:", error.config?.url);
+
+        const originalRequest = error.config;
+
+        if (
+            error.response &&
+            error.response.status === 401 &&
+            !originalRequest._retry
+        ) {
+            console.log("🔄 401 Error detected, attempting refresh...");
+            originalRequest._retry = true;
+
+            // Check if user should be authenticated
+            const isLoggedIn =
+                localStorage.getItem("isLoggedIn") ||
+                sessionStorage.getItem("isLoggedIn");
+
+            if (!isLoggedIn || isLoggedIn !== "true") {
+                console.log(
+                    "❌ User not logged in, skipping refresh and clearing any stale tokens"
+                );
+                // Clear any stale tokens
+                localStorage.removeItem("token");
+                localStorage.removeItem("refreshToken");
+                sessionStorage.removeItem("token");
+                sessionStorage.removeItem("refreshToken");
+                return Promise.reject(error);
+            }
+
+            try {
+                // RACE CONDITION FIX: Use shared promise for multiple simultaneous requests
+                if (!refreshTokenPromise) {
+                    console.log("🔄 Creating new refresh token promise...");
+                    refreshTokenPromise = refreshTokenAPI().finally(() => {
+                        // Clear the promise after completion (success or failure)
+                        refreshTokenPromise = null;
+                    });
+                } else {
+                    console.log("🔄 Using existing refresh token promise...");
+                }
+
+                // Wait for the refresh to complete
+                const newAccessToken = await refreshTokenPromise;
+
+                console.log("🔄 Retrying original request with new token...");
+
+                // Update the original request with new token
+                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+                // Retry the original request
+                return api(originalRequest);
+            } catch (refreshError) {
+                console.log("❌ Refresh failed, rejecting original request");
+                // Refresh failed, user will be redirected to login
+                return Promise.reject(refreshError);
+            }
+        }
+
+        // If not a 401 error or refresh failed, handle normally
         if (error.response && error.response.status === 401) {
+            console.log("❌ 401 error after retry, clearing auth data");
+
             // Clear token from both storage types
             localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
             localStorage.removeItem("isLoggedIn");
             sessionStorage.removeItem("token");
+            sessionStorage.removeItem("refreshToken");
             sessionStorage.removeItem("isLoggedIn");
 
             // If not already on the login page, redirect
@@ -41,20 +184,63 @@ api.interceptors.response.use(
                 window.location.href = "/login";
             }
         }
+
         return Promise.reject(error);
     }
 );
 
 // Authentication APIs
-export const loginUser = async (phoneNumber, password) => {
+export const loginUser = async (phoneNumber, password, rememberMe = false) => {
     try {
+        console.log("🔐 Attempting login...");
+
         const response = await api.post("/auth/login", {
             phoneNumber,
             password,
         });
+
+        console.log("✅ Login response:", response.data);
+
+        if (!response.data.success || !response.data.data) {
+            throw new Error("Invalid login response format");
+        }
+
+        // Store both access and refresh tokens
+        const { accessToken, refreshToken, user } = response.data.data;
+
+        if (!accessToken || !refreshToken) {
+            throw new Error("Missing tokens in login response");
+        }
+
+        console.log("💾 Storing auth data...");
+
+        // Store tokens based on rememberMe preference
+        if (rememberMe) {
+            localStorage.setItem("token", accessToken);
+            localStorage.setItem("refreshToken", refreshToken);
+            localStorage.setItem("isLoggedIn", "true");
+            localStorage.setItem("userProfile", JSON.stringify(user));
+        } else {
+            sessionStorage.setItem("token", accessToken);
+            sessionStorage.setItem("refreshToken", refreshToken);
+            sessionStorage.setItem("isLoggedIn", "true");
+            sessionStorage.setItem("userProfile", JSON.stringify(user));
+        }
+
+        console.log("✅ Login successful, tokens stored");
         return response.data;
     } catch (error) {
-        console.error("Login error:", error);
+        console.error("❌ Login error:", error);
+        throw error;
+    }
+};
+
+// Manual refresh token function (can be used when needed)
+export const refreshUserToken = async () => {
+    try {
+        return await refreshTokenAPI();
+    } catch (error) {
+        console.error("Manual refresh token error:", error);
         throw error;
     }
 };
@@ -62,9 +248,37 @@ export const loginUser = async (phoneNumber, password) => {
 export const logoutUser = async () => {
     try {
         await api.post("/auth/logout");
+
+        // Clear all tokens
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem("userProfile");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("isLoggedIn");
+        sessionStorage.removeItem("userProfile");
+
+        // Clear the refresh promise if it exists
+        refreshTokenPromise = null;
+
         return true;
     } catch (error) {
         console.error("Logout error:", error);
+
+        // Even if logout fails, clear tokens locally
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem("userProfile");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("isLoggedIn");
+        sessionStorage.removeItem("userProfile");
+
+        // Clear the refresh promise
+        refreshTokenPromise = null;
+
         return false;
     }
 };
@@ -108,10 +322,12 @@ export const changePassword = async (passwordData) => {
 // User Profile APIs
 export const fetchUserProfile = async () => {
     try {
-        const response = await api.get("/users/me");
+        const response = await api.get("/auth/profile");
         if (response.data && response.data.success) {
-            // Save the full response to localStorage
-            localStorage.setItem("userProfile", JSON.stringify(response.data));
+            localStorage.setItem(
+                "userProfile",
+                JSON.stringify(response.data.data.user)
+            );
         }
         return response.data;
     } catch (error) {
@@ -124,8 +340,10 @@ export const updateUserProfile = async (profileData) => {
     try {
         const response = await api.put("/users/profile", profileData);
         if (response.data && response.data.success) {
-            // Save the full response to localStorage
-            localStorage.setItem("userProfile", JSON.stringify(response.data));
+            localStorage.setItem(
+                "userProfile",
+                JSON.stringify(response.data.data)
+            );
         }
         return response.data;
     } catch (error) {
@@ -137,12 +355,11 @@ export const updateUserProfile = async (profileData) => {
 // Company APIs
 export const fetchCompanySettings = async () => {
     try {
-        const response = await api.get("/users/me");
+        const response = await api.get("/auth/profile");
         if (response.data && response.data.success) {
-            // Save the full response to localStorage
             localStorage.setItem(
                 "companyProfile",
-                JSON.stringify(response.data)
+                JSON.stringify(response.data.data.user.company)
             );
         }
         return response.data;
@@ -156,10 +373,9 @@ export const updateCompanySettings = async (companyData) => {
     try {
         const response = await api.put("/users/company", companyData);
         if (response.data && response.data.success) {
-            // Save the full response to localStorage
             localStorage.setItem(
                 "companyProfile",
-                JSON.stringify(response.data)
+                JSON.stringify(response.data.data)
             );
         }
         return response.data;
@@ -173,10 +389,9 @@ export const fetchCompanyProfile = async () => {
     try {
         const response = await api.get("/companies/my-company");
         if (response.data && response.data.success) {
-            // Save the full response to localStorage
             localStorage.setItem(
                 "companyProfile",
-                JSON.stringify(response.data)
+                JSON.stringify(response.data.data)
             );
         }
         return response.data;
@@ -190,10 +405,9 @@ export const updateCompanyProfile = async (data) => {
     try {
         const response = await api.put("/companies/my-company", data);
         if (response.data && response.data.success) {
-            // Update localStorage with new data
             localStorage.setItem(
                 "companyProfile",
-                JSON.stringify(response.data)
+                JSON.stringify(response.data.data)
             );
         }
         return response.data;
@@ -206,7 +420,11 @@ export const updateCompanyProfile = async (data) => {
 // Jobs APIs
 export const fetchJobs = async (params = {}) => {
     try {
-        const response = await api.get("/jobs", { params });
+        const newParams = { ...params };
+        if (newParams.status && Array.isArray(newParams.status)) {
+            newParams.status = newParams.status.join(",");
+        }
+        const response = await api.get("/jobs", { params: newParams });
         return response.data;
     } catch (error) {
         console.error("Error fetching jobs:", error);
@@ -221,6 +439,16 @@ export const fetchJob = async (id) => {
         return response.data;
     } catch (error) {
         console.error(`Error fetching job ${id}:`, error);
+        throw error;
+    }
+};
+
+export const fetchJobsCount = async () => {
+    try {
+        const response = await api.get("/jobs/open/count");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching jobs count:", error);
         throw error;
     }
 };
@@ -258,7 +486,11 @@ export const deleteJob = async (id) => {
 // Estimates APIs
 export const fetchEstimates = async (params = {}) => {
     try {
-        const response = await api.get("/estimates", { params });
+        const newParams = { ...params };
+        if (newParams.status && Array.isArray(newParams.status)) {
+            newParams.status = newParams.status.join(",");
+        }
+        const response = await api.get("/estimates", { params: newParams });
         return response.data;
     } catch (error) {
         console.error("Error fetching estimates:", error);
@@ -272,6 +504,16 @@ export const fetchEstimate = async (id) => {
         return response.data;
     } catch (error) {
         console.error(`Error fetching estimate ${id}:`, error);
+        throw error;
+    }
+};
+
+export const fetchEstimatesCount = async () => {
+    try {
+        const response = await api.get("/estimates/pending/count");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching estimates count:", error);
         throw error;
     }
 };
@@ -378,6 +620,16 @@ export const fetchEvent = async (id) => {
     }
 };
 
+export const fetchEventsCount = async () => {
+    try {
+        const response = await api.get("/calendar/events/today/count");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching events count:", error);
+        throw error;
+    }
+};
+
 export const createEvent = async (eventData) => {
     try {
         const response = await api.post("/calendar/events", eventData);
@@ -441,12 +693,10 @@ export const fetchNotificationSettings = async () => {
 };
 
 export const updateNotificationSettings = async (settingsData) => {
-    // settingsData is expected to be an array of setting objects
     try {
-        const response = await api.put(
-            "/notifications/settings",
-            { settings: settingsData } // Wrap settingsData in an object with a 'settings' key
-        );
+        const response = await api.put("/notifications/settings", {
+            settings: settingsData,
+        });
         return response.data;
     } catch (error) {
         console.error("Error updating notification settings:", error);
@@ -499,21 +749,6 @@ export const deleteNotification = async (id) => {
     }
 };
 
-// // AI Assistant APIs
-// export const createConversation = async (message, estimateId, contactId) => {
-//     try {
-//         const response = await api.post("/ai/reply", {
-//             message,
-//             contactId,
-//             estimateId,
-//         });
-//         return response.data;
-//     } catch (error) {
-//         console.error("Error sending message to AI:", error);
-//         throw error;
-//     }
-// };
-
 export const getConversations = async () => {
     try {
         const response = await api.get("/ai/conversations");
@@ -544,15 +779,12 @@ export const sendMessageToAI = async (
     userId
 ) => {
     try {
-        // Only call /ai/reply to send the user's message
         const response = await api.post("/ai/reply", {
             message,
             contactId,
             estimateId,
             userId,
         });
-        // Return the response from /ai/reply (or handle as needed, maybe just return success/failure)
-        // The actual AI response will come via WebSocket
         return response.data;
     } catch (error) {
         console.error("Error sending message via /ai/reply:", error);
@@ -644,7 +876,9 @@ export const fetchPopularTags = async () => {
 // GPS Tracking APIs
 export const toggleLiveTracking = async (isLiveTrackingEnabled) => {
     try {
-        const response = await api.put("/users/toggle-tracking", { isLiveTrackingEnabled });
+        const response = await api.put("/users/toggle-tracking", {
+            isLiveTrackingEnabled,
+        });
         return response.data;
     } catch (error) {
         console.error("Error toggling live tracking:", error);
@@ -654,7 +888,10 @@ export const toggleLiveTracking = async (isLiveTrackingEnabled) => {
 
 export const updateLocation = async (latitude, longitude) => {
     try {
-        const response = await api.put("/users/location", { latitude, longitude });
+        const response = await api.put("/users/location", {
+            latitude,
+            longitude,
+        });
         return response.data;
     } catch (error) {
         console.error("Error updating location:", error);
@@ -662,5 +899,633 @@ export const updateLocation = async (latitude, longitude) => {
     }
 };
 
+// Google Calendar OAuth APIs
+export const initiateGoogleCalendarAuth = async () => {
+    try {
+        const response = await api.get("/auth/google/calendar");
+        return response.data;
+    } catch (error) {
+        console.error("Error initiating Google Calendar auth:", error);
+        throw error;
+    }
+};
+
+export const getGoogleCalendarStatus = async () => {
+    try {
+        const response = await api.get("/auth/google/status");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching Google Calendar status:", error);
+        throw error;
+    }
+};
+
+export const disconnectGoogleCalendar = async () => {
+    try {
+        const response = await api.delete("/auth/google/disconnect");
+        return response.data;
+    } catch (error) {
+        console.error("Error disconnecting Google Calendar:", error);
+        throw error;
+    }
+};
+
+// Telnyx Video Room APIs
+export const createVideoRoom = async (contactId) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Create video room using Telnyx API
+        const telnyxResponse = await axios.post(
+            "https://api.telnyx.com/v2/rooms",
+            {
+                unique_name: `room_${contactId}_${Date.now()}`,
+                max_participants: 2,
+                enable_recording: false,
+                webhook_event_url: import.meta.env.VITE_N8N_API_URL,
+                webhook_event_failover_url: null,
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${telnyxApiKey}`,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+        if (!telnyxResponse.data || !telnyxResponse.data.data) {
+            throw new Error("Invalid response from Telnyx API");
+        }
+
+        const roomData = telnyxResponse.data.data;
+
+        // Generate participant token for proper join URL
+        let clientToken = null;
+        let refreshToken = null;
+        let joinUrl = `https://telnyx-meet-demo.vercel.app/rooms/${roomData.id}`;
+
+        try {
+            const tokenResponse = await generateClientToken(roomData.id);
+            if (tokenResponse.success) {
+                clientToken = tokenResponse.data.clientToken;
+                refreshToken = tokenResponse.data.refreshToken;
+                // Use the correct Telnyx Meet demo URL format with tokens
+                joinUrl = `https://telnyx-meet-demo.vercel.app/rooms/${roomData.id}?client_token=${clientToken}&refresh_token=${refreshToken}`;
+            }
+        } catch (tokenError) {
+            console.warn(
+                "Participant token generation failed, using basic room URL:",
+                tokenError.message
+            );
+            // Continue with basic URL without tokens
+        }
+
+        return {
+            success: true,
+            data: {
+                roomId: roomData.id,
+                uniqueName: roomData.unique_name,
+                joinUrl: joinUrl,
+                maxParticipants: roomData.max_participants,
+                enableRecording: roomData.enable_recording,
+                createdAt: roomData.created_at,
+                clientToken: clientToken,
+                refreshToken: refreshToken,
+            },
+        };
+    } catch (error) {
+        console.error("Error creating Telnyx video room:", error);
+        throw error;
+    }
+};
+
+export const updateVideoRoom = async (roomId, updateData) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Update video room using Telnyx API
+        const telnyxResponse = await axios.patch(
+            `https://api.telnyx.com/v2/rooms/${roomId}`,
+            updateData,
+            {
+                headers: {
+                    Authorization: `Bearer ${telnyxApiKey}`,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+        if (!telnyxResponse.data || !telnyxResponse.data.data) {
+            throw new Error("Invalid response from Telnyx API");
+        }
+
+        const roomData = telnyxResponse.data.data;
+
+        return {
+            success: true,
+            data: {
+                roomId: roomData.id,
+                uniqueName: roomData.unique_name,
+                joinUrl:
+                    roomData.session_url ||
+                    `https://meet.telnyx.com/rooms/${roomData.id}`,
+                maxParticipants: roomData.max_participants,
+                enableRecording: roomData.enable_recording,
+                updatedAt: roomData.updated_at,
+            },
+        };
+    } catch (error) {
+        console.error("Error updating Telnyx video room:", error);
+        throw error;
+    }
+};
+
+export const deleteVideoRoom = async (roomId) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Delete video room using Telnyx API
+        const telnyxResponse = await axios.delete(
+            `https://api.telnyx.com/v2/rooms/${roomId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${telnyxApiKey}`,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+        return {
+            success: true,
+            message: "Video room deleted successfully",
+            roomId: roomId,
+        };
+    } catch (error) {
+        console.error("Error deleting Telnyx video room:", error);
+        throw error;
+    }
+};
+
+export const getVideoRoom = async (roomId) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Get video room details using Telnyx API
+        const telnyxResponse = await axios.get(
+            `https://api.telnyx.com/v2/rooms/${roomId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${telnyxApiKey}`,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+        if (!telnyxResponse.data || !telnyxResponse.data.data) {
+            throw new Error("Invalid response from Telnyx API");
+        }
+
+        const roomData = telnyxResponse.data.data;
+
+        return {
+            success: true,
+            data: {
+                roomId: roomData.id,
+                uniqueName: roomData.unique_name,
+                joinUrl:
+                    roomData.session_url ||
+                    `https://meet.telnyx.com/rooms/${roomData.id}`,
+                maxParticipants: roomData.max_participants,
+                enableRecording: roomData.enable_recording,
+                createdAt: roomData.created_at,
+                updatedAt: roomData.updated_at,
+                status: roomData.status,
+            },
+        };
+    } catch (error) {
+        console.error("Error fetching Telnyx video room:", error);
+        throw error;
+    }
+};
+
+// Generate participant token for Telnyx video room
+export const generateClientToken = async (roomId) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Generate participant token using correct Telnyx API endpoint
+        const tokenResponse = await axios.post(
+            `https://api.telnyx.com/v2/rooms/${roomId}/actions/generate_join_client_token`,
+            {
+                token_ttl_secs: 600, // 10 minutes access token
+                refresh_token_ttl_secs: 3600, // 1 hour refresh token
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${telnyxApiKey}`,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+        if (!tokenResponse.data || !tokenResponse.data.data) {
+            throw new Error("Invalid response from Telnyx token API");
+        }
+
+        const tokenData = tokenResponse.data.data;
+
+        return {
+            success: true,
+            data: {
+                clientToken: tokenData.token,
+                refreshToken: tokenData.refresh_token,
+            },
+        };
+    } catch (error) {
+        console.error("Error generating Telnyx participant token:", error);
+        throw error;
+    }
+};
+
+// Refresh participant token for Telnyx video room
+export const refreshClientToken = async (roomId, refreshToken) => {
+    try {
+        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
+
+        if (!telnyxApiKey) {
+            throw new Error("Telnyx API key not configured");
+        }
+
+        // Refresh participant token using Telnyx API endpoint
+        const tokenResponse = await axios.post(
+            `https://api.telnyx.com/v2/rooms/${roomId}/actions/refresh_client_token`,
+            {
+                token_ttl_secs: 600, // 10 minutes access token
+                refresh_token: refreshToken,
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${telnyxApiKey}`,
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                },
+            }
+        );
+
+        if (!tokenResponse.data || !tokenResponse.data.data) {
+            throw new Error("Invalid response from Telnyx refresh token API");
+        }
+
+        const tokenData = tokenResponse.data.data;
+
+        return {
+            success: true,
+            data: {
+                clientToken: tokenData.token,
+                refreshToken: tokenData.refresh_token,
+            },
+        };
+    } catch (error) {
+        console.error("Error refreshing Telnyx participant token:", error);
+        throw error;
+    }
+};
+
+export const sendVideoRoomWebhook = async (joinLink, contactId, userId) => {
+    try {
+        const webhookUrl = import.meta.env.VITE_N8N_API_URL;
+
+        if (!webhookUrl) {
+            console.warn("N8N webhook URL not configured");
+            return { success: true, message: "Webhook URL not configured" };
+        }
+
+        // Enhanced webhook payload with contact and user information
+        const webhookData = {
+            webhookEvent: "share-room-link",
+            joinLink: joinLink,
+            contactId: contactId,
+            userId: userId,
+        };
+
+        const response = await axios.post(webhookUrl, webhookData, {
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        return {
+            success: true,
+            data: response.data,
+        };
+    } catch (error) {
+        console.error("Error sending video room webhook:", error);
+        throw error;
+    }
+};
+
+// Backend Room Management APIs (System Database)
+export const createRoomInSystem = async (roomData) => {
+    try {
+        const response = await api.post("/rooms", roomData);
+
+        // Normalize response format: backend returns { status: "success" } but frontend expects { success: true }
+        const normalizedResponse = {
+            success: response.data.status === "success",
+            data: response.data.data,
+            message: response.data.message,
+        };
+
+        console.log("✅ Room creation response:", normalizedResponse);
+        return normalizedResponse;
+    } catch (error) {
+        console.error("Error creating room in system:", error);
+        throw error;
+    }
+};
+
+export const getRoomsFromSystem = async (params = {}) => {
+    try {
+        const response = await api.get("/rooms", { params });
+
+        // Normalize response format
+        const normalizedResponse = {
+            success: response.data.status === "success",
+            data: response.data.data,
+            results: response.data.results,
+        };
+
+        return normalizedResponse;
+    } catch (error) {
+        console.error("Error fetching rooms from system:", error);
+        throw error;
+    }
+};
+
+export const getRoomFromSystem = async (id) => {
+    try {
+        const response = await api.get(`/rooms/${id}`);
+
+        // Normalize response format
+        const normalizedResponse = {
+            success: response.data.status === "success",
+            data: response.data.data,
+        };
+
+        return normalizedResponse;
+    } catch (error) {
+        console.error(`Error fetching room ${id} from system:`, error);
+        throw error;
+    }
+};
+
+export const updateRoomInSystem = async (id, roomData) => {
+    try {
+        const response = await api.put(`/rooms/${id}`, roomData);
+
+        // Normalize response format
+        const normalizedResponse = {
+            success: response.data.status === "success",
+            data: response.data.data,
+        };
+
+        return normalizedResponse;
+    } catch (error) {
+        console.error(`Error updating room ${id} in system:`, error);
+        throw error;
+    }
+};
+
+export const deleteRoomFromSystem = async (id) => {
+    try {
+        const response = await api.delete(`/rooms/${id}`);
+
+        // Normalize response format - DELETE typically returns 204 with no content
+        const normalizedResponse = {
+            success:
+                response.status === 204 ||
+                (response.data && response.data.status === "success"),
+            message: "Room deleted successfully",
+        };
+
+        return normalizedResponse;
+    } catch (error) {
+        console.error(`Error deleting room ${id} from system:`, error);
+        throw error;
+    }
+};
+
+// Dual-API Room Management Functions (Telnyx + System Sync)
+export const createRoomWithSync = async (contactId) => {
+    let telnyxRoomId = null;
+
+    try {
+        console.log("🎥 Creating video room with dual-API sync...");
+
+        // Step 1: Create room in Telnyx
+        console.log("📡 Creating room in Telnyx...");
+        const telnyxResponse = await createVideoRoom(contactId);
+
+        if (!telnyxResponse.success || !telnyxResponse.data) {
+            throw new Error("Failed to create room in Telnyx");
+        }
+
+        const telnyxRoom = telnyxResponse.data;
+        telnyxRoomId = telnyxRoom.roomId;
+
+        console.log("✅ Telnyx room created:", telnyxRoomId);
+
+        // Step 2: Store room metadata in our system
+        console.log("💾 Storing room in system database...");
+        const systemRoomData = {
+            telnyxRoomId: telnyxRoom.roomId,
+            uniqueName: telnyxRoom.uniqueName,
+            joinUrl: telnyxRoom.joinUrl,
+            maxParticipants: telnyxRoom.maxParticipants,
+            enableRecording: telnyxRoom.enableRecording,
+            clientToken: telnyxRoom.clientToken,
+            refreshToken: telnyxRoom.refreshToken,
+            telnyxCreatedAt: telnyxRoom.createdAt,
+            createdFor: contactId,
+        };
+
+        const systemResponse = await createRoomInSystem(systemRoomData);
+
+        if (!systemResponse.success) {
+            throw new Error("Failed to store room in system database");
+        }
+
+        console.log("✅ Room stored in system database");
+
+        // Return combined data with system ID
+        return {
+            success: true,
+            data: {
+                ...telnyxRoom,
+                systemId: systemResponse.data.room.id,
+                createdFor: contactId,
+                user: systemResponse.data.room.user,
+                contact: systemResponse.data.room.contact,
+            },
+        };
+    } catch (error) {
+        console.error("❌ Error in createRoomWithSync:", error);
+
+        // Cleanup: If Telnyx room was created but system storage failed, clean up Telnyx room
+        if (telnyxRoomId) {
+            console.log(
+                "🧹 Cleaning up Telnyx room due to system storage failure..."
+            );
+            try {
+                await deleteVideoRoom(telnyxRoomId);
+                console.log("✅ Telnyx room cleaned up");
+            } catch (cleanupError) {
+                console.error(
+                    "❌ Failed to cleanup Telnyx room:",
+                    cleanupError
+                );
+            }
+        }
+
+        throw error;
+    }
+};
+
+export const updateRoomWithSync = async (
+    systemId,
+    telnyxRoomId,
+    updateData
+) => {
+    try {
+        console.log("🎥 Updating video room with dual-API sync...");
+
+        // Step 1: Update room in Telnyx
+        console.log("📡 Updating room in Telnyx...");
+        const telnyxResponse = await updateVideoRoom(telnyxRoomId, updateData);
+
+        if (!telnyxResponse.success || !telnyxResponse.data) {
+            throw new Error("Failed to update room in Telnyx");
+        }
+
+        console.log("✅ Telnyx room updated");
+
+        // Step 2: Update room metadata in our system
+        console.log("💾 Updating room in system database...");
+
+        // Only update the fields that were actually changed - preserve original joinUrl
+        const systemUpdateData = {
+            // Only include fields that should be updated, don't overwrite joinUrl unless explicitly requested
+            ...(updateData.max_participants && {
+                maxParticipants: telnyxResponse.data.maxParticipants,
+            }),
+            ...(updateData.enable_recording !== undefined && {
+                enableRecording: telnyxResponse.data.enableRecording,
+            }),
+            ...(updateData.unique_name && {
+                uniqueName: telnyxResponse.data.uniqueName,
+            }),
+            // Only update joinUrl if it was explicitly requested in updateData
+            ...(updateData.joinUrl && { joinUrl: telnyxResponse.data.joinUrl }),
+        };
+
+        console.log(
+            "📝 System update data (preserving original joinUrl):",
+            systemUpdateData
+        );
+
+        const systemResponse = await updateRoomInSystem(
+            systemId,
+            systemUpdateData
+        );
+
+        if (!systemResponse.success) {
+            console.warn(
+                "⚠️ Failed to update room in system database, but Telnyx update succeeded"
+            );
+        } else {
+            console.log("✅ Room updated in system database");
+        }
+
+        // Return combined data - preserve original room data and only update changed fields
+        return {
+            success: true,
+            data: {
+                systemId: systemId,
+                telnyxRoomId: telnyxRoomId,
+                // Only return the fields that were actually updated
+                ...(updateData.max_participants && {
+                    maxParticipants: telnyxResponse.data.maxParticipants,
+                }),
+                ...(updateData.enable_recording !== undefined && {
+                    enableRecording: telnyxResponse.data.enableRecording,
+                }),
+                ...(updateData.unique_name && {
+                    uniqueName: telnyxResponse.data.uniqueName,
+                }),
+                // Preserve other room data from system response
+                ...systemResponse.data?.room,
+            },
+        };
+    } catch (error) {
+        console.error("❌ Error in updateRoomWithSync:", error);
+        throw error;
+    }
+};
+
+export const deleteRoomWithSync = async (systemId, telnyxRoomId) => {
+    try {
+        console.log("🎥 Deleting video room with dual-API sync...");
+
+        // Step 1: Delete room from Telnyx
+        console.log("📡 Deleting room from Telnyx...");
+        const telnyxResponse = await deleteVideoRoom(telnyxRoomId);
+
+        if (!telnyxResponse.success) {
+            throw new Error("Failed to delete room from Telnyx");
+        }
+
+        console.log("✅ Telnyx room deleted");
+
+        // Step 2: Delete room from our system
+        console.log("💾 Deleting room from system database...");
+        const systemResponse = await deleteRoomFromSystem(systemId);
+
+        if (!systemResponse.success) {
+            console.warn(
+                "⚠️ Failed to delete room from system database, but Telnyx deletion succeeded"
+            );
+        } else {
+            console.log("✅ Room deleted from system database");
+        }
+
+        return {
+            success: true,
+            message: "Room deleted successfully from both systems",
+        };
+    } catch (error) {
+        console.error("❌ Error in deleteRoomWithSync:", error);
+        throw error;
+    }
+};
 
 export default api;

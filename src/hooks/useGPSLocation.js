@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
-const useGPSLocation = (isEnabled) => {
+const useGPSLocation = (isEnabled, updateLocationCallback = null) => {
   const [location, setLocation] = useState(null);
   const [error, setError] = useState(null);
   const [watcherId, setWatcherId] = useState(null);
+  const lastUpdateTime = useRef(0);
+  const THROTTLE_INTERVAL = 5000; // 5 seconds as recommended by API
 
   useEffect(() => {
     if (!isEnabled) {
@@ -23,11 +25,27 @@ const useGPSLocation = (isEnabled) => {
     }
 
     const successHandler = (position) => {
-      setLocation({
+      const newLocation = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
-      });
+        accuracy: position.coords.accuracy
+      };
+      
+      setLocation(newLocation);
       setError(null); // Clear any previous errors on success
+
+      // Send to socket if callback provided and throttle interval has passed
+      if (updateLocationCallback) {
+        const now = Date.now();
+        if (now - lastUpdateTime.current >= THROTTLE_INTERVAL) {
+          updateLocationCallback(
+            newLocation.latitude,
+            newLocation.longitude,
+            newLocation.accuracy
+          );
+          lastUpdateTime.current = now;
+        }
+      }
     };
 
     const errorHandler = (err) => {
@@ -70,7 +88,7 @@ const useGPSLocation = (isEnabled) => {
         navigator.geolocation.clearWatch(id);
       }
     };
-  }, [isEnabled]); // Re-run effect when isEnabled changes
+  }, [isEnabled, updateLocationCallback]); // Re-run effect when isEnabled or callback changes
 
   return { location, error };
 };

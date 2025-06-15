@@ -8,15 +8,22 @@ import {
     Paper,
     Button,
     CircularProgress,
+    TextField,
+    InputAdornment,
+    IconButton,
 } from "@mui/material";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
 
 import PageHeader from "../components/common/PageHeader";
 import EstimateCard from "../components/estimates/EstimateCard";
-import EstimateDetailsModal from "../components/estimates/EstimateDetailsModal"; // ADD THIS IMPORT
+import EstimateDetailsModal from "../components/estimates/EstimateDetailsModal";
 import { toast } from "sonner";
 import { AuthContext } from "../contexts/AuthContext";
+import { useEstimates } from "../contexts/EstimatesContext";
 import CreateEstimateForm from "../components/estimates/CreateEstimateForm";
-import { fetchEstimates } from "../services/api";
 
 const ESTIMATE_STATUS = {
     PENDING: "pending",
@@ -26,57 +33,46 @@ const ESTIMATE_STATUS = {
 
 const EstimatesPage = () => {
     const { user } = useContext(AuthContext);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState("active");
-    const [estimates, setEstimates] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [openForm, setOpenForm] = useState(false);
     const [editingEstimate, setEditingEstimate] = useState(null);
 
-    // ADD THESE MODAL STATES
+    // Modal states
     const [selectedEstimate, setSelectedEstimate] = useState(null);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
 
-    // Memoized function to load estimates
-    const loadEstimates = useCallback(async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const response = await fetchEstimates({
-                page: 1,
-                limit: 50,
-            });
-            setEstimates(response.data || []);
-        } catch (error) {
-            console.error("Error loading estimates:", error);
-            setError("Failed to load estimates. Please try again.");
-            toast.error("Failed to load estimates");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    // Use Estimates context with pagination
+    const {
+        estimates,
+        loading,
+        error,
+        pagination,
+        loadEstimatesWithPagination,
+        updateEstimateInState,
+    } = useEstimates();
 
-    // Initial load
+    // Debounce search term
     useEffect(() => {
-        loadEstimates();
-    }, [loadEstimates]);
+        const handler = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 500);
 
-    // Refetch when window gains focus (optional - good UX)
-    useEffect(() => {
-        const handleFocus = () => {
-            loadEstimates();
+        return () => {
+            clearTimeout(handler);
         };
+    }, [searchTerm]);
 
-        window.addEventListener("focus", handleFocus);
-        return () => window.removeEventListener("focus", handleFocus);
-    }, [loadEstimates]);
+    // Ensure at least 1 page if there are estimates
+    const totalPages = Math.max(
+        pagination.totalPages,
+        estimates.length > 0 ? 1 : 0
+    );
+    const pages = [...Array(totalPages).keys()];
 
-    const handleTabChange = (event, newValue) => {
-        setActiveTab(newValue);
-    };
-
-    const getStatusFilters = () => {
-        switch (activeTab) {
+    const getStatusFilters = (tab) => {
+        switch (tab) {
             case "active":
                 return [ESTIMATE_STATUS.PENDING];
             case "accepted":
@@ -88,20 +84,61 @@ const EstimatesPage = () => {
         }
     };
 
-    const filteredEstimates = estimates.filter((estimate) => {
-        if (activeTab === "reports") return true;
-        const statusFilters = getStatusFilters();
-        return statusFilters.includes(estimate.status);
-    });
+    // Load estimates when debounced search term or tab changes
+    useEffect(() => {
+        const statusFilter = getStatusFilters(activeTab);
+        console.log("Loading estimates with:", {
+            activeTab,
+            debouncedSearchTerm,
+            statusFilter,
+            status: statusFilter.length > 0 ? statusFilter[0] : null,
+        });
 
-    // UPDATE THIS FUNCTION TO OPEN THE MODAL
+        loadEstimatesWithPagination(
+            1,
+            statusFilter.length > 0 ? statusFilter[0] : null,
+            debouncedSearchTerm
+        );
+    }, [activeTab, debouncedSearchTerm]);
+
+    const handleTabChange = (event, newValue) => {
+        setActiveTab(newValue);
+        setSearchTerm(""); // This will trigger the debounce and eventually clear debouncedSearchTerm
+    };
+
+    // Handle search button click
+    const handleSearchClick = () => {
+        if (searchTerm.trim()) {
+            const statusFilter = getStatusFilters(activeTab);
+            loadEstimatesWithPagination(
+                1,
+                statusFilter.length > 0 ? statusFilter[0] : null,
+                searchTerm.trim()
+            );
+        }
+    };
+
+    // Handle clear search
+    const handleClearSearch = () => {
+        setSearchTerm("");
+        // This will trigger the debounce and reload estimates without search
+    };
+
+    // Handle Enter key press
+    const handleKeyPress = (event) => {
+        if (event.key === "Enter") {
+            handleSearchClick();
+        }
+    };
+
+    // Handle estimate view modal
     const handleViewEstimate = (estimate) => {
         console.log("View estimate:", estimate.id);
         setSelectedEstimate(estimate);
         setDetailsModalOpen(true);
     };
 
-    // ADD THIS FUNCTION TO CLOSE THE MODAL
+    // Close details modal
     const handleCloseDetailsModal = () => {
         setDetailsModalOpen(false);
         setSelectedEstimate(null);
@@ -117,7 +154,7 @@ const EstimatesPage = () => {
         setEditingEstimate(null);
     };
 
-    // Updated to refetch after form submission
+    // Updated to use context instead of refetching
     const handleFormSubmit = async (newEstimate) => {
         try {
             // Close the form first
@@ -130,37 +167,52 @@ const EstimatesPage = () => {
                     : "Estimate created successfully"
             );
 
-            // Refetch all estimates to ensure we have the latest data
-            await loadEstimates();
+            // Refresh the current tab with search term
+            const statusFilter = getStatusFilters(activeTab);
+            loadEstimatesWithPagination(
+                1,
+                statusFilter.length > 0 ? statusFilter[0] : null,
+                debouncedSearchTerm
+            );
         } catch (error) {
             console.error("Error after form submission:", error);
             toast.error("Failed to refresh estimates data");
         }
     };
 
-    // Updated to refetch after update
+    // Updated to use context for updates
     const handleUpdate = async (updatedEstimate) => {
         try {
-            // Optimistically update the UI first
-            setEstimates((prev) =>
-                prev.map((est) =>
-                    est.id === updatedEstimate.id ? updatedEstimate : est
-                )
-            );
-
-            // Then refetch to ensure data consistency
-            await loadEstimates();
+            // Use context to update estimate state (this will also update dashboard stats)
+            updateEstimateInState(updatedEstimate);
         } catch (error) {
             console.error("Error after update:", error);
-            // Revert optimistic update on error
-            await loadEstimates();
         }
     };
 
-    // Manual refresh function
-    const handleRefresh = () => {
-        loadEstimates();
-    };
+    // For pagination
+    const handlePageChange = useCallback(
+        (newPage) => {
+            if (newPage !== pagination.page) {
+                const statusFilter = getStatusFilters(activeTab);
+                loadEstimatesWithPagination(
+                    newPage,
+                    statusFilter.length > 0 ? statusFilter[0] : null,
+                    debouncedSearchTerm
+                );
+            }
+        },
+        [pagination.page, activeTab, debouncedSearchTerm]
+    );
+
+    const handleRetry = useCallback(() => {
+        const statusFilter = getStatusFilters(activeTab);
+        loadEstimatesWithPagination(
+            1,
+            statusFilter.length > 0 ? statusFilter[0] : null,
+            debouncedSearchTerm
+        );
+    }, [activeTab, debouncedSearchTerm]);
 
     return (
         <Box>
@@ -171,13 +223,154 @@ const EstimatesPage = () => {
                 onAction={() => handleOpenForm()}
             />
 
+            {/* Enhanced Search Section - Full Width Button */}
+            <Box sx={{ mb: 3, width: "100%" }}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "stretch",
+                        gap: 2,
+                        width: "100%", // Full width container
+                        // Stack on mobile, side by side on larger screens
+                        flexDirection: { xs: "column", sm: "row" },
+                    }}
+                >
+                    <TextField
+                        label="Search estimates"
+                        value={searchTerm}
+                        onChange={(e) => {
+                            console.log(
+                                "Search term changed to:",
+                                e.target.value
+                            );
+                            setSearchTerm(e.target.value);
+                        }}
+                        onKeyPress={handleKeyPress}
+                        fullWidth
+                        size="medium"
+                        sx={{
+                            flex: 1,
+                            "& .MuiOutlinedInput-root": {
+                                borderRadius: "8px",
+                                transition: "all 0.3s ease",
+                                height: "48px", // Reduced height
+                                fontSize: "0.95rem",
+                                "&:hover": {
+                                    boxShadow:
+                                        "0 2px 8px rgba(156, 39, 176, 0.15)",
+                                },
+                                "&.Mui-focused": {
+                                    boxShadow:
+                                        "0 4px 12px rgba(156, 39, 176, 0.25)",
+                                },
+                            },
+                            "& .MuiInputLabel-root": {
+                                fontSize: "0.95rem",
+                            },
+                        }}
+                        variant="outlined"
+                        placeholder="Enter lead name..."
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon
+                                        sx={{
+                                            color: "primary.main",
+                                            fontSize: "1.1rem",
+                                        }}
+                                    />
+                                </InputAdornment>
+                            ),
+                            endAdornment: searchTerm && (
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        onClick={handleClearSearch}
+                                        edge="end"
+                                        size="small"
+                                        sx={{
+                                            color: "text.secondary",
+                                            "&:hover": {
+                                                color: "error.main",
+                                                backgroundColor: "error.light",
+                                                opacity: 0.1,
+                                            },
+                                        }}
+                                    >
+                                        <ClearIcon fontSize="small" />
+                                    </IconButton>
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+
+                    {/* Full Width Search Button with White Text */}
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleSearchClick}
+                        disabled={!searchTerm.trim() || loading}
+                        sx={{
+                            height: "48px", // Match TextField height
+                            minWidth: { xs: "100%", sm: "200px" }, // Wider on desktop
+                            borderRadius: "8px",
+                            fontWeight: "600",
+                            fontSize: "0.9rem",
+                            textTransform: "none",
+                            color: "#ffffff", // Force white text
+                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                            boxShadow: (theme) =>
+                                `0 3px 12px ${theme.palette.primary.main}40`,
+                            "&:hover": {
+                                transform: "translateY(-1px)",
+                                boxShadow: (theme) =>
+                                    `0 5px 16px ${theme.palette.primary.main}50`,
+                                color: "#ffffff", // Keep white on hover
+                            },
+                            "&:active": {
+                                transform: "translateY(0px)",
+                                color: "#ffffff", // Keep white on active
+                            },
+                            "&:disabled": {
+                                transform: "none",
+                                boxShadow: "none",
+                                color: "rgba(255, 255, 255, 0.7)", // Semi-transparent white when disabled
+                            },
+                            // Subtle shine effect
+                            position: "relative",
+                            overflow: "hidden",
+                            "&::before": {
+                                content: '""',
+                                position: "absolute",
+                                top: 0,
+                                left: "-100%",
+                                width: "100%",
+                                height: "100%",
+                                background:
+                                    "linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)",
+                                transition: "left 0.6s",
+                            },
+                            "&:hover::before": {
+                                left: "100%",
+                            },
+                        }}
+                        startIcon={
+                            <SearchIcon
+                                sx={{ fontSize: "1rem", color: "#ffffff" }}
+                            />
+                        }
+                    >
+                        {loading ? "Searching" : "Search"}
+                    </Button>
+                </Box>
+            </Box>
+
             <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
                 <Tabs
                     value={activeTab}
                     onChange={handleTabChange}
                     aria-label="estimate tabs"
                 >
-                    <Tab label="Active Estimates" value="active" />
+                    <Tab label="Pending Estimates" value="active" />
                     <Tab label="Accepted" value="accepted" />
                     <Tab label="Rejected" value="rejected" />
                     <Tab label="Reports" value="reports" />
@@ -191,7 +384,6 @@ const EstimatesPage = () => {
                 estimate={editingEstimate}
             />
 
-            {/* ADD THIS MODAL COMPONENT */}
             <EstimateDetailsModal
                 open={detailsModalOpen}
                 onClose={handleCloseDetailsModal}
@@ -216,33 +408,15 @@ const EstimatesPage = () => {
                         variant="outlined"
                         color="primary"
                         sx={{ mt: 2 }}
-                        onClick={handleRefresh}
+                        onClick={handleRetry}
                     >
                         Retry
                     </Button>
                 </Box>
             ) : activeTab !== "reports" ? (
                 <>
-                    {/* Add refresh button for better UX */}
-                    <Box
-                        sx={{
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            mb: 2,
-                        }}
-                    >
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={handleRefresh}
-                            disabled={loading}
-                        >
-                            Refresh
-                        </Button>
-                    </Box>
-
                     <Grid container spacing={3}>
-                        {filteredEstimates.length === 0 ? (
+                        {estimates.length === 0 ? (
                             <Grid item xs={12}>
                                 <Box sx={{ textAlign: "center", py: 4 }}>
                                     <Typography variant="body1">
@@ -254,10 +428,19 @@ const EstimatesPage = () => {
                                             : "rejected"}{" "}
                                         estimates found.
                                     </Typography>
+                                    {debouncedSearchTerm && (
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{ mt: 1 }}
+                                        >
+                                            Search term: "{debouncedSearchTerm}"
+                                        </Typography>
+                                    )}
                                 </Box>
                             </Grid>
                         ) : (
-                            filteredEstimates.map((estimate) => (
+                            estimates.map((estimate) => (
                                 <Grid item xs={12} key={estimate.id}>
                                     <EstimateCard
                                         estimate={estimate}
@@ -424,6 +607,92 @@ const EstimatesPage = () => {
                             <Typography>Conversion Rate Chart</Typography>
                         </Box>
                     </Paper>
+                </Box>
+            )}
+
+            {/* Pagination controller */}
+            {activeTab !== "reports" && estimates.length > 0 && (
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        mt: 4,
+                        gap: 1,
+                    }}
+                >
+                    <Button
+                        variant="outlined"
+                        onClick={() => handlePageChange(pagination.page - 1)}
+                        disabled={pagination.page === 1}
+                        sx={{
+                            minWidth: "40px",
+                            height: "40px",
+                            borderRadius: "8px",
+                            color: "#666",
+                            borderColor: "#e0e0e0",
+                            "&:hover": {
+                                borderColor: "#9c27b0",
+                                backgroundColor: "#f3e5f5",
+                            },
+                        }}
+                    >
+                        <ChevronLeftIcon />
+                    </Button>
+
+                    {pages.map((page) => (
+                        <Button
+                            key={page}
+                            variant={
+                                pagination.page === page + 1
+                                    ? "contained"
+                                    : "outlined"
+                            }
+                            onClick={() => handlePageChange(page + 1)}
+                            sx={{
+                                minWidth: "40px",
+                                height: "40px",
+                                borderRadius: "8px",
+                                ...(pagination.page === page + 1
+                                    ? {
+                                          backgroundColor: "#9c27b0",
+                                          color: "#fff",
+                                          "&:hover": {
+                                              backgroundColor: "#7b1fa2",
+                                          },
+                                      }
+                                    : {
+                                          color: "#666",
+                                          borderColor: "#e0e0e0",
+                                          "&:hover": {
+                                              borderColor: "#9c27b0",
+                                              backgroundColor: "#f3e5f5",
+                                          },
+                                      }),
+                            }}
+                        >
+                            {page + 1}
+                        </Button>
+                    ))}
+
+                    <Button
+                        variant="outlined"
+                        onClick={() => handlePageChange(pagination.page + 1)}
+                        disabled={pagination.page >= totalPages}
+                        sx={{
+                            minWidth: "40px",
+                            height: "40px",
+                            borderRadius: "8px",
+                            color: "#666",
+                            borderColor: "#e0e0e0",
+                            "&:hover": {
+                                borderColor: "#9c27b0",
+                                backgroundColor: "#f3e5f5",
+                            },
+                        }}
+                    >
+                        <ChevronRightIcon />
+                    </Button>
                 </Box>
             )}
         </Box>
