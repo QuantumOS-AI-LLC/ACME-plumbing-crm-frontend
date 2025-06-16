@@ -274,8 +274,9 @@ const ContactDetailsPage = () => {
     };
 
     const handleJoinVideoRoom = () => {
-        if (videoRoomData?.joinUrl) {
-            joinRoom(videoRoomData.joinUrl);
+        if (videoRoomData?.id) {
+            // Open video room in new tab
+            window.open(`/video-room/${videoRoomData.id}`, '_blank', 'noopener,noreferrer');
         }
     };
 
@@ -890,7 +891,7 @@ const ContactDetailsPage = () => {
                                             variant="contained"
                                             color="primary"
                                             size="small"
-                                            onClick={() => joinRoom(room.joinUrl)}
+                                            onClick={() => window.open(`/video-room/${room.id}`, '_blank', 'noopener,noreferrer')}
                                             startIcon={<VideoCallIcon />}
                                             sx={{ 
                                                 px: { xs: 2, sm: 2 }, 

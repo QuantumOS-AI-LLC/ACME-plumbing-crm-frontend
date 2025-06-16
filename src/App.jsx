@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import { SocketProvider } from "./contexts/SocketContext";
+import { TelnyxProvider } from "./contexts/TelnyxContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { NotificationSettingsProvider } from "./contexts/NotificationSettingsContext";
 import { JobsProvider } from "./contexts/JobsContext";
@@ -31,6 +32,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import NotificationSettingsPage from "./pages/NotificationSettingsPage";
 import MyServicesPage from "./pages/MyServicesPage";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
+import VideoRoomPage from "./pages/VideoRoomPage";
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -64,6 +66,16 @@ const App = () => {
                                                 <Route
                                                     path="/login"
                                                     element={<LoginPage />}
+                                                />
+
+                                                {/* Video Room - Standalone route (no layout) */}
+                                                <Route
+                                                    path="/video-room/:roomId"
+                                                    element={
+                                                        <ProtectedRoute>
+                                                            <VideoRoomPage />
+                                                        </ProtectedRoute>
+                                                    }
                                                 />
 
                                                 {/* Google Calendar OAuth Callback - Protected route */}

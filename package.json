@@ -17,6 +17,8 @@
     "@mui/material": "^5.14.3",
     "@mui/x-date-pickers": "^8.4.0",
     "@react-google-maps/api": "^2.20.6",
+    "@telnyx/react-client": "^1.0.2",
+    "@telnyx/webrtc": "^2.22.12",
     "axios": "^1.4.0",
     "date-fns": "^2.30.0",
     "jspdf": "^3.0.1",
