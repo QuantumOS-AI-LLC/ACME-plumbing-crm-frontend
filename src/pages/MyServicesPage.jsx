@@ -129,7 +129,6 @@ const MyServicesPage = () => {
     };
 
     const handleServiceCreated = (newService) => {
-        toast.success("Service created successfully!");
         loadServices(); // Reload services to get updated list
     };
 
