@@ -275,8 +275,23 @@ const ContactDetailsPage = () => {
 
     const handleJoinVideoRoom = () => {
         if (videoRoomData?.id) {
-            // Open video room in new tab
-            window.open(`/video-room/${videoRoomData.id}`, '_blank', 'noopener,noreferrer');
+            // Get current user data for internal users
+            const userProfile = JSON.parse(
+                localStorage.getItem('userProfile') ||
+                sessionStorage.getItem('userProfile') ||
+                '{}'
+            );
+            
+            // Create URL with user information (internal user)
+            const params = new URLSearchParams({
+                userId: userProfile.id || userProfile.userId || 'unknown',
+                name: userProfile.name || 'CRM User',
+                contactId: id,
+                contactName: contact.name
+            });
+            
+            // Open video room in new tab with user info
+            window.open(`/video-room/${videoRoomData.id}?${params.toString()}`, '_blank', 'noopener,noreferrer');
         }
     };
 
@@ -365,24 +380,38 @@ const ContactDetailsPage = () => {
         }));
     };
 
-    const handleShareVideoRoomLink = async (joinUrlToShare) => {
-        const urlToShare = joinUrlToShare || videoRoomData?.joinUrl;
-        if (!urlToShare) {
-            toast.error('No video room link available to share.', { duration: 3000 });
+    const handleShareVideoRoomLink = async (roomToShare) => {
+        // Determine which room to share (could be videoRoomData or an existing room)
+        const room = roomToShare || videoRoomData;
+        if (!room?.id) {
+            toast.error('No video room available to share.', { duration: 3000 });
             return;
         }
         
         try {
-            // Get current user data
+            // Create public shareable URL for external users (contacts only - no userId)
+            const params = new URLSearchParams({
+                contactId: id,
+                name: contact.name // External contact will join with their own name
+            });
+            
+            const shareableUrl = `${window.location.origin}/video-room/${room.id}?${params.toString()}`;
+            
+            // Copy to clipboard
+            await navigator.clipboard.writeText(shareableUrl);
+            
+            // Get current user data for logging
             const userProfile = JSON.parse(
                 localStorage.getItem('userProfile') ||
                 sessionStorage.getItem('userProfile') ||
                 '{}'
             );
             
-            await shareRoomLink(urlToShare, contact.name, contact.id, userProfile.id);
-            console.log('Video room link shared successfully');
-            toast.success('Video room link shared successfully!', { duration: 3000 });
+            // Log the share action (optional - for analytics)
+            await shareRoomLink(shareableUrl, contact.name, contact.id, userProfile.id);
+            
+            console.log('Video room link shared successfully:', shareableUrl);
+            toast.success('Video room link copied to clipboard!', { duration: 3000 });
         } catch (error) {
             console.error('Failed to share video room link:', error);
             toast.error('Failed to share video room link. Please try again.', { duration: 3000 });
@@ -695,7 +724,7 @@ const ContactDetailsPage = () => {
                                 variant="contained"
                                 color="info"
                                 size="small"
-                                onClick={() => handleShareVideoRoomLink(videoRoomData.joinUrl)}
+                                onClick={() => handleShareVideoRoomLink(videoRoomData)}
                                 disabled={videoRoomLoading}
                                 sx={{
                                     fontWeight: 500,
@@ -891,7 +920,24 @@ const ContactDetailsPage = () => {
                                             variant="contained"
                                             color="primary"
                                             size="small"
-                                            onClick={() => window.open(`/video-room/${room.id}`, '_blank', 'noopener,noreferrer')}
+                                            onClick={() => {
+                                                // Get current user data for internal users
+                                                const userProfile = JSON.parse(
+                                                    localStorage.getItem('userProfile') ||
+                                                    sessionStorage.getItem('userProfile') ||
+                                                    '{}'
+                                                );
+                                                
+                                                // Create URL with user information (internal user)
+                                                const params = new URLSearchParams({
+                                                    userId: userProfile.id || userProfile.userId || 'unknown',
+                                                    name: userProfile.name || 'CRM User',
+                                                    contactId: id,
+                                                    contactName: contact.name
+                                                });
+                                                
+                                                window.open(`/video-room/${room.id}?${params.toString()}`, '_blank', 'noopener,noreferrer');
+                                            }}
                                             startIcon={<VideoCallIcon />}
                                             sx={{ 
                                                 px: { xs: 2, sm: 2 }, 
@@ -909,7 +955,7 @@ const ContactDetailsPage = () => {
                                             variant="outlined"
                                             color="info"
                                             size="small"
-                                            onClick={() => handleShareVideoRoomLink(room.joinUrl)}
+                                            onClick={() => handleShareVideoRoomLink(room)}
                                             disabled={videoRoomLoading}
                                             sx={{ 
                                                 px: { xs: 2, sm: 1.5 }, 

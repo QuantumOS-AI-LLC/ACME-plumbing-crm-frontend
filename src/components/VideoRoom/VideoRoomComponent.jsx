@@ -10,12 +10,11 @@ import {
     Backdrop
 } from '@mui/material';
 import { useTelnyx } from '../../contexts/TelnyxContext';
-import { useAuth } from '../../hooks/useAuth';
 import VideoStream from './VideoStream';
 import VideoControls from './VideoControls';
 import api from '../../services/api';
 
-const VideoRoomComponent = ({ room, onLeave }) => {
+const VideoRoomComponent = ({ room, userInfo, onLeave }) => {
     const { 
         initializeClient, 
         joinVideoRoom,
@@ -32,7 +31,6 @@ const VideoRoomComponent = ({ room, onLeave }) => {
         disconnect
     } = useTelnyx();
     
-    const { user } = useAuth();
     
     const [error, setError] = useState(null);
     const [isInitializing, setIsInitializing] = useState(true);
@@ -56,7 +54,7 @@ const VideoRoomComponent = ({ room, onLeave }) => {
 
             console.log('🎥 Initializing video room...', room);
             
-            // Generate fresh token for this room
+            // Generate fresh token for this room (no auth required)
             const tokenResponse = await api.get(`/rooms/${room.id}/token`);
             
             console.log('🔍 Token response:', tokenResponse.data);
@@ -98,7 +96,7 @@ const VideoRoomComponent = ({ room, onLeave }) => {
             console.log('🚪 Joining video room...');
             
             // Join video room through Telnyx context
-            await joinVideoRoom(room.telnyxRoomId, user?.name || 'User');
+            await joinVideoRoom(room.telnyxRoomId, userInfo?.name || 'User');
             
             console.log('✅ Successfully joined video room');
             
@@ -230,7 +228,7 @@ const VideoRoomComponent = ({ room, onLeave }) => {
     if (localStream) {
         allStreams.set('local', {
             stream: localStream,
-            participantName: user?.name || 'You',
+            participantName: userInfo?.name || 'You',
             isLocal: true,
             isMuted,
             isVideoOff

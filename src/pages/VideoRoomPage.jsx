@@ -1,38 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, CircularProgress, Alert, Button, Typography, Paper } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import VideoRoomComponent from '../components/VideoRoom/VideoRoomComponent';
 import { TelnyxProvider } from '../contexts/TelnyxContext';
 import { SocketProvider } from '../contexts/SocketContext';
-import { AuthProvider } from '../contexts/AuthContext';
-import { useAuth } from '../hooks/useAuth';
 import api from '../services/api';
 import theme from '../theme';
 
-// Inner component that uses the auth context
+// Inner component for public video room access
 const VideoRoomPageInner = () => {
     const { roomId } = useParams();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { isLoggedIn, loading: authLoading } = useAuth();
     const [room, setRoom] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [userInfo, setUserInfo] = useState(null);
+
+    // Extract user information from URL parameters
+    useEffect(() => {
+        const userId = searchParams.get('userId');
+        const contactId = searchParams.get('contactId');
+        const name = searchParams.get('name');
+        const contactName = searchParams.get('contactName');
+        
+        // Determine if this is an internal user or external contact
+        const isInternalUser = !!userId;
+        const isExternalContact = !!contactId && !userId;
+        
+        setUserInfo({
+            userId: userId || null,
+            contactId: contactId || null,
+            name: name || 'Guest User',
+            contactName: contactName || null,
+            isInternalUser,
+            isExternalContact,
+            userType: isInternalUser ? 'user' : isExternalContact ? 'contact' : 'guest'
+        });
+        
+        console.log('📋 User info from URL:', { 
+            userId, 
+            contactId, 
+            name, 
+            contactName, 
+            userType: isInternalUser ? 'user' : isExternalContact ? 'contact' : 'guest'
+        });
+    }, [searchParams]);
 
     useEffect(() => {
-        if (!authLoading) {
-            if (!isLoggedIn) {
-                // Redirect to login if not authenticated
-                window.location.href = '/login';
-                return;
-            }
-            
-            if (roomId) {
-                loadRoom();
-            }
+        if (roomId) {
+            loadRoom();
         }
-    }, [roomId, isLoggedIn, authLoading]);
+    }, [roomId]);
 
     const loadRoom = async () => {
         try {
@@ -41,7 +62,7 @@ const VideoRoomPageInner = () => {
             
             console.log('📚 Loading room details for ID:', roomId);
             
-            // Get room details from the system database
+            // Get room details from the system database using room ID (no JWT required)
             const roomResponse = await api.get(`/rooms/${roomId}`);
             
             console.log('🔍 Raw room response:', roomResponse.data);
@@ -51,7 +72,7 @@ const VideoRoomPageInner = () => {
             const roomData = roomResponse.data?.data?.room || roomResponse.data?.data;
             
             if (!isSuccess || !roomData) {
-                throw new Error('Room not found or you don\'t have permission to access it');
+                throw new Error('Room not found or is no longer available');
             }
             console.log('✅ Room loaded:', roomData);
             
@@ -62,17 +83,11 @@ const VideoRoomPageInner = () => {
             
             let errorMessage = 'Failed to load room';
             if (err.response?.status === 404) {
-                errorMessage = 'Room not found. It may have been deleted or you don\'t have permission to access it.';
+                errorMessage = 'Room not found. It may have been deleted or the link is invalid.';
             } else if (err.response?.status === 403) {
-                errorMessage = 'You don\'t have permission to access this room.';
-            } else if (err.response?.status === 401) {
-                errorMessage = 'Please log in to access this room.';
-                // Redirect to login
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 2000);
+                errorMessage = 'This room is no longer accessible.';
             } else {
-                errorMessage = err.message || 'An unexpected error occurred';
+                errorMessage = err.message || 'An unexpected error occurred while loading the room';
             }
             
             setError(errorMessage);
@@ -86,34 +101,11 @@ const VideoRoomPageInner = () => {
         window.close();
         
         // Fallback: if window.close() doesn't work (some browsers block it),
-        // redirect to the main app
+        // show a message or redirect to a thank you page
         setTimeout(() => {
-            window.location.href = '/contacts';
+            alert('You can now close this window or tab.');
         }, 100);
     };
-
-    // Show loading while checking authentication
-    if (authLoading) {
-        return (
-            <ThemeProvider theme={theme}>
-                <CssBaseline />
-                <Box 
-                    display="flex" 
-                    justifyContent="center" 
-                    alignItems="center" 
-                    height="100vh"
-                    flexDirection="column"
-                    gap={2}
-                    sx={{ backgroundColor: '#1a1a1a' }}
-                >
-                    <CircularProgress size={60} sx={{ color: 'primary.main' }} />
-                    <Typography variant="h6" sx={{ color: 'white' }}>
-                        Checking authentication...
-                    </Typography>
-                </Box>
-            </ThemeProvider>
-        );
-    }
 
     // Show loading while fetching room data
     if (loading) {
@@ -131,8 +123,13 @@ const VideoRoomPageInner = () => {
                 >
                     <CircularProgress size={60} sx={{ color: 'primary.main' }} />
                     <Typography variant="h6" sx={{ color: 'white' }}>
-                        Loading room...
+                        Loading video room...
                     </Typography>
+                    {userInfo?.name && (
+                        <Typography variant="body2" sx={{ color: 'grey.400' }}>
+                            Welcome, {userInfo.name}
+                        </Typography>
+                    )}
                 </Box>
             </ThemeProvider>
         );
@@ -160,6 +157,9 @@ const VideoRoomPageInner = () => {
                         >
                             {error}
                         </Alert>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                            Please check the link or contact the person who shared it with you.
+                        </Typography>
                         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                             <Button 
                                 variant="outlined" 
@@ -169,9 +169,9 @@ const VideoRoomPageInner = () => {
                             </Button>
                             <Button 
                                 variant="contained" 
-                                onClick={() => window.location.href = '/contacts'}
+                                onClick={() => window.location.reload()}
                             >
-                                Go to Contacts
+                                Try Again
                             </Button>
                         </Box>
                     </Paper>
@@ -200,8 +200,11 @@ const VideoRoomPageInner = () => {
                             severity="warning"
                             sx={{ mb: 3 }}
                         >
-                            Room not found or you don't have permission to access it.
+                            Video room not found or is no longer available.
                         </Alert>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                            The room may have been deleted or the link may be invalid.
+                        </Typography>
                         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                             <Button 
                                 variant="outlined" 
@@ -211,9 +214,9 @@ const VideoRoomPageInner = () => {
                             </Button>
                             <Button 
                                 variant="contained" 
-                                onClick={() => window.location.href = '/contacts'}
+                                onClick={() => window.location.reload()}
                             >
-                                Go to Contacts
+                                Try Again
                             </Button>
                         </Box>
                     </Paper>
@@ -228,6 +231,7 @@ const VideoRoomPageInner = () => {
             <CssBaseline />
             <VideoRoomComponent 
                 room={room} 
+                userInfo={userInfo}
                 onLeave={handleLeaveRoom}
             />
         </ThemeProvider>
@@ -239,13 +243,11 @@ const VideoRoomPage = () => {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
-            <AuthProvider>
-                <SocketProvider>
-                    <TelnyxProvider>
-                        <VideoRoomPageInner />
-                    </TelnyxProvider>
-                </SocketProvider>
-            </AuthProvider>
+            <SocketProvider>
+                <TelnyxProvider>
+                    <VideoRoomPageInner />
+                </TelnyxProvider>
+            </SocketProvider>
         </ThemeProvider>
     );
 };

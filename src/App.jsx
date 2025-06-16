@@ -68,15 +68,11 @@ const App = () => {
                                                     element={<LoginPage />}
                                                 />
 
-                                                {/* Video Room - Standalone route (no layout) */}
-                                                <Route
-                                                    path="/video-room/:roomId"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <VideoRoomPage />
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
+                                {/* Video Room - Public route (no authentication required) */}
+                                <Route
+                                    path="/video-room/:roomId"
+                                    element={<VideoRoomPage />}
+                                />
 
                                                 {/* Google Calendar OAuth Callback - Protected route */}
                                                 <Route
