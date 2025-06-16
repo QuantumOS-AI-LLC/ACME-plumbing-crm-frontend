@@ -14,7 +14,7 @@ export const useNotificationWebSocket = () => {
       ws.current = new WebSocket(wsUrl);
       
       ws.current.onopen = () => {
-        console.log('WebSocket connection established');
+        // console.log('WebSocket connection established');
       };
       
       ws.current.onmessage = (event) => {
@@ -26,7 +26,7 @@ export const useNotificationWebSocket = () => {
             addNotification(data.data);
             
             // Show toast notification (could be implemented with a library like react-toastify)
-            console.log(`New notification: ${data.data.title} - ${data.data.message}`);
+            // console.log(`New notification: ${data.data.title} - ${data.data.message}`);
           }
         } catch (error) {
           console.error('Error processing WebSocket message:', error);
@@ -38,7 +38,7 @@ export const useNotificationWebSocket = () => {
       };
       
       ws.current.onclose = () => {
-        console.log('WebSocket connection closed');
+        // console.log('WebSocket connection closed');
         // Attempt to reconnect after a delay
         setTimeout(connectWebSocket, 5000);
       };

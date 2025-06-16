@@ -87,12 +87,12 @@ const EstimatesPage = () => {
     // Load estimates when debounced search term or tab changes
     useEffect(() => {
         const statusFilter = getStatusFilters(activeTab);
-        console.log("Loading estimates with:", {
+        /* console.log("Loading estimates with:", {
             activeTab,
             debouncedSearchTerm,
             statusFilter,
             status: statusFilter.length > 0 ? statusFilter[0] : null,
-        });
+        }); */
 
         loadEstimatesWithPagination(
             1,
@@ -133,7 +133,7 @@ const EstimatesPage = () => {
 
     // Handle estimate view modal
     const handleViewEstimate = (estimate) => {
-        console.log("View estimate:", estimate.id);
+        /* console.log("View estimate:", estimate.id); */
         setSelectedEstimate(estimate);
         setDetailsModalOpen(true);
     };
@@ -239,10 +239,10 @@ const EstimatesPage = () => {
                         label="Search estimates"
                         value={searchTerm}
                         onChange={(e) => {
-                            console.log(
+                            /* console.log(
                                 "Search term changed to:",
                                 e.target.value
-                            );
+                            ); */
                             setSearchTerm(e.target.value);
                         }}
                         onKeyPress={handleKeyPress}

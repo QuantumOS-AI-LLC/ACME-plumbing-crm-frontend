@@ -68,7 +68,7 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
     const [loading, setLoading] = useState(false);
     const { addNotification } = useNotifications(); // Add this line
 
-    console.log("EstimateCard estimate:", estimate);
+    // console.log("EstimateCard estimate:", estimate);
 
     const transformedEstimate = {
         ...estimate,
@@ -102,8 +102,8 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
 
     const handleViewClick = (e) => {
         e.stopPropagation();
-        console.log("View button clicked!", estimate);
-        console.log("onViewClick prop:", onViewClick);
+        // console.log("View button clicked!", estimate);
+        // console.log("onViewClick prop:", onViewClick);
 
         if (onViewClick) {
             // Pass the original estimate object so the details modal has access to all fields

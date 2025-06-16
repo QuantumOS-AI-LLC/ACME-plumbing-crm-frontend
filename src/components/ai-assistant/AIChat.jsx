@@ -74,11 +74,9 @@ const AIChat = ({
                 // Use unsigned upload without preset for raw files
                 formData.append("upload_preset", "ml_default");
                 formData.append("resource_type", "raw");
-                console.log(
-                    "Using raw resource type for:",
-                    file.name,
-                    file.type
-                );
+                // console.log(
+                    // "Using raw resource type for:", file.name, file.type
+                // );
 
                 // Alternative: Try without preset if the above fails
                 // Just keep the file and resource_type
@@ -109,7 +107,7 @@ const AIChat = ({
                 }
 
                 const data = await response.json();
-                console.log("Upload successful:", data);
+                // console.log("Upload successful:", data);
 
                 let attachmentType;
                 if (file.type.startsWith("image")) {
@@ -178,7 +176,7 @@ const AIChat = ({
     };
 
     const handleFileDownload = async (url, filename) => {
-        console.log("Downloading file:", url, filename);
+        // console.log("Downloading file:", url, filename);
 
         try {
             let downloadUrl = url;
@@ -193,12 +191,9 @@ const AIChat = ({
                     part.startsWith("v")
                 );
 
-                console.log(
-                    "File:",
-                    fileWithExtension,
-                    "Version:",
-                    versionPart
-                );
+                // console.log(
+                //     // "File:", fileWithExtension, "Version:", versionPart
+                // );
 
                 // For PDFs uploaded to /image/upload/, try different approaches
                 const testUrls = [
@@ -214,13 +209,13 @@ const AIChat = ({
 
                 for (let testUrl of testUrls) {
                     try {
-                        console.log("Trying URL:", testUrl);
+                        // console.log("Trying URL:", testUrl);
                         const response = await fetch(testUrl, {
                             method: "HEAD", // Just check if it exists
                         });
 
                         if (response.ok) {
-                            console.log("Success with URL:", testUrl);
+                            // console.log("Success with URL:", testUrl);
 
                             // Now download with this working URL
                             const downloadResponse = await fetch(testUrl);
@@ -242,11 +237,9 @@ const AIChat = ({
                             }
                         }
                     } catch (testError) {
-                        console.log(
-                            "Failed with URL:",
-                            testUrl,
-                            testError.message
-                        );
+                        // console.log(
+                        //     // "Failed with URL:", testUrl, testError.message
+                        // );
                         continue; // Try next URL
                     }
                 }
@@ -262,7 +255,7 @@ const AIChat = ({
             // Last resort: try to open in new tab
             try {
                 window.open(url, "_blank");
-                console.log("Opened in new tab as fallback");
+                // console.log("Opened in new tab as fallback");
             } catch (finalError) {
                 console.error("Even fallback failed:", finalError);
                 alert(

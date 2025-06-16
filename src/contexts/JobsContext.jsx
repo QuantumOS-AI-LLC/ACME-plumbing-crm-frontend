@@ -37,7 +37,7 @@ export const JobsProvider = ({ children }) => {
                 ...params,
             };
 
-            console.log("API call with params:", requestParams); // Debug log
+            // console.log("API call with params:", requestParams); // Debug log
 
             const response = await fetchJobs(requestParams);
 
@@ -98,12 +98,12 @@ export const JobsProvider = ({ children }) => {
             params.search = search.trim(); // Changed from 'name' to 'search' to match backend
         }
 
-        console.log("loadJobsWithPagination called with:", {
-            page,
-            status,
-            search,
-            params,
-        }); // Debug log
+        // console.log("loadJobsWithPagination called with:", {
+        //     page,
+        //     status,
+        //     search,
+        //     params,
+        // }); // Debug log
 
         await loadJobs(params);
     };

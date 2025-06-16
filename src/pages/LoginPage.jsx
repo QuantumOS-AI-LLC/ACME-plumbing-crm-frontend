@@ -110,7 +110,7 @@ const LoginPage = () => {
         // Load dashboard stats after successful loginAdd commentMore actions
         try {
           await loadDashboardStats();
-          console.log("Dashboard stats loaded after login");
+          /* console.log("Dashboard stats loaded after login"); */
         } catch (statsError) {
           console.error("Failed to load dashboard stats:", statsError);
         }

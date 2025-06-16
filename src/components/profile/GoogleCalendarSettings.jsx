@@ -37,7 +37,7 @@ const GoogleCalendarSettings = () => {
     
     if (!success) {
       // Error is already handled in the hook
-      console.log('Disconnect failed');
+      // console.log('Disconnect failed');
     }
   };
 

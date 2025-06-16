@@ -176,7 +176,7 @@ const CalendarEventModal = ({
 
             const result = await onSubmit(submitData);
 
-            console.log("Event submitted successfully:", result);
+            // console.log("Event submitted successfully:", result);
 
             handleClose();
         } catch (error) {

@@ -44,7 +44,7 @@ const SetTimeZonePage = () => {
       try {
         setLoading(true);
         const response = await fetchUserProfile();
-        console.log("fetch time", response);
+        /* console.log("fetch time", response); */
         if (response?.data?.user?.timezone) {
           setSelectedTimeZone(response.data.user.timezone);
         }

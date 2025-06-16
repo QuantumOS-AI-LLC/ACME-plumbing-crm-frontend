@@ -14,7 +14,7 @@ export const useAIChat = (contactId, estimateId = null, initialConversationId = 
 
     // Listen for AI messages
     socket.on('ai_message', (messageData) => {
-      console.log('AI message received:', messageData);
+      /* console.log('AI message received:', messageData); */
       
       // Only add if it's for the current conversation
       if (messageData.contactId === contactId && 
@@ -25,7 +25,7 @@ export const useAIChat = (contactId, estimateId = null, initialConversationId = 
 
     // Listen for message saved confirmation
     socket.on('message_saved', (data) => {
-      console.log('Message saved:', data);
+      /* console.log('Message saved:', data); */
       setIsSending(false);
       
       // Add user message to conversation
@@ -74,7 +74,7 @@ export const useAIChat = (contactId, estimateId = null, initialConversationId = 
             // historyResponse.data.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
             setMessages(historyResponse.data);
           } else {
-            console.log('No message history found or invalid format for contact:', contactId, historyResponse);
+            /* console.log('No message history found or invalid format for contact:', contactId, historyResponse); */
             setMessages([]);
           }
        } catch (error) {

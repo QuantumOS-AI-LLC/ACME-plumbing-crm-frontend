@@ -48,9 +48,9 @@ export const NotificationSettingsProvider = ({ children }) => {
     // Load notification settings
     const loadSettings = useCallback(async () => {
         if (!isAuthenticated()) {
-            console.log(
-                "User not authenticated, skipping notification settings fetch"
-            );
+            // console.log(
+            //     "User not authenticated, skipping notification settings fetch"
+            // );
             return;
         }
 
@@ -91,9 +91,9 @@ export const NotificationSettingsProvider = ({ children }) => {
     const updateSettings = useCallback(
         async (newSettings) => {
             if (!isAuthenticated()) {
-                console.log(
-                    "User not authenticated, cannot update notification settings"
-                );
+                // console.log(
+                //     "User not authenticated, cannot update notification settings"
+                // );
                 return false;
             }
 

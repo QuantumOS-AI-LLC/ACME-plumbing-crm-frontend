@@ -58,15 +58,15 @@ export const EventsProvider = ({ children }) => {
 
   // Update a specific event in the state
   const updateEventInState = (updatedEvent) => {
-    console.log("Searching for event with id:", updatedEvent.id);
-    console.log("Events in state:", events);
+    // console.log("Searching for event with id:", updatedEvent.id);
+    // console.log("Events in state:", events);
     const oldEvent = events.find((event) => event.id === updatedEvent.id);
-    console.log("EventsContext - updateEventInState called:", {
-      oldEvent,
-      updatedEvent,
-      oldStartTime: oldEvent?.startTime,
-      newStartTime: updatedEvent.startTime,
-    });
+    // console.log("EventsContext - updateEventInState called:", {
+    //   oldEvent,
+    //   updatedEvent,
+    //   oldStartTime: oldEvent?.startTime,
+    //   newStartTime: updatedEvent.startTime,
+    // });
     setEvents((prevEvents) =>
       prevEvents.map((event) =>
         event.id === updatedEvent.id ? { ...event, ...updatedEvent } : event
@@ -78,10 +78,10 @@ export const EventsProvider = ({ children }) => {
 
   // Add a new event to the state
   const addEventToState = (newEvent) => {
-    console.log("EventsContext - addEventToState called:", {
-      newEvent,
-      startTime: newEvent.startTime,
-    });
+    // console.log("EventsContext - addEventToState called:", {
+    //   newEvent,
+    //   startTime: newEvent.startTime,
+    // });
     setEvents((prevEvents) => [newEvent, ...prevEvents]);
     // Update dashboard stats directly without API call
     updateEventsCount("add", null, newEvent.startTime);
@@ -90,11 +90,11 @@ export const EventsProvider = ({ children }) => {
   // Remove an event from the state
   const removeEventFromState = (eventId) => {
     const eventToRemove = events.find((event) => event.id === eventId);
-    console.log("EventsContext - removeEventFromState called:", {
-      eventId,
-      eventToRemove,
-      startTime: eventToRemove?.startTime,
-    });
+    // console.log("EventsContext - removeEventFromState called:", {
+    //   eventId,
+    //   eventToRemove,
+    //   startTime: eventToRemove?.startTime,
+    // });
     setEvents((prevEvents) =>
       prevEvents.filter((event) => event.id !== eventId)
     );

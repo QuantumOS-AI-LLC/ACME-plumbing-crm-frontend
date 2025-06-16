@@ -42,7 +42,7 @@ const CompanySettingsPage = () => {
             try {
                 setLoading(true);
                 const response = await fetchCompanyProfile();
-                console.log("Company Profile Response:", response);
+                // console.log("Company Profile Response:", response);
                 if (response && response.success && response.data) {
                     const fetchedData = {
                         name: response.data.name || "",
@@ -97,7 +97,7 @@ const CompanySettingsPage = () => {
                 return;
             }
 
-            console.log("Sending changed data:", changedData);
+            // console.log("Sending changed data:", changedData);
             await updateCompanyProfile(changedData); // Send only changed data
             setSuccess(true);
             setInitialFormData(formData); // Update initialFormData after successful save

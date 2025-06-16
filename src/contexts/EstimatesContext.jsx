@@ -39,7 +39,7 @@ export const EstimatesProvider = ({ children }) => {
                 ...params,
             };
 
-            console.log("Estimates API call with params:", requestParams); // Debug log
+            // console.log("Estimates API call with params:", requestParams); // Debug log
 
             const response = await fetchEstimates(requestParams);
 
@@ -100,12 +100,12 @@ export const EstimatesProvider = ({ children }) => {
             params.search = search.trim(); // Backend expects 'search' parameter for leadName search
         }
 
-        console.log("loadEstimatesWithPagination called with:", {
-            page,
-            status,
-            search,
-            params,
-        }); // Debug log
+        // console.log("loadEstimatesWithPagination called with:", {
+        //     page,
+        //     status,
+        //     search,
+        //     params,
+        // }); // Debug log
 
         await loadEstimates(params);
     };

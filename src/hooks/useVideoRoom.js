@@ -316,7 +316,7 @@ export const useVideoRoom = () => {
                 description: 'Join link has been sent via webhook'
             });
 
-            console.log('Video room link shared successfully');
+            /* console.log('Video room link shared successfully'); */
 
         } catch (error) {
             console.error('Error sharing video room link:', error);

@@ -39,7 +39,7 @@ const AddJobModal = ({ open, onClose, onJobCreated }) => {
         createdBy: user?.id || "", // This matches the schema field name
     });
     const [clients, setClients] = useState([]);
-    console.log("Initial Form Data:", clients);
+    // console.log("Initial Form Data:", clients);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [clientLoading, setClientLoading] = useState(true);
@@ -56,7 +56,7 @@ const AddJobModal = ({ open, onClose, onJobCreated }) => {
             try {
                 setClientLoading(true);
                 const response = await fetchContacts();
-                console.log("Clients Data:", response.data);
+                // console.log("Clients Data:", response.data);
                 setClients(response.data || []);
             } catch (err) {
                 console.error("Error loading clients:", err);
@@ -122,10 +122,10 @@ const AddJobModal = ({ open, onClose, onJobCreated }) => {
                 calculatedTravelTime: formData.calculatedTravelTime || 0,
             };
 
-            console.log("Job Data being sent:", jobData);
+            // console.log("Job Data being sent:", jobData);
 
             const newJob = await createJob(jobData);
-            console.log("New Job Created:", newJob);
+            // console.log("New Job Created:", newJob);
 
             // Add the new job to local state (this will also update dashboard stats)
             addJobToState(newJob.data);

@@ -205,7 +205,7 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                 activity: activityLabel,
             });
 
-            console.log("Activity update result:", result);
+            // console.log("Activity update result:", result);
 
             const updatedAction = result.data.activity;
             const updatedActivityValue = getLeadStatusValue(updatedAction);

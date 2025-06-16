@@ -90,7 +90,7 @@ const ContactDetailsPage = () => {
         try {
             const rooms = await getRoomsForContact(id);
             setExistingRooms(rooms);
-            console.log('Existing rooms for contact:', rooms);
+            // console.log('Existing rooms for contact:', rooms);
         } catch (error) {
             console.error('Error loading existing rooms:', error);
             // Don't show error toast for this, as it's not critical
@@ -104,10 +104,10 @@ const ContactDetailsPage = () => {
                 setLoading(true);
                 const response = await fetchContact(id);
                 if (response && response.data) {
-                    console.log(
-                        "ContactDetailsPage: Loaded contact",
-                        response.data
-                    );
+                    // console.log(
+                    //     "ContactDetailsPage: Loaded contact",
+                    //     response.data
+                    // );
                     setContact(response.data);
                     setEditFormData({
                         name: response.data.name || "",
@@ -186,10 +186,10 @@ const ContactDetailsPage = () => {
                 status: editFormData.status || "client",
                 tags: editFormData.tags,
             };
-            console.log(
-                "ContactDetailsPage: Submitting contact data",
-                contactDataToSubmit
-            );
+            // console.log(
+            //     "ContactDetailsPage: Submitting contact data",
+            //     contactDataToSubmit
+            // );
             const response = await updateContact(id, contactDataToSubmit);
             const webHookData = {
                 webhookEvent: "ContactUpdated",
@@ -199,10 +199,10 @@ const ContactDetailsPage = () => {
             };
             await sendWebhook({ payload: webHookData });
             if (response && response.data) {
-                console.log(
-                    "ContactDetailsPage: Updated contact",
-                    response.data
-                );
+                // console.log(
+                //     "ContactDetailsPage: Updated contact",
+                //     response.data
+                // );
                 setContact(response.data);
                 setOpenEditDialog(false);
                 toast.success("Contact updated successfully!", {
@@ -227,10 +227,10 @@ const ContactDetailsPage = () => {
                 pipelineStage: newStage,
             });
             if (response && response.data) {
-                console.log(
-                    "ContactDetailsPage: Updated pipeline stage",
-                    response.data
-                );
+                // console.log(
+                //     "ContactDetailsPage: Updated pipeline stage",
+                //     response.data
+                // );
                 setContact(response.data);
                 toast.success("Pipeline stage updated successfully!", {
                     duration: 2000,
@@ -265,7 +265,7 @@ const ContactDetailsPage = () => {
     const handleVideoRoom = async () => {
         try {
             const roomData = await createRoom(id, contact.name);
-            console.log('Video room created:', roomData);
+            // console.log('Video room created:', roomData);
             // Refresh the list of existing rooms after a new one is created
             await loadExistingRooms();
         } catch (error) {
@@ -291,7 +291,7 @@ const ContactDetailsPage = () => {
         
         try {
             await deleteRoom(targetSystemId, targetTelnyxRoomId, contact.name);
-            console.log('Video room deleted successfully');
+            // console.log('Video room deleted successfully');
             // Reload existing rooms after deletion
             await loadExistingRooms(); // Call the helper function
         } catch (error) {
@@ -380,7 +380,7 @@ const ContactDetailsPage = () => {
             );
             
             await shareRoomLink(urlToShare, contact.name, contact.id, userProfile.id);
-            console.log('Video room link shared successfully');
+            // console.log('Video room link shared successfully');
             toast.success('Video room link shared successfully!', { duration: 3000 });
         } catch (error) {
             console.error('Failed to share video room link:', error);

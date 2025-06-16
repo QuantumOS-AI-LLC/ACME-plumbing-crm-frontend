@@ -70,9 +70,9 @@ export const NotificationProvider = ({ children }) => {
         async (page = 1, limit = 10, isRead) => {
             // Check authentication before making API call
             if (!isAuthenticated()) {
-                console.log(
-                    "User not authenticated, skipping notification fetch"
-                );
+                // console.log(
+                //     "User not authenticated, skipping notification fetch"
+                // );
                 return;
             }
 
@@ -121,9 +121,9 @@ export const NotificationProvider = ({ children }) => {
     const markAsRead = useCallback(
         async (id) => {
             if (!isAuthenticated()) {
-                console.log(
-                    "User not authenticated, cannot mark notification as read"
-                );
+                // console.log(
+                //     "User not authenticated, cannot mark notification as read"
+                // );
                 return;
             }
 
@@ -172,9 +172,9 @@ export const NotificationProvider = ({ children }) => {
     // Mark all notifications as read
     const markAllAsRead = useCallback(async () => {
         if (!isAuthenticated()) {
-            console.log(
-                "User not authenticated, cannot mark all notifications as read"
-            );
+            // console.log(
+            //     "User not authenticated, cannot mark all notifications as read"
+            // );
             return;
         }
 
@@ -217,9 +217,9 @@ export const NotificationProvider = ({ children }) => {
     const removeNotification = useCallback(
         async (id) => {
             if (!isAuthenticated()) {
-                console.log(
-                    "User not authenticated, cannot delete notification"
-                );
+                // console.log(
+                //     "User not authenticated, cannot delete notification"
+                // );
                 return;
             }
 
@@ -374,9 +374,9 @@ export const NotificationProvider = ({ children }) => {
         const fetchInitialData = async () => {
             // CHECK: Only fetch if user is authenticated
             if (!isAuthenticated()) {
-                console.log(
-                    "User not authenticated, skipping initial notification fetch"
-                );
+                // console.log(
+                //     "User not authenticated, skipping initial notification fetch"
+                // );
                 return;
             }
 

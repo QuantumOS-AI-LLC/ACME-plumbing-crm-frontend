@@ -232,21 +232,22 @@ export const ServiceViewModal = ({
         }
 
         // Debug logging to help identify issues
-        console.log("Change detection debug:", {
-            original: {
-                price: original.price,
-                priceStr: originalPriceStr,
-                includedServices: original.includedServices,
-                tags: original.tags,
-            },
-            edited: {
-                price: edited.price,
-                priceStr: editedPriceStr,
-                includedServices: edited.includedServices,
-                tags: edited.tags,
-            },
-            changes,
-        });
+        
+        // console.log("Change detection debug:", {
+        //     original: {
+        //         price: original.price,
+        //         priceStr: originalPriceStr,
+        //         includedServices: original.includedServices,
+        //         tags: original.tags,
+        //     },
+        //     edited: {
+        //         price: edited.price,
+        //         priceStr: editedPriceStr,
+        //         includedServices: edited.includedServices,
+        //         tags: edited.tags,
+        //     },
+        //     changes,
+        // });
 
         return changes;
     };
@@ -268,7 +269,7 @@ export const ServiceViewModal = ({
             }
 
             // Log the changes for debugging
-            console.log("Sending only changed fields:", changedFields);
+            // console.log("Sending only changed fields:", changedFields); 
 
             // Create update object with only changed fields
             const updateData = {

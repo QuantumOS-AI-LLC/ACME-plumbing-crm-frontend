@@ -59,7 +59,7 @@ const ProfilePage = () => {
       const sendLocationUpdate = async () => {
         try {
           await updateLocation(location.latitude, location.longitude);
-          console.log(`Location updated on backend: Lat ${location.latitude}, Lng ${location.longitude}`);
+          /* console.log(`Location updated on backend: Lat ${location.latitude}, Lng ${location.longitude}`); */
         } catch (error) {
           console.error("Failed to update location on backend:", error);
         }
@@ -167,7 +167,7 @@ const ProfilePage = () => {
     try {
       // Call existing API
       await toggleLiveTracking(isChecked);
-      console.log(`Live tracking ${isChecked ? 'enabled' : 'disabled'} on backend.`);
+      /* console.log(`Live tracking ${isChecked ? 'enabled' : 'disabled'} on backend.`); */
       
       // Start/stop socket location sharing
       if (isChecked) {

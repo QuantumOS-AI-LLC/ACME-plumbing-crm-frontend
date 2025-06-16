@@ -53,7 +53,7 @@ export const SocketProvider = ({ children }) => {
 
     // Check if we've exceeded retry attempts
     if (retryCount >= MAX_RETRY_ATTEMPTS) {
-      console.log('Max retry attempts reached, not attempting to connect');
+      // console.log('Max retry attempts reached, not attempting to connect');
       setConnectionError('WebSocket server unavailable. Please check if the server is running.');
       return;
     }
@@ -61,7 +61,7 @@ export const SocketProvider = ({ children }) => {
     // Use VITE_SOCKET_URL for Socket.IO connection
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'ws://localhost:5000';
     
-    console.log(`Attempting WebSocket connection (attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`);
+    // console.log(`Attempting WebSocket connection (attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`);
     
     const newSocket = io(socketUrl, {
       auth: { token },
@@ -73,18 +73,18 @@ export const SocketProvider = ({ children }) => {
 
     // Connection event handlers
     newSocket.on('connect', () => {
-      console.log('Connected to Socket.IO server');
+      // console.log('Connected to Socket.IO server');
       setIsConnected(true);
       setConnectionError(null);
       setRetryCount(0); // Reset retry count on successful connection
     });
 
     newSocket.on('connected', (data) => {
-      console.log('Server confirmation:', data);
+      // console.log('Server confirmation:', data);
     });
 
     newSocket.on('disconnect', (reason) => {
-      console.log('Disconnected from server:', reason);
+      // console.log('Disconnected from server:', reason);
       setIsConnected(false);
     });
 
@@ -97,13 +97,13 @@ export const SocketProvider = ({ children }) => {
       setRetryCount(prev => {
         const newCount = prev + 1;
         if (newCount < MAX_RETRY_ATTEMPTS) {
-          console.log(`Scheduling retry in ${RETRY_DELAY}ms (attempt ${newCount + 1}/${MAX_RETRY_ATTEMPTS})`);
+          // console.log(`Scheduling retry in ${RETRY_DELAY}ms (attempt ${newCount + 1}/${MAX_RETRY_ATTEMPTS})`);
           setTimeout(() => {
             // Trigger a re-render to retry connection
             setRetryCount(newCount);
           }, RETRY_DELAY);
         } else {
-          console.log('Max retry attempts reached');
+          // console.log('Max retry attempts reached');
           setConnectionError('WebSocket server unavailable. Please check if the server is running.');
         }
         return newCount;
@@ -112,19 +112,19 @@ export const SocketProvider = ({ children }) => {
 
     // Location event handlers
     newSocket.on('location_sharing_started', (data) => {
-      console.log('Location sharing started:', data);
+      // console.log('Location sharing started:', data);
       setIsLocationSharing(true);
       setLocationError(null);
     });
 
     newSocket.on('location_sharing_stopped', (data) => {
-      console.log('Location sharing stopped:', data);
+      // console.log('Location sharing stopped:', data);
       setIsLocationSharing(false);
       setLocationError(null);
     });
 
     newSocket.on('location_updated', (data) => {
-      console.log('Location updated successfully:', data);
+      // console.log('Location updated successfully:', data);
       setLocationError(null);
     });
 
@@ -143,7 +143,7 @@ export const SocketProvider = ({ children }) => {
   // Location sharing functions
   const startLocationSharing = () => {
     if (socket && isConnected) {
-      console.log('Starting location sharing...');
+      // console.log('Starting location sharing...');
       socket.emit('location_start_sharing', {});
     } else {
       setLocationError('Socket not connected');
@@ -152,7 +152,7 @@ export const SocketProvider = ({ children }) => {
 
   const stopLocationSharing = () => {
     if (socket && isConnected) {
-      console.log('Stopping location sharing...');
+      // console.log('Stopping location sharing...');
       socket.emit('location_stop_sharing', {});
     } else {
       setLocationError('Socket not connected');

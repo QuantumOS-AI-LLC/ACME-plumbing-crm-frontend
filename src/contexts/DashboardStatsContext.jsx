@@ -33,7 +33,7 @@ export const DashboardStatsProvider = ({ children }) => {
     async (force = false) => {
       // Check authentication first
       if (!isAuthenticated()) {
-        console.log("Not authenticated, skipping dashboard stats load");
+        // console.log("Not authenticated, skipping dashboard stats load");
         setStats({
           openJobsCount: 0,
           pendingEstimatesCount: 0,
@@ -47,13 +47,13 @@ export const DashboardStatsProvider = ({ children }) => {
 
       // Prevent multiple loads unless forced
       if (hasLoaded && !force) {
-        console.log("Dashboard stats already loaded, skipping...");
+        // console.log("Dashboard stats already loaded, skipping...");
         return;
       }
 
       // Prevent concurrent loads
       if (loading) {
-        console.log("Dashboard stats already loading, skipping...");
+        // console.log("Dashboard stats already loading, skipping...");
         return;
       }
 
@@ -77,11 +77,11 @@ export const DashboardStatsProvider = ({ children }) => {
           todaysEventsCount: eventsResponse?.data?.todaysEventsCount || 0,
         });
 
-        console.log("Dashboard stats loaded:", {
-          openJobs: jobsResponse?.data?.openJobsCount || 0,
-          pendingEstimates: estimatesResponse?.data?.pendingEstimatesCount || 0,
-          todaysEvents: eventsResponse?.data?.todaysEventsCount || 0,
-        });
+        // console.log("Dashboard stats loaded:", {
+        //   openJobs: jobsResponse?.data?.openJobsCount || 0,
+        //   pendingEstimates: estimatesResponse?.data?.pendingEstimatesCount || 0,
+        //   todaysEvents: eventsResponse?.data?.todaysEventsCount || 0,
+        // });
 
         setHasLoaded(true);
       } catch (error) {
@@ -120,9 +120,9 @@ export const DashboardStatsProvider = ({ children }) => {
           }
         }
 
-        console.log(
-          `Jobs count updated: ${prevStats.openJobsCount} → ${newOpenJobsCount} (${operation})`
-        );
+        // console.log(
+        //   `Jobs count updated: ${prevStats.openJobsCount} → ${newOpenJobsCount} (${operation})`
+        // );
         return { ...prevStats, openJobsCount: Math.max(0, newOpenJobsCount) };
       });
     },
@@ -147,9 +147,9 @@ export const DashboardStatsProvider = ({ children }) => {
           }
         }
 
-        console.log(
-          `Estimates count updated: ${prevStats.pendingEstimatesCount} → ${newPendingEstimatesCount} (${operation})`
-        );
+        // console.log(
+        //   `Estimates count updated: ${prevStats.pendingEstimatesCount} → ${newPendingEstimatesCount} (${operation})`
+        // );
         return {
           ...prevStats,
           pendingEstimatesCount: Math.max(0, newPendingEstimatesCount),
@@ -163,33 +163,33 @@ export const DashboardStatsProvider = ({ children }) => {
     (operation, oldDate = null, newDate = null) => {
       const today = new Date().toDateString();
 
-      console.log("updateEventsCount called:", {
-        operation,
-        oldDate,
-        newDate,
-        today,
-      });
+      // console.log("updateEventsCount called:", {
+      //   operation,
+      //   oldDate,
+      //   newDate,
+      //   today,
+      // });
 
       setStats((prevStats) => {
         let newTodaysEventsCount = prevStats.todaysEventsCount;
 
         if (operation === "add") {
           const eventDate = new Date(newDate).toDateString();
-          console.log("Add operation - Event date vs Today:", {
-            eventDate,
-            today,
-            isToday: eventDate === today,
-          });
+          // console.log("Add operation - Event date vs Today:", {
+          //   eventDate,
+          //   today,
+          //   isToday: eventDate === today,
+          // });
           if (eventDate === today) {
             newTodaysEventsCount += 1;
           }
         } else if (operation === "remove") {
           const eventDate = new Date(oldDate).toDateString();
-          console.log("Remove operation - Event date vs Today:", {
-            eventDate,
-            today,
-            isToday: eventDate === today,
-          });
+          // console.log("Remove operation - Event date vs Today:", {
+          //   eventDate,
+          //   today,
+          //   isToday: eventDate === today,
+          // });
           if (eventDate === today) {
             newTodaysEventsCount -= 1;
           }
@@ -201,13 +201,13 @@ export const DashboardStatsProvider = ({ children }) => {
             ? new Date(newDate).toDateString()
             : null;
 
-          console.log("Update operation - Date comparison:", {
-            oldEventDate,
-            newEventDate,
-            today,
-            oldIsToday: oldEventDate === today,
-            newIsToday: newEventDate === today,
-          });
+          // console.log("Update operation - Date comparison:", {
+          //   oldEventDate,
+          //   newEventDate,
+          //   today,
+          //   oldIsToday: oldEventDate === today,
+          //   newIsToday: newEventDate === today,
+          // });
 
           // Handle date changes
           if (oldEventDate === today && newEventDate !== today) {
@@ -217,9 +217,9 @@ export const DashboardStatsProvider = ({ children }) => {
           }
         }
 
-        console.log(
-          `Events count updated: ${prevStats.todaysEventsCount} → ${newTodaysEventsCount} (${operation})`
-        );
+        // console.log(
+        //   `Events count updated: ${prevStats.todaysEventsCount} → ${newTodaysEventsCount} (${operation})`
+        // );
         return {
           ...prevStats,
           todaysEventsCount: Math.max(0, newTodaysEventsCount),

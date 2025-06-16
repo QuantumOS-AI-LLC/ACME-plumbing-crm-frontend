@@ -173,7 +173,7 @@ const AddServiceModal = ({ open, onClose, onServiceCreated }) => {
             // Call the real API
             const response = await createService(serviceData);
 
-            console.log("Service creation response:", response);
+            // console.log("Service creation response:", response);
 
             const webHookData = {
                 ...response.data,

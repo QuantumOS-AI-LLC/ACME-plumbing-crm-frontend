@@ -7,8 +7,8 @@ export const loginUser = async (phoneNumber, password) => {
             phoneNumber,
             password,
         });
-        console.log("Login API response:", response); // Log the response
-        console.log("Response data structure:", response.data); // Log response.data specifically
+        // console.log("Login API response:", response); // Log the response
+        // console.log("Response data structure:", response.data); // Log response.data specifically
 
         // FIXED: Check for correct response structure matching your backend
         if (response.data && response.data.success && response.data.data) {

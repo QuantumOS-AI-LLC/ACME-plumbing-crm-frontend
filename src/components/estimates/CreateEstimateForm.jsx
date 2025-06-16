@@ -225,7 +225,7 @@ const CreateEstimateForm = ({
         } else {
           response = await createEstimate(estimateData);
 
-          console.log("Estimate created:", response.data.id);
+          // console.log("Estimate created:", response.data.id);
 
           // Construct the complete new estimate object
           const completeNewEstimate = {

@@ -35,17 +35,17 @@ export const AuthProvider = ({ children }) => {
                     userProfile,
                 } = restoreAuthState();
 
-                console.log("auth-context", userProfile);
+                // console.log("auth-context", userProfile);
 
                 setRememberMe(remembered);
 
-                console.log("Auth state restored:", {
-                    remembered,
-                    hasToken: !!token,
-                    hasRefreshToken: !!refreshToken,
-                    storedIsLoggedIn,
-                    hasProfile: !!userProfile,
-                });
+                // console.log("Auth state restored:", {
+                //     remembered,
+                //     hasToken: !!token,
+                //     hasRefreshToken: !!refreshToken,
+                //     storedIsLoggedIn,
+                //     hasProfile: !!userProfile,
+                // });
 
                 if (token && refreshToken && storedIsLoggedIn) {
                     // No backend validation, just trust the token in storage
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await loginUser(phoneNumber, password);
 
-            console.log("Login response in AuthContext:", response);
+            // console.log("Login response in AuthContext:", response);
 
             // Check response structure
             if (!response.success || !response.data) {

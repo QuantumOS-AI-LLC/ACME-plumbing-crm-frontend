@@ -12,7 +12,7 @@ export const useSocketNotifications = () => {
 
     // Listen for new notifications
     socket.on('notification', (notificationData) => {
-      console.log('New notification received:', notificationData);
+      // console.log('New notification received:', notificationData);
       
       setNotifications(prev => [notificationData, ...prev]);
       

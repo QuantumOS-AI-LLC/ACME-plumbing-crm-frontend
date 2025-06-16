@@ -81,7 +81,7 @@ const CalendarPage = () => {
           limit: eventsPerPage,
         });
 
-        console.log("event response", response);
+        /* console.log("event response", response); */
 
         if (response && response.data) {
           // Map event times to Date objects
@@ -222,7 +222,7 @@ const CalendarPage = () => {
           eventId: response.data.id,
         };
 
-        console.log("Sending webhook data:", webHookData);
+        /* console.log("Sending webhook data:", webHookData); */
 
         await sendWebhook({ payload: webHookData });
 

@@ -80,12 +80,12 @@ const JobsPage = () => {
     // Load jobs when debounced search term or tab changes
     useEffect(() => {
         const statusFilter = getStatusFilters(activeTab);
-        console.log("Loading jobs with:", {
+        /* console.log("Loading jobs with:", {
             activeTab,
             debouncedSearchTerm,
             statusFilter,
             status: statusFilter.length > 0 ? statusFilter[0] : null,
-        });
+        }); */
 
         loadJobsWithPagination(
             1,
@@ -229,10 +229,10 @@ const JobsPage = () => {
                         label="Search jobs"
                         value={searchTerm}
                         onChange={(e) => {
-                            console.log(
+                            /* console.log(
                                 "Search term changed to:",
                                 e.target.value
-                            );
+                            ); */
                             setSearchTerm(e.target.value);
                         }}
                         onKeyPress={handleKeyPress}
@@ -416,9 +416,9 @@ const JobsPage = () => {
                                 <Grid item xs={12} key={job.id}>
                                     <JobCard
                                         job={job}
-                                        onClick={() =>
-                                            console.log("View job:", job.id)
-                                        }
+                                        // onClick={() =>
+                                        //      console.log("View job:", job.id) 
+                                        // }
                                         onUpdate={handleJobUpdate}
                                         onStatusChange={handleStatusChange}
                                     />
