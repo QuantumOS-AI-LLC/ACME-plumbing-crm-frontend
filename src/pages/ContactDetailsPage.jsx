@@ -727,7 +727,7 @@ const ContactDetailsPage = () => {
                                 variant="outlined"
                                 color="error"
                                 size="small"
-                                onClick={handleDeleteVideoRoom}
+                                onClick={() => handleDeleteVideoRoom(videoRoomData.systemId, videoRoomData.roomId)}
                                 startIcon={<DeleteIcon />}
                                 disabled={videoRoomLoading}
                                 sx={{
