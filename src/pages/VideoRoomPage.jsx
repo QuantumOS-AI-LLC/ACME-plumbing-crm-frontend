@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Box, CircularProgress, Alert, Button, Typography, Paper } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import VideoRoomComponent from '../components/VideoRoom/VideoRoomComponent';
-import { TelnyxProvider } from '../contexts/TelnyxContext';
-import { SocketProvider } from '../contexts/SocketContext';
 import api from '../services/api';
 import theme from '../theme';
 
@@ -13,39 +11,42 @@ import theme from '../theme';
 const VideoRoomPageInner = () => {
     const { roomId } = useParams();
     const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
     const [room, setRoom] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [userInfo, setUserInfo] = useState(null);
 
-    // Extract user information from URL parameters
+    // Extract user information from URL parameters for anonymous video rooms
     useEffect(() => {
         const userId = searchParams.get('userId');
         const contactId = searchParams.get('contactId');
         const name = searchParams.get('name');
         const contactName = searchParams.get('contactName');
         
-        // Determine if this is an internal user or external contact
-        const isInternalUser = !!userId;
-        const isExternalContact = !!contactId && !userId;
+        // New anonymous video room logic:
+        // - For users: URL has userId (and possibly contactId), use userId as participantId
+        // - For contacts: URL has only contactId (no userId), use contactId as participantId
+        const participantId = userId || contactId;
+        const participantName = name || contactName || 'Guest User';
+        const externalParticipant = !userId; // true if only contactId exists (external contact)
         
         setUserInfo({
+            participantId,
+            participantName,
+            externalParticipant,
             userId: userId || null,
             contactId: contactId || null,
-            name: name || 'Guest User',
-            contactName: contactName || null,
-            isInternalUser,
-            isExternalContact,
-            userType: isInternalUser ? 'user' : isExternalContact ? 'contact' : 'guest'
+            name: participantName,
+            userType: externalParticipant ? 'contact' : 'user'
         });
         
-        console.log('📋 User info from URL:', { 
+        console.log('📋 Anonymous video room participant info:', { 
+            participantId,
+            participantName,
+            externalParticipant,
             userId, 
-            contactId, 
-            name, 
-            contactName, 
-            userType: isInternalUser ? 'user' : isExternalContact ? 'contact' : 'guest'
+            contactId,
+            userType: externalParticipant ? 'contact' : 'user'
         });
     }, [searchParams]);
 
@@ -97,14 +98,64 @@ const VideoRoomPageInner = () => {
     };
 
     const handleLeaveRoom = () => {
-        // Close the tab/window
-        window.close();
+        console.log('👋 Leaving video room...');
         
-        // Fallback: if window.close() doesn't work (some browsers block it),
-        // show a message or redirect to a thank you page
+        // Try to close the window/tab (works if opened by JavaScript)
+        const closed = window.close();
+        
+        // Fallback: if window.close() doesn't work, redirect to a thank you page
         setTimeout(() => {
-            alert('You can now close this window or tab.');
-        }, 100);
+            // Check if window is still open
+            if (!window.closed) {
+                // Show a thank you message and provide options
+                const shouldRedirect = confirm(
+                    'Thank you for using the video room!\n\n' +
+                    'Click OK to go to the main page, or Cancel to close this tab manually.'
+                );
+                
+                if (shouldRedirect) {
+                    // Redirect to the main CRM page or a thank you page
+                    window.location.href = '/';
+                } else {
+                    // Show instructions to close manually
+                    document.body.innerHTML = `
+                        <div style="
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100vh;
+                            background: #1a1a1a;
+                            color: white;
+                            font-family: Arial, sans-serif;
+                            text-align: center;
+                            padding: 20px;
+                        ">
+                            <h2>Video Call Ended</h2>
+                            <p>Thank you for using the video room!</p>
+                            <p style="margin-top: 20px; opacity: 0.8;">
+                                You can now safely close this window or tab.
+                            </p>
+                            <button 
+                                onclick="window.location.href='/'" 
+                                style="
+                                    margin-top: 20px;
+                                    padding: 10px 20px;
+                                    background: #007bff;
+                                    color: white;
+                                    border: none;
+                                    border-radius: 5px;
+                                    cursor: pointer;
+                                    font-size: 16px;
+                                "
+                            >
+                                Go to Main Page
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        }, 500);
     };
 
     // Show loading while fetching room data
@@ -238,18 +289,9 @@ const VideoRoomPageInner = () => {
     );
 };
 
-// Main component with all providers
+// Main component - providers are now handled in App.jsx
 const VideoRoomPage = () => {
-    return (
-        <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <SocketProvider>
-                <TelnyxProvider>
-                    <VideoRoomPageInner />
-                </TelnyxProvider>
-            </SocketProvider>
-        </ThemeProvider>
-    );
+    return <VideoRoomPageInner />;
 };
 
 export default VideoRoomPage;

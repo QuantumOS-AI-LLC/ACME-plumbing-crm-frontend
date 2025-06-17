@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import { SocketProvider } from "./contexts/SocketContext";
+import { VideoSocketProvider } from "./contexts/VideoSocketContext";
 import { TelnyxProvider } from "./contexts/TelnyxContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { NotificationSettingsProvider } from "./contexts/NotificationSettingsContext";
@@ -71,7 +72,13 @@ const App = () => {
                                 {/* Video Room - Public route (no authentication required) */}
                                 <Route
                                     path="/video-room/:roomId"
-                                    element={<VideoRoomPage />}
+                                    element={
+                                        <VideoSocketProvider>
+                                            <TelnyxProvider>
+                                                <VideoRoomPage />
+                                            </TelnyxProvider>
+                                        </VideoSocketProvider>
+                                    }
                                 />
 
                                                 {/* Google Calendar OAuth Callback - Protected route */}

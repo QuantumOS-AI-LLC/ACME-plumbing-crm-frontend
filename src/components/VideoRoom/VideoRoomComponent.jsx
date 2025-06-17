@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
     Box, 
     Grid, 
@@ -10,6 +10,7 @@ import {
     Backdrop
 } from '@mui/material';
 import { useTelnyx } from '../../contexts/TelnyxContext';
+import { useVideoSocket } from '../../contexts/VideoSocketContext';
 import VideoStream from './VideoStream';
 import VideoControls from './VideoControls';
 import api from '../../services/api';
@@ -28,14 +29,21 @@ const VideoRoomComponent = ({ room, userInfo, onLeave }) => {
         toggleMute,
         toggleVideo,
         endCall,
-        disconnect
+        disconnect,
+        peerManager
     } = useTelnyx();
     
+    const {
+        isConnected: isVideoSocketConnected,
+        connectionError: videoSocketError
+    } = useVideoSocket();
     
     const [error, setError] = useState(null);
     const [isInitializing, setIsInitializing] = useState(true);
     const [roomToken, setRoomToken] = useState(null);
     const [isJoiningRoom, setIsJoiningRoom] = useState(false);
+    const [connectionStats, setConnectionStats] = useState({});
+    const peerManagerRef = useRef(null);
 
     useEffect(() => {
         if (room?.id) {
@@ -93,10 +101,15 @@ const VideoRoomComponent = ({ room, userInfo, onLeave }) => {
         try {
             setIsJoiningRoom(true);
             
-            console.log('🚪 Joining video room...');
+            console.log('🚪 Joining video room with anonymous participant...');
             
-            // Join video room through Telnyx context
-            await joinVideoRoom(room.telnyxRoomId, userInfo?.name || 'User');
+            // Join video room through Telnyx context with new anonymous parameters
+            await joinVideoRoom(
+                room.telnyxRoomId, 
+                userInfo?.participantName || 'Guest User',
+                userInfo?.participantId || 'guest',
+                userInfo?.externalParticipant || false
+            );
             
             console.log('✅ Successfully joined video room');
             
@@ -108,6 +121,18 @@ const VideoRoomComponent = ({ room, userInfo, onLeave }) => {
         }
     };
 
+    const cleanup = useCallback(() => {
+        console.log('🧹 Cleaning up video room...');
+        
+        // Clean up peer manager
+        if (peerManagerRef.current) {
+            peerManagerRef.current.cleanup();
+            peerManagerRef.current = null;
+        }
+        
+        disconnect();
+    }, [disconnect]);
+
     const handleToggleMute = useCallback(() => {
         toggleMute();
     }, [toggleMute]);
@@ -116,11 +141,35 @@ const VideoRoomComponent = ({ room, userInfo, onLeave }) => {
         toggleVideo();
     }, [toggleVideo]);
 
-    const handleEndCall = useCallback(() => {
-        endCall();
-        cleanup();
-        onLeave();
-    }, [endCall, onLeave]);
+    const handleEndCall = useCallback(async () => {
+        try {
+            console.log('🔚 Ending video call...');
+            
+            // Set ending state to show user feedback
+            setIsJoiningRoom(true); // Reuse this state to show loading
+            
+            // Leave the video room with participant ID
+            if (userInfo?.participantId) {
+                endCall(userInfo.participantId);
+            } else {
+                endCall();
+            }
+            
+            // Perform cleanup
+            cleanup();
+            
+            // Small delay to ensure cleanup completes
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Call onLeave callback
+            onLeave();
+            
+        } catch (error) {
+            console.error('❌ Error ending call:', error);
+            // Still try to leave even if there's an error
+            onLeave();
+        }
+    }, [endCall, onLeave, userInfo, cleanup]);
 
     const handleScreenShare = useCallback(async () => {
         try {
@@ -134,10 +183,45 @@ const VideoRoomComponent = ({ room, userInfo, onLeave }) => {
         }
     }, []);
 
-    const cleanup = useCallback(() => {
-        console.log('🧹 Cleaning up video room...');
-        disconnect();
-    }, [disconnect]);
+    // Update local peer manager reference when TelnyxContext peer manager changes
+    useEffect(() => {
+        if (peerManager) {
+            peerManagerRef.current = peerManager;
+        }
+    }, [peerManager]);
+
+    // Monitor connection stats periodically
+    useEffect(() => {
+        if (!peerManagerRef.current) return;
+
+        const interval = setInterval(() => {
+            const stats = peerManagerRef.current.getAllConnectionStats();
+            setConnectionStats(stats);
+            
+            // Log connection stats for debugging
+            Object.entries(stats).forEach(([participantId, stat]) => {
+                if (stat && stat.connectionState !== 'connected') {
+                    console.log(`🔄 Connection status for ${participantId}:`, stat);
+                }
+            });
+        }, 5000); // Check every 5 seconds
+
+        return () => clearInterval(interval);
+    }, [peerManagerRef.current]);
+
+    // Debug: Expose peer manager to window for debugging
+    useEffect(() => {
+        if (peerManagerRef.current) {
+            window.peerManager = peerManagerRef.current;
+            console.log('🔧 Peer manager exposed to window.peerManager for debugging');
+        }
+        
+        return () => {
+            if (window.peerManager) {
+                delete window.peerManager;
+            }
+        };
+    }, [peerManagerRef.current]);
 
     // Calculate total participants (local + remote + socket participants)
     const totalParticipants = 1 + remoteStreams.size + participants.size;

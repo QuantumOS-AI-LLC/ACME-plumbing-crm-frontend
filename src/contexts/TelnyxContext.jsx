@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useSocket } from './SocketContext';
+import { useVideoSocket } from './VideoSocketContext';
+import WebRTCPeerManager from '../utils/webrtcPeerManager';
 
 const TelnyxContext = createContext();
 
@@ -16,8 +17,16 @@ export const TelnyxProvider = ({ children }) => {
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [roomToken, setRoomToken] = useState(null);
+    const peerManagerRef = useRef(null);
     const { user } = useAuth();
-    const { socket } = useSocket();
+    const { 
+        videoSocket, 
+        isConnected: isVideoSocketConnected, 
+        participants: videoParticipants,
+        joinVideoRoom: joinVideoRoomSocket,
+        leaveVideoRoom: leaveVideoRoomSocket,
+        updateParticipantState
+    } = useVideoSocket();
 
     const initializeClient = useCallback(async (clientToken, telnyxRoomId) => {
         try {
@@ -26,181 +35,66 @@ export const TelnyxProvider = ({ children }) => {
             setRoomId(telnyxRoomId);
             setRoomToken(clientToken);
 
-            // For video rooms, we don't need the TelnyxRTC client
-            // Instead, we'll use native WebRTC with the room token
-            console.log('✅ Room token received, ready to join');
+            // For video rooms, we don't need the TelnyxRTC SIP client
+            // We use pure WebRTC with our custom peer manager
+            console.log('✅ Video room client ready (using WebRTC)');
             setIsConnected(true);
             setConnectionState('connected');
             
             return true;
         } catch (error) {
-            console.error('❌ Error initializing room client:', error);
+            console.error('❌ Error initializing video room client:', error);
             setConnectionState('error');
             throw error;
         }
     }, []);
 
-    const handleNotification = useCallback((notification) => {
-        switch (notification.type) {
-            case 'callUpdate':
-                const call = notification.call;
-                setCurrentCall(call);
-                
-                if (call.state === 'ringing' && call.direction === 'inbound') {
-                    // Auto-answer incoming calls in video rooms
-                    call.answer();
-                } else if (call.state === 'active') {
-                    // Handle active call streams
-                    if (call.remoteStream) {
-                        setRemoteStreams(prev => new Map(prev.set(call.id, call.remoteStream)));
-                    }
-                    if (call.localStream) {
-                        setLocalStream(call.localStream);
-                    }
-                } else if (call.state === 'destroy') {
-                    // Clean up ended call
-                    setRemoteStreams(prev => {
-                        const updated = new Map(prev);
-                        updated.delete(call.id);
-                        return updated;
-                    });
-                    if (call.id === currentCall?.id) {
-                        setCurrentCall(null);
-                    }
-                }
-                break;
-
-            case 'userMediaError':
-                console.error('User media error:', notification.error);
-                break;
-
-            default:
-                console.log('Unhandled notification type:', notification.type);
-        }
-    }, [currentCall]);
-
-    // Socket.IO event handlers for video room management
+    // Initialize WebRTC peer manager when video socket and local stream are ready
     useEffect(() => {
-        if (!socket || !roomId) return;
-
-        const handleParticipantJoined = (data) => {
-            console.log('👋 Participant joined:', data);
-            setParticipants(prev => new Map(prev.set(data.participantId, {
-                id: data.participantId,
-                name: data.participantName,
-                socketId: data.socketId,
-                userId: data.userId
-            })));
-        };
-
-        const handleParticipantLeft = (data) => {
-            console.log('👋 Participant left:', data);
-            setParticipants(prev => {
-                const updated = new Map(prev);
-                updated.delete(data.participantId);
-                return updated;
+        if (videoSocket && localStream && !peerManagerRef.current) {
+            console.log('🔧 Initializing WebRTC Peer Manager...');
+            
+            const peerManager = new WebRTCPeerManager(videoSocket, localStream);
+            
+            // Set up peer manager callbacks
+            peerManager.setOnRemoteStreamAdded((participantId, stream) => {
+                console.log(`📺 Remote stream added for ${participantId}`);
+                setRemoteStreams(prev => new Map(prev.set(participantId, stream)));
             });
-        };
 
-        const handleParticipantStateChange = (data) => {
-            console.log('🔄 Participant state change:', data);
-            setParticipants(prev => {
-                const updated = new Map(prev);
-                const participant = updated.get(data.participantId);
-                if (participant) {
-                    updated.set(data.participantId, {
-                        ...participant,
-                        isMuted: data.isMuted,
-                        isVideoOff: data.isVideoOff
-                    });
-                }
-                return updated;
+            peerManager.setOnRemoteStreamRemoved((participantId) => {
+                console.log(`📺 Remote stream removed for ${participantId}`);
+                setRemoteStreams(prev => {
+                    const updated = new Map(prev);
+                    updated.delete(participantId);
+                    return updated;
+                });
             });
-        };
 
-        const handleWebRTCOffer = (data) => {
-            console.log('📞 Received WebRTC offer:', data);
-            // Handle WebRTC offer from another participant
-            if (client && currentCall) {
-                // Process the offer through Telnyx client
-                // This would typically involve setting remote description
-            }
-        };
+            peerManager.setOnConnectionStateChange((participantId, state) => {
+                console.log(`🔄 Connection state changed for ${participantId}: ${state}`);
+                // Update participant connection state if needed
+            });
 
-        const handleWebRTCAnswer = (data) => {
-            console.log('📞 Received WebRTC answer:', data);
-            // Handle WebRTC answer from another participant
-        };
+            peerManagerRef.current = peerManager;
+        }
 
-        const handleWebRTCICECandidate = (data) => {
-            console.log('🧊 Received ICE candidate:', data);
-            // Handle ICE candidate from another participant
-        };
-
-        const handleRoomError = (error) => {
-            console.error('🚨 Room error:', error);
-            setConnectionState('error');
-        };
-
-        // Register event listeners
-        socket.on('participant-joined', handleParticipantJoined);
-        socket.on('participant-left', handleParticipantLeft);
-        socket.on('participant-state-change', handleParticipantStateChange);
-        socket.on('webrtc-offer', handleWebRTCOffer);
-        socket.on('webrtc-answer', handleWebRTCAnswer);
-        socket.on('webrtc-ice-candidate', handleWebRTCICECandidate);
-        socket.on('room-error', handleRoomError);
+        // Update peer manager when local stream changes
+        if (peerManagerRef.current && localStream) {
+            peerManagerRef.current.updateLocalStream(localStream);
+        }
 
         return () => {
-            socket.off('participant-joined', handleParticipantJoined);
-            socket.off('participant-left', handleParticipantLeft);
-            socket.off('participant-state-change', handleParticipantStateChange);
-            socket.off('webrtc-offer', handleWebRTCOffer);
-            socket.off('webrtc-answer', handleWebRTCAnswer);
-            socket.off('webrtc-ice-candidate', handleWebRTCICECandidate);
-            socket.off('room-error', handleRoomError);
+            // Cleanup will be handled in the main cleanup function
         };
-    }, [socket, roomId, client, currentCall]);
+    }, [videoSocket, localStream]);
 
-    const joinVideoRoom = useCallback(async (telnyxRoomId, participantName) => {
-        if (!socket || !user) {
-            throw new Error('Socket or user not available');
+    // Sync video socket participants with local state
+    useEffect(() => {
+        if (videoParticipants) {
+            setParticipants(videoParticipants);
         }
-
-        try {
-            console.log('🎥 Joining video room:', telnyxRoomId);
-            
-            // Join socket room for signaling
-            socket.emit('join-video-room', {
-                roomId: telnyxRoomId,
-                participantName: participantName || user.name,
-                userId: user.id
-            });
-
-            // Start local media
-            await startLocalMedia();
-
-        } catch (error) {
-            console.error('❌ Error joining video room:', error);
-            throw error;
-        }
-    }, [socket, user]);
-
-    const leaveVideoRoom = useCallback(() => {
-        if (socket && roomId && user) {
-            console.log('👋 Leaving video room:', roomId);
-            
-            socket.emit('leave-video-room', {
-                roomId: roomId,
-                userId: user.id
-            });
-        }
-
-        // Clean up local state
-        setParticipants(new Map());
-        setRoomId(null);
-        stopLocalMedia();
-    }, [socket, roomId, user]);
+    }, [videoParticipants]);
 
     const startLocalMedia = useCallback(async () => {
         try {
@@ -285,6 +179,49 @@ export const TelnyxProvider = ({ children }) => {
         }
     }, [localStream]);
 
+    const joinVideoRoom = useCallback(async (telnyxRoomId, participantName, participantId, externalParticipant = false) => {
+        if (!isVideoSocketConnected) {
+            throw new Error('Video socket not connected');
+        }
+
+        try {
+            console.log('🎥 Joining video room:', telnyxRoomId);
+            
+            // Use video socket to join room
+            const joinSuccess = joinVideoRoomSocket({
+                roomId: telnyxRoomId,
+                participantName: participantName,
+                participantId: participantId,
+                externalParticipant: externalParticipant
+            });
+
+            if (!joinSuccess) {
+                throw new Error('Failed to join video room via socket');
+            }
+
+            // Start local media
+            await startLocalMedia();
+
+        } catch (error) {
+            console.error('❌ Error joining video room:', error);
+            throw error;
+        }
+    }, [isVideoSocketConnected, joinVideoRoomSocket, startLocalMedia]);
+
+    const leaveVideoRoom = useCallback((participantId) => {
+        if (roomId) {
+            console.log('👋 Leaving video room:', roomId);
+            
+            // Use video socket to leave room
+            leaveVideoRoomSocket(participantId);
+        }
+
+        // Clean up local state
+        setParticipants(new Map());
+        setRoomId(null);
+        stopLocalMedia();
+    }, [roomId, leaveVideoRoomSocket, stopLocalMedia]);
+
     const makeCall = useCallback(async (destination, options = {}) => {
         if (!client || !isConnected) {
             throw new Error('Telnyx client not ready');
@@ -330,16 +267,12 @@ export const TelnyxProvider = ({ children }) => {
         const newMutedState = !isMuted;
         setIsMuted(newMutedState);
         
-        // Broadcast state change to other participants
-        if (socket && roomId && user) {
-            socket.emit('participant-state-change', {
-                roomId: roomId,
-                participantId: user.id,
-                isMuted: newMutedState,
-                isVideoOff: isVideoOff
-            });
-        }
-    }, [currentCall, localStream, isMuted, isVideoOff, socket, roomId, user]);
+        // Broadcast state change to other participants via video socket
+        updateParticipantState({
+            isMuted: newMutedState,
+            isVideoOff: isVideoOff
+        });
+    }, [currentCall, localStream, isMuted, isVideoOff, updateParticipantState]);
 
     const toggleVideo = useCallback(() => {
         if (currentCall) {
@@ -355,16 +288,12 @@ export const TelnyxProvider = ({ children }) => {
         const newVideoOffState = !isVideoOff;
         setIsVideoOff(newVideoOffState);
         
-        // Broadcast state change to other participants
-        if (socket && roomId && user) {
-            socket.emit('participant-state-change', {
-                roomId: roomId,
-                participantId: user.id,
-                isMuted: isMuted,
-                isVideoOff: newVideoOffState
-            });
-        }
-    }, [currentCall, localStream, isMuted, isVideoOff, socket, roomId, user]);
+        // Broadcast state change to other participants via video socket
+        updateParticipantState({
+            isMuted: isMuted,
+            isVideoOff: newVideoOffState
+        });
+    }, [currentCall, localStream, isMuted, isVideoOff, updateParticipantState]);
 
     const disconnect = useCallback(() => {
         if (client) {
@@ -398,6 +327,7 @@ export const TelnyxProvider = ({ children }) => {
         roomId,
         isMuted,
         isVideoOff,
+        peerManager: peerManagerRef.current,
         initializeClient,
         joinVideoRoom,
         leaveVideoRoom,
