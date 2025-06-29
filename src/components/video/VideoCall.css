@@ -44,6 +44,148 @@
   justify-content: center;
 }
 
+/* Custom Call Controls */
+.custom-call-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Custom Control Button Styling */
+.custom-control-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  margin: 0;
+}
+
+.custom-control-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.custom-control-btn:active {
+  transform: translateY(0) scale(0.95);
+}
+
+/* Specific button colors */
+.microphone-btn {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.microphone-btn:hover {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: rgba(34, 197, 94, 0.6);
+}
+
+.microphone-btn.active {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.microphone-btn.active:hover {
+  background: rgba(239, 68, 68, 0.4);
+  border-color: rgba(239, 68, 68, 0.7);
+}
+
+.camera-btn {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.camera-btn:hover {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.camera-btn.active {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.camera-btn.active:hover {
+  background: rgba(239, 68, 68, 0.4);
+  border-color: rgba(239, 68, 68, 0.7);
+}
+
+.screen-share-btn {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.screen-share-btn:hover {
+  background: rgba(245, 158, 11, 0.3);
+  border-color: rgba(245, 158, 11, 0.6);
+}
+
+.screen-share-btn.active {
+  background: rgba(245, 158, 11, 0.4);
+  border-color: rgba(245, 158, 11, 0.7);
+}
+
+/* Leave Call Button */
+.leave-call-btn {
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 0 20px !important;
+  width: auto !important;
+  border-radius: 26px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+}
+
+.leave-call-btn:hover {
+  background: rgba(239, 68, 68, 0.3) !important;
+  border-color: rgba(239, 68, 68, 0.6) !important;
+}
+
+.leave-call-btn svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+/* Muted/disabled states */
+.custom-call-controls button[aria-pressed="true"],
+.custom-call-controls button[data-state="muted"] {
+  background: rgba(239, 68, 68, 0.3) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+.custom-call-controls button[aria-pressed="true"]:hover,
+.custom-call-controls button[data-state="muted"]:hover {
+  background: rgba(239, 68, 68, 0.4) !important;
+  border-color: rgba(239, 68, 68, 0.7) !important;
+}
+
+/* Ensure icons are visible */
+.custom-call-controls button svg {
+  width: 20px !important;
+  height: 20px !important;
+  color: white !important;
+  fill: white !important;
+}
+
 .call-lobby {
   display: flex;
   flex-direction: column;
@@ -221,110 +363,109 @@ button:disabled::before {
   display: none;
 }
 
-/* GetStream component overrides - Simplified and functional */
+/* Floating Local Participant */
+.floating-local-participant {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 200px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.floating-local-participant.minimized {
+  width: 60px;
+  height: 40px;
+}
+
+.floating-participant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.participant-name {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.minimize-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.minimize-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.floating-participant-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  border-radius: 0 0 12px 12px;
+}
+
+.floating-participant-video video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 0 0 12px 12px !important;
+}
+
+.floating-participant-video .str-video__participant-view {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.floating-participant-video .str-video__participant-view__video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 0 0 12px 12px !important;
+}
+
+.floating-local-participant.minimized .floating-participant-video {
+  display: none;
+}
+
+/* Minimal GetStream overrides - Let Stream handle most styling */
 .str-video__call-controls {
+  background: rgba(0, 0, 0, 0.8) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+/* Ensure participant views have rounded corners */
+.str-video__participant-view {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+/* Custom header styling */
+.call-header {
   background: rgba(0, 0, 0, 0.9) !important;
-  border-radius: 16px !important;
-  padding: 16px 24px !important;
-  margin: 20px auto !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  gap: 12px !important;
-}
-
-.str-video__call-controls__button {
-  background: rgba(255, 255, 255, 0.15) !important;
-  border: 2px solid rgba(255, 255, 255, 0.3) !important;
-  border-radius: 50% !important;
-  width: 52px !important;
-  height: 52px !important;
-  margin: 0 !important;
-  transition: all 0.2s ease !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  cursor: pointer !important;
-}
-
-.str-video__call-controls__button:hover {
-  background: rgba(255, 255, 255, 0.25) !important;
-  border-color: rgba(255, 255, 255, 0.5) !important;
-  transform: scale(1.05) !important;
-}
-
-.str-video__call-controls__button:active {
-  transform: scale(0.95) !important;
-}
-
-/* Ensure icons are visible */
-.str-video__call-controls__button svg,
-.str-video__call-controls__button path,
-.str-video__call-controls__button * {
-  color: white !important;
-  fill: white !important;
-  stroke: white !important;
-  width: 20px !important;
-  height: 20px !important;
-}
-
-/* Camera button */
-.str-video__call-controls__button[data-testid*="camera"] {
-  background: rgba(59, 130, 246, 0.3) !important;
-  border-color: rgba(59, 130, 246, 0.6) !important;
-}
-
-.str-video__call-controls__button[data-testid*="camera"]:hover {
-  background: rgba(59, 130, 246, 0.5) !important;
-  border-color: rgba(59, 130, 246, 0.8) !important;
-}
-
-/* Microphone button */
-.str-video__call-controls__button[data-testid*="microphone"] {
-  background: rgba(34, 197, 94, 0.3) !important;
-  border-color: rgba(34, 197, 94, 0.6) !important;
-}
-
-.str-video__call-controls__button[data-testid*="microphone"]:hover {
-  background: rgba(34, 197, 94, 0.5) !important;
-  border-color: rgba(34, 197, 94, 0.8) !important;
-}
-
-/* Screen share button */
-.str-video__call-controls__button[data-testid*="screen"] {
-  background: rgba(245, 158, 11, 0.3) !important;
-  border-color: rgba(245, 158, 11, 0.6) !important;
-}
-
-.str-video__call-controls__button[data-testid*="screen"]:hover {
-  background: rgba(245, 158, 11, 0.5) !important;
-  border-color: rgba(245, 158, 11, 0.8) !important;
-}
-
-/* Leave call button */
-.str-video__call-controls__button[data-testid*="leave"] {
-  background: rgba(239, 68, 68, 0.3) !important;
-  border-color: rgba(239, 68, 68, 0.6) !important;
-}
-
-.str-video__call-controls__button[data-testid*="leave"]:hover {
-  background: rgba(239, 68, 68, 0.5) !important;
-  border-color: rgba(239, 68, 68, 0.8) !important;
-}
-
-/* Muted/disabled states */
-.str-video__call-controls__button[aria-pressed="true"],
-.str-video__call-controls__button[data-state="muted"] {
-  background: rgba(239, 68, 68, 0.4) !important;
-  border-color: rgba(239, 68, 68, 0.7) !important;
-}
-
-.str-video__call-controls__button[aria-pressed="true"]:hover,
-.str-video__call-controls__button[data-state="muted"]:hover {
-  background: rgba(239, 68, 68, 0.6) !important;
-  border-color: rgba(239, 68, 68, 0.9) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
 }
 
 /* Participant view styling */
@@ -421,6 +562,30 @@ button:disabled::before {
   
   .join-controls button {
     width: 200px;
+  }
+  
+  /* Mobile floating participant */
+  .floating-local-participant {
+    width: 150px;
+    bottom: 15px;
+    right: 15px;
+  }
+  
+  .floating-local-participant.minimized {
+    width: 50px;
+    height: 35px;
+  }
+  
+  .floating-participant-video {
+    aspect-ratio: 16/9;
+  }
+  
+  .floating-participant-header {
+    padding: 6px 10px;
+  }
+  
+  .participant-name {
+    font-size: 11px;
   }
   
   /* Mobile video controls */
