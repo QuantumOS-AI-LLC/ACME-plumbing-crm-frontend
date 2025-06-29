@@ -271,11 +271,153 @@ const VideoCallUI = ({ onLeave, onCallEvent, callId, call }) => {
   );
 };
 
+// Pre-call setup component
+const PreCallSetup = ({ call, onJoinCall, onLeave, callId, isJoining }) => {
+  const [isCameraEnabled, setIsCameraEnabled] = useState(true);
+  const [isMicEnabled, setIsMicEnabled] = useState(true);
+  const [localStream, setLocalStream] = useState(null);
+  const videoRef = React.useRef(null);
+
+  useEffect(() => {
+    const setupPreview = async () => {
+      try {
+        // Get user media for preview
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: isCameraEnabled,
+          audio: isMicEnabled
+        });
+        setLocalStream(stream);
+        
+        if (videoRef.current && isCameraEnabled) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing media devices:', error);
+      }
+    };
+
+    setupPreview();
+
+    // Cleanup function
+    return () => {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isCameraEnabled, isMicEnabled]);
+
+  const toggleCamera = async () => {
+    setIsCameraEnabled(!isCameraEnabled);
+    if (localStream) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !isCameraEnabled;
+      }
+    }
+  };
+
+  const toggleMicrophone = async () => {
+    setIsMicEnabled(!isMicEnabled);
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !isMicEnabled;
+      }
+    }
+  };
+
+  const handleJoinCall = () => {
+    // Stop preview stream before joining
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+    }
+    onJoinCall();
+  };
+
+  return (
+    <div className="pre-call-setup">
+      <div className="setup-header">
+        <h2>Ready to join call: {callId}</h2>
+        <p>Check your camera and microphone before joining</p>
+      </div>
+      
+      <div className="video-preview-container">
+        <div className="video-preview">
+          {isCameraEnabled ? (
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="preview-video"
+            />
+          ) : (
+            <div className="camera-off-preview">
+              <div className="camera-off-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2zM5 16V8h1.73l8 8H5z"/>
+                </svg>
+              </div>
+              <p>Camera is off</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="device-controls">
+        <div className="control-group">
+          <button
+            onClick={toggleMicrophone}
+            className={`device-btn ${!isMicEnabled ? 'disabled' : ''}`}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              {!isMicEnabled ? (
+                <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>
+              ) : (
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.31 6-6.72h-1.7z"/>
+              )}
+            </svg>
+            <span>{isMicEnabled ? 'Microphone On' : 'Microphone Off'}</span>
+          </button>
+
+          <button
+            onClick={toggleCamera}
+            className={`device-btn ${!isCameraEnabled ? 'disabled' : ''}`}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              {!isCameraEnabled ? (
+                <path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2zM5 16V8h1.73l8 8H5z"/>
+              ) : (
+                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+              )}
+            </svg>
+            <span>{isCameraEnabled ? 'Camera On' : 'Camera Off'}</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="join-controls">
+        <button 
+          onClick={handleJoinCall}
+          disabled={isJoining}
+          className="btn-primary"
+        >
+          {isJoining ? 'Joining...' : 'Join Call'}
+        </button>
+        <button onClick={onLeave} className="btn-secondary">
+          Back to Lobby
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, onCallEvent }) => {
   const { client, user, userType } = useVideoClient();
   const [call, setCall] = useState(null);
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState(null);
+  const [showPreCallSetup, setShowPreCallSetup] = useState(true);
 
   useEffect(() => {
     const setupCall = async () => {
@@ -395,11 +537,24 @@ const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, on
     return <div className="loading">Setting up call...</div>;
   }
 
+  const handleJoinFromSetup = () => {
+    setShowPreCallSetup(false);
+    joinCall();
+  };
+
   return (
     <StreamVideo client={client}>
       <StreamCall call={call}>
         {call.state.callingState === 'joined' ? (
           <VideoCallUI onLeave={leaveCall} onCallEvent={onCallEvent} callId={callId} call={call} />
+        ) : showPreCallSetup ? (
+          <PreCallSetup 
+            call={call}
+            onJoinCall={handleJoinFromSetup}
+            onLeave={onLeave}
+            callId={callId}
+            isJoining={isJoining}
+          />
         ) : (
           <div className="call-lobby">
             <h2>Ready to join call: {callId}</h2>

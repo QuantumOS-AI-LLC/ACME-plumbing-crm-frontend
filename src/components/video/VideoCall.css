@@ -668,3 +668,254 @@ button:disabled::before {
   border-radius: 8px !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
+
+/* Pre-Call Setup Styles */
+.pre-call-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+}
+
+.pre-call-setup::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.05"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+  pointer-events: none;
+}
+
+.setup-header {
+  margin-bottom: 30px;
+  position: relative;
+  z-index: 1;
+}
+
+.setup-header h2 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  text-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.setup-header p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  margin: 0;
+  animation: fadeInUp 0.8s ease-out 0.2s both;
+}
+
+.video-preview-container {
+  margin-bottom: 30px;
+  position: relative;
+  z-index: 1;
+  animation: fadeInUp 0.8s ease-out 0.4s both;
+}
+
+.video-preview {
+  width: 400px;
+  height: 300px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.8);
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.preview-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 13px;
+}
+
+.camera-off-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.camera-off-icon {
+  margin-bottom: 15px;
+  opacity: 0.6;
+}
+
+.camera-off-preview p {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.device-controls {
+  margin-bottom: 40px;
+  position: relative;
+  z-index: 1;
+  animation: fadeInUp 0.8s ease-out 0.6s both;
+}
+
+.control-group {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.device-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  min-width: 180px;
+  justify-content: center;
+}
+
+.device-btn:hover:not(.disabled) {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.device-btn.disabled {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.device-btn.disabled:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.2);
+}
+
+.device-btn svg {
+  flex-shrink: 0;
+}
+
+.join-controls {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+  animation: fadeInUp 0.8s ease-out 0.8s both;
+}
+
+/* Mobile responsive for pre-call setup */
+@media (max-width: 768px) {
+  .pre-call-setup {
+    padding: 15px;
+  }
+  
+  .setup-header h2 {
+    font-size: 2rem;
+  }
+  
+  .setup-header p {
+    font-size: 1rem;
+  }
+  
+  .video-preview {
+    width: 320px;
+    height: 240px;
+  }
+  
+  .control-group {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .device-btn {
+    min-width: 200px;
+  }
+  
+  .join-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .join-controls button {
+    width: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .video-preview {
+    width: 280px;
+    height: 210px;
+  }
+  
+  .setup-header h2 {
+    font-size: 1.8rem;
+  }
+  
+  .device-btn {
+    min-width: 160px;
+    padding: 14px 20px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Animation for smooth transitions */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced button hover effects for pre-call setup */
+.pre-call-setup .btn-primary,
+.pre-call-setup .btn-secondary {
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.pre-call-setup .btn-primary::before,
+.pre-call-setup .btn-secondary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+  z-index: -1;
+}
+
+.pre-call-setup .btn-primary:hover:not(:disabled)::before,
+.pre-call-setup .btn-secondary:hover:not(:disabled)::before {
+  left: 100%;
+}
