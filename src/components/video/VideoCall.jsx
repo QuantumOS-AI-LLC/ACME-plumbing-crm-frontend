@@ -15,7 +15,6 @@ const FloatingLocalParticipant = () => {
   const { useParticipants } = useCallStateHooks();
   const participants = useParticipants();
   const { user } = useVideoClient();
-  const [isMinimized, setIsMinimized] = useState(false);
 
   // Find the local participant (current user)
   const localParticipant = participants.find(p => p.userId === user?.id);
@@ -25,24 +24,13 @@ const FloatingLocalParticipant = () => {
   }
 
   return (
-    <div className={`floating-local-participant ${isMinimized ? 'minimized' : ''}`}>
-      <div className="floating-participant-header">
-        <span className="participant-name">You</span>
-        <button 
-          className="minimize-btn"
-          onClick={() => setIsMinimized(!isMinimized)}
-        >
-          {isMinimized ? '□' : '−'}
-        </button>
+    <div className="floating-local-participant">
+      <div className="floating-participant-video">
+        <ParticipantView 
+          participant={localParticipant}
+          trackType="videoTrack"
+        />
       </div>
-      {!isMinimized && (
-        <div className="floating-participant-video">
-          <ParticipantView 
-            participant={localParticipant}
-            trackType="videoTrack"
-          />
-        </div>
-      )}
     </div>
   );
 };
@@ -242,12 +230,27 @@ const VideoCallUI = ({ onLeave, onCallEvent, callId, call }) => {
               <span className="call-duration">{formatDuration(callDuration)}</span>
             </div>
             <div className="call-status">
-              <span className="participants-count">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H17c-.8 0-1.54.37-2.01 1.01L14 10l-1.99-1.01A2.5 2.5 0 0 0 10 8H8.46c-.8 0-1.51.37-1.96 1.37L4 17.5H6.5V22h2v-6h2.5l1.5-4.5L14 13v9h2z"/>
-                </svg>
-                {participants.length}
-              </span>
+              <div className="participants-section">
+                <div className="participants-count">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H17c-.8 0-1.54.37-2.01 1.01L14 10l-1.99-1.01A2.5 2.5 0 0 0 10 8H8.46c-.8 0-1.51.37-1.96 1.37L4 17.5H6.5V22h2v-6h2.5l1.5-4.5L14 13v9h2z"/>
+                  </svg>
+                  {participants.length}
+                </div>
+                <div className="participants-names">
+                  {participants.slice(0, 3).map((participant, index) => (
+                    <span key={participant.userId} className="participant-name-chip">
+                      {participant.name || `User ${index + 1}`}
+                      {participant.userId === user?.id && ' (You)'}
+                    </span>
+                  ))}
+                  {participants.length > 3 && (
+                    <span className="participants-more">
+                      +{participants.length - 3} more
+                    </span>
+                  )}
+                </div>
+              </div>
               <span className={`connection-quality ${connectionQuality}`}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M2 17h20v2H2zm1.15-4.05L4 11.47l.85 1.48c.3-.17.66-.25 1.02-.25s.72.08 1.02.25L8 11.47l.85 1.48c.3-.17.66-.25 1.02-.25s.72.08 1.02.25L12 11.47l.85 1.48c.3-.17.66-.25 1.02-.25s.72.08 1.02.25L16 11.47l.85 1.48c.3-.17.66-.25 1.02-.25s.72.08 1.02.25L20 11.47l.85 1.48c.3-.17.66-.25 1.02-.25V15h-2v-2h-2v2h-2v-2h-2v2h-2v-2H9v2H7v-2H5v2H3v-1.95z"/>
@@ -257,9 +260,6 @@ const VideoCallUI = ({ onLeave, onCallEvent, callId, call }) => {
               {userType && <span className="user-type">{userType}</span>}
             </div>
           </div>
-          <button onClick={onLeave} className="btn-secondary">
-            Leave Call
-          </button>
         </div>
         
         <div className="video-container">
