@@ -10,16 +10,87 @@
   justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   color: white;
   z-index: 1000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .call-info {
-  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.call-details {
   display: flex;
   gap: 20px;
   align-items: center;
+}
+
+.call-id {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.call-duration {
+  font-size: 14px;
+  font-weight: 500;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.call-status {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.participants-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #60a5fa;
+  font-weight: 500;
+}
+
+.participants-count svg {
+  opacity: 0.8;
+}
+
+.connection-quality {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.connection-quality.excellent {
+  color: #10b981;
+}
+
+.connection-quality.good {
+  color: #10b981;
+}
+
+.connection-quality.poor {
+  color: #f59e0b;
+}
+
+.connection-quality.bad {
+  color: #ef4444;
+}
+
+.connection-quality svg {
+  opacity: 0.8;
 }
 
 .user-type {

@@ -67,6 +67,39 @@ const VideoCallUI = ({ onLeave, onCallEvent, callId, call }) => {
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
+  const [connectionQuality, setConnectionQuality] = useState('good');
+  const callStartTime = useState(() => new Date())[0];
+
+  // Call duration timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCallDuration(Math.floor((new Date() - callStartTime) / 1000));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [callStartTime]);
+
+  // Format call duration
+  const formatDuration = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Connection quality indicator
+  const getConnectionIcon = () => {
+    switch (connectionQuality) {
+      case 'excellent':
+        return '📶';
+      case 'good':
+        return '📶';
+      case 'poor':
+        return '📶';
+      default:
+        return '📶';
+    }
+  };
 
   // Log participant changes
   useEffect(() => {
@@ -204,9 +237,25 @@ const VideoCallUI = ({ onLeave, onCallEvent, callId, call }) => {
       <div className="video-call-ui">
         <div className="call-header">
           <div className="call-info">
-            <span>Call: {callId}</span>
-            <span>Participants: {participants.length}</span>
-            {userType && <span className="user-type">{userType}</span>}
+            <div className="call-details">
+              <span className="call-id">Call: {callId}</span>
+              <span className="call-duration">{formatDuration(callDuration)}</span>
+            </div>
+            <div className="call-status">
+              <span className="participants-count">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H17c-.8 0-1.54.37-2.01 1.01L14 10l-1.99-1.01A2.5 2.5 0 0 0 10 8H8.46c-.8 0-1.51.37-1.96 1.37L4 17.5H6.5V22h2v-6h2.5l1.5-4.5L14 13v9h2z"/>
+                </svg>
+                {participants.length}
+              </span>
+              <span className={`connection-quality ${connectionQuality}`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2 17h20v2H2zm1.15-4.05L4 11.47l.85 1.48c.3-.17.66-.25 1.02-.25s.72.08 1.02.25L8 11.47l.85 1.48c.3-.17.66-.25 1.02-.25s.72.08 1.02.25L12 11.47l.85 1.48c.3-.17.66-.25 1.02-.25s.72.08 1.02.25L16 11.47l.85 1.48c.3-.17.66-.25 1.02-.25s.72.08 1.02.25L20 11.47l.85 1.48c.3-.17.66-.25 1.02-.25V15h-2v-2h-2v2h-2v-2h-2v2h-2v-2H9v2H7v-2H5v2H3v-1.95z"/>
+                </svg>
+                {connectionQuality}
+              </span>
+              {userType && <span className="user-type">{userType}</span>}
+            </div>
           </div>
           <button onClick={onLeave} className="btn-secondary">
             Leave Call
