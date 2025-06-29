@@ -81,12 +81,35 @@ const VideoCallUI = ({ onLeave, onCallEvent, callId, call }) => {
 
   const toggleMicrophone = async () => {
     try {
-      if (call?.microphone) {
+      if (call) {
         if (isMicMuted) {
-          await call.microphone.enable();
+          // Try different possible unmute methods
+          if (call.microphone && typeof call.microphone.enable === 'function') {
+            await call.microphone.enable();
+          } else if (typeof call.unmuteAudio === 'function') {
+            await call.unmuteAudio();
+          } else if (call.audio && typeof call.audio.enable === 'function') {
+            await call.audio.enable();
+          } else if (typeof call.unmute === 'function') {
+            await call.unmute();
+          } else {
+            return;
+          }
         } else {
-          await call.microphone.disable();
+          // Try different possible mute methods
+          if (call.microphone && typeof call.microphone.disable === 'function') {
+            await call.microphone.disable();
+          } else if (typeof call.muteAudio === 'function') {
+            await call.muteAudio();
+          } else if (call.audio && typeof call.audio.disable === 'function') {
+            await call.audio.disable();
+          } else if (typeof call.mute === 'function') {
+            await call.mute();
+          } else {
+            return;
+          }
         }
+        
         setIsMicMuted(!isMicMuted);
       }
     } catch (error) {
@@ -96,12 +119,35 @@ const VideoCallUI = ({ onLeave, onCallEvent, callId, call }) => {
 
   const toggleCamera = async () => {
     try {
-      if (call?.camera) {
+      if (call) {
         if (isCameraOff) {
-          await call.camera.enable();
+          // Try different possible camera enable methods
+          if (call.camera && typeof call.camera.enable === 'function') {
+            await call.camera.enable();
+          } else if (typeof call.enableVideo === 'function') {
+            await call.enableVideo();
+          } else if (call.video && typeof call.video.enable === 'function') {
+            await call.video.enable();
+          } else if (typeof call.startVideo === 'function') {
+            await call.startVideo();
+          } else {
+            return;
+          }
         } else {
-          await call.camera.disable();
+          // Try different possible camera disable methods
+          if (call.camera && typeof call.camera.disable === 'function') {
+            await call.camera.disable();
+          } else if (typeof call.disableVideo === 'function') {
+            await call.disableVideo();
+          } else if (call.video && typeof call.video.disable === 'function') {
+            await call.video.disable();
+          } else if (typeof call.stopVideo === 'function') {
+            await call.stopVideo();
+          } else {
+            return;
+          }
         }
+        
         setIsCameraOff(!isCameraOff);
       }
     } catch (error) {
@@ -111,11 +157,29 @@ const VideoCallUI = ({ onLeave, onCallEvent, callId, call }) => {
 
   const toggleScreenShare = async () => {
     try {
-      if (call?.screenShare) {
+      if (call) {
         if (isScreenSharing) {
-          await call.screenShare.stop();
+          // Try different possible stop methods
+          if (typeof call.stopScreenShare === 'function') {
+            await call.stopScreenShare();
+          } else if (call.screenShare && typeof call.screenShare.disable === 'function') {
+            await call.screenShare.disable();
+          } else if (call.screenShare && typeof call.screenShare.stop === 'function') {
+            await call.screenShare.stop();
+          } else {
+            return;
+          }
         } else {
-          await call.screenShare.start();
+          // Try different possible start methods
+          if (typeof call.startScreenShare === 'function') {
+            await call.startScreenShare();
+          } else if (call.screenShare && typeof call.screenShare.enable === 'function') {
+            await call.screenShare.enable();
+          } else if (call.screenShare && typeof call.screenShare.start === 'function') {
+            await call.screenShare.start();
+          } else {
+            return;
+          }
         }
         setIsScreenSharing(!isScreenSharing);
       }
@@ -253,9 +317,6 @@ const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, on
     setError(null);
 
     try {
-      // For GetStream SDK v1.18.6, try the correct join pattern
-      console.log('Attempting to join call with instance:', callInstance);
-      
       // Method 1: Direct join (most common)
       if (callInstance && typeof callInstance.join === 'function') {
         await callInstance.join({ create: true });
@@ -275,17 +336,8 @@ const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, on
         await callInstance.join();
       }
       else {
-        // Debug information
-        console.error('Call instance details:', {
-          instance: callInstance,
-          hasJoin: typeof callInstance?.join,
-          methods: callInstance ? Object.getOwnPropertyNames(callInstance) : 'null',
-          prototype: callInstance ? Object.getOwnPropertyNames(Object.getPrototypeOf(callInstance)) : 'null'
-        });
         throw new Error('No valid join method found on call instance');
       }
-
-      console.log('Successfully joined call');
 
       // Optional: Log to backend for analytics
       if (onCallEvent) {

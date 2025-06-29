@@ -50,7 +50,7 @@ export const VideoProvider = ({ children }) => {
         name: userName,
       };
 
-      const videoClient = new StreamVideoClient({
+      const videoClient = StreamVideoClient.getOrCreateInstance({
         apiKey,
         user: userData,
         token,
@@ -94,7 +94,7 @@ export const VideoProvider = ({ children }) => {
         name: userName,
       };
 
-      const videoClient = new StreamVideoClient({
+      const videoClient = StreamVideoClient.getOrCreateInstance({
         apiKey,
         user: userData,
         token,
@@ -133,7 +133,7 @@ export const VideoProvider = ({ children }) => {
         name: userName,
       };
 
-      const videoClient = new StreamVideoClient({
+      const videoClient = StreamVideoClient.getOrCreateInstance({
         apiKey,
         user: userData,
         token,
@@ -177,7 +177,7 @@ export const VideoProvider = ({ children }) => {
         name: userName,
       };
 
-      const videoClient = new StreamVideoClient({
+      const videoClient = StreamVideoClient.getOrCreateInstance({
         apiKey,
         user: userData,
         token,
