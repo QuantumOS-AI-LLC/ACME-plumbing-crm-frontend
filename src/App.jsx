@@ -8,6 +8,7 @@ import { JobsProvider } from "./contexts/JobsContext";
 import { EstimatesProvider } from "./contexts/EstimatesContext";
 import { EventsProvider } from "./contexts/EventsContext";
 import { DashboardStatsProvider } from "./contexts/DashboardStatsContext";
+import { VideoProvider } from "./contexts/VideoContext";
 import CssBaseline from "@mui/material/CssBaseline";
 
 import theme from "./theme";
@@ -31,6 +32,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import NotificationSettingsPage from "./pages/NotificationSettingsPage";
 import MyServicesPage from "./pages/MyServicesPage";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
+import CallManager from "./components/video/CallManager";
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -52,18 +54,25 @@ const App = () => {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
-            <DashboardStatsProvider>
-                <JobsProvider>
-                    <EstimatesProvider>
-                        <EventsProvider>
-                            <SocketProvider>
-                                <NotificationSettingsProvider>
-                                    <NotificationProvider>
-                                        <BrowserRouter>
+            <VideoProvider>
+                <DashboardStatsProvider>
+                    <JobsProvider>
+                        <EstimatesProvider>
+                            <EventsProvider>
+                                <SocketProvider>
+                                    <NotificationSettingsProvider>
+                                        <NotificationProvider>
+                                            <BrowserRouter>
                                             <Routes>
                                                 <Route
                                                     path="/login"
                                                     element={<LoginPage />}
+                                                />
+
+                                                {/* Public Guest Video Call Route */}
+                                                <Route
+                                                    path="/join-call"
+                                                    element={<CallManager />}
                                                 />
 
                                                 {/* Google Calendar OAuth Callback - Protected route */}
@@ -233,6 +242,16 @@ const App = () => {
                                                     }
                                                 />
 
+                                                {/* Video Call Route */}
+                                                <Route
+                                                    path="/video-call"
+                                                    element={
+                                                        <ProtectedRoute>
+                                                            <CallManager />
+                                                        </ProtectedRoute>
+                                                    }
+                                                />
+
                                                 {/* Redirect any unknown routes to dashboard */}
                                                 <Route
                                                     path="*"
@@ -252,6 +271,7 @@ const App = () => {
                     </EstimatesProvider>
                 </JobsProvider>
             </DashboardStatsProvider>
+            </VideoProvider>
         </ThemeProvider>
     );
 };

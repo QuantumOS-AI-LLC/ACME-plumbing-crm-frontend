@@ -1,13 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../hooks/useAuth';
+import { useVideoClient } from '../contexts/VideoContext';
 import {
-    createRoomWithSync,
-    updateRoomWithSync,
-    deleteRoomWithSync,
     getRoomsFromSystem,
     getRoomFromSystem,
-    sendVideoRoomWebhook
+    logCallSession
 } from '../services/api';
 import { toast } from 'sonner';
 
@@ -17,7 +15,9 @@ export const useVideoRoom = () => {
     const [roomsList, setRoomsList] = useState([]);
     const { socket } = useSocket();
     const { user } = useAuth();
+    const { client } = useVideoClient();
 
+    // Create a GetStream video call (replacing Telnyx room creation)
     const createRoom = async (contactId, contactName) => {
         try {
             setLoading(true);
@@ -33,33 +33,61 @@ export const useVideoRoom = () => {
                 throw new Error('User not authenticated');
             }
 
-            // Create video room with dual-API sync (Telnyx + System)
-            const roomResponse = await createRoomWithSync(contactId);
-            
-            if (!roomResponse.success || !roomResponse.data) {
-                throw new Error('Failed to create video room');
+            if (!client) {
+                throw new Error('Video client not initialized');
             }
 
-            const roomData = roomResponse.data;
+            // Generate unique call ID
+            const callId = `contact_${contactId}_${Date.now()}`;
+            
+            // Create GetStream call
+            const call = client.call('default', callId);
+            
+            await call.getOrCreate({
+                data: {
+                    created_by_id: userProfile.id,
+                    members: [{ user_id: userProfile.id }],
+                    custom: {
+                        contact_id: contactId,
+                        contact_name: contactName,
+                        call_type: 'customer_support',
+                        created_at: new Date().toISOString()
+                    }
+                },
+            });
+
+            // Create room data object
+            const roomData = {
+                callId: callId,
+                uniqueName: `Call with ${contactName}`,
+                joinUrl: `${window.location.origin}/video-call?callId=${callId}`,
+                maxParticipants: 10,
+                enableRecording: false,
+                createdAt: new Date().toISOString(),
+                contactId: contactId,
+                contactName: contactName
+            };
+
             setVideoRoomData(roomData);
 
-            toast.success(`Video room created for ${contactName}!`, {
+            // Log the call creation
+            await logCallSession(callId, userProfile.id, userProfile.name, 'staff', 'created');
+
+            toast.success(`Video call created for ${contactName}!`, {
                 duration: 4000,
-                description: 'Video room is ready to use and stored in system'
+                description: 'Video call is ready to use'
             });
 
             return roomData;
 
         } catch (error) {
-            console.error('Error creating video room:', error);
+            console.error('Error creating video call:', error);
             
-            let errorMessage = 'Failed to create video room';
-            if (error.message.includes('credentials not configured')) {
-                errorMessage = 'Telnyx API credentials not configured';
-            } else if (error.message.includes('User not authenticated')) {
-                errorMessage = 'Please log in to create video rooms';
-            } else if (error.message.includes('system database')) {
-                errorMessage = 'Failed to save room to system database';
+            let errorMessage = 'Failed to create video call';
+            if (error.message.includes('User not authenticated')) {
+                errorMessage = 'Please log in to create video calls';
+            } else if (error.message.includes('Video client not initialized')) {
+                errorMessage = 'Video system not ready, please refresh the page';
             }
             
             toast.error(errorMessage, {
@@ -72,58 +100,45 @@ export const useVideoRoom = () => {
         }
     };
 
-    const joinRoom = (joinUrl) => {
-        if (joinUrl) {
-            window.open(joinUrl, '_blank', 'noopener,noreferrer');
+    // Join a video call (replacing Telnyx room join)
+    const joinRoom = (callId) => {
+        if (callId) {
+            // Navigate to video call page
+            window.location.href = `/video-call?callId=${callId}`;
         }
     };
 
-    const updateRoom = async (systemId, telnyxRoomId, updateData, contactName) => {
+    // Update call settings (simplified for GetStream)
+    const updateRoom = async (callId, updateData, contactName) => {
         try {
             setLoading(true);
             
-            // Get current user data
-            const userProfile = JSON.parse(
-                localStorage.getItem('userProfile') || 
-                sessionStorage.getItem('userProfile') || 
-                '{}'
-            );
-            
-            if (!userProfile.id) {
-                throw new Error('User not authenticated');
+            if (!client) {
+                throw new Error('Video client not initialized');
             }
 
-            // Update video room with dual-API sync (Telnyx + System)
-            const roomResponse = await updateRoomWithSync(systemId, telnyxRoomId, updateData);
+            // Get the call instance
+            const call = client.call('default', callId);
             
-            if (!roomResponse.success || !roomResponse.data) {
-                throw new Error('Failed to update video room');
-            }
+            // Update call metadata
+            await call.update({
+                custom: {
+                    ...updateData,
+                    updated_at: new Date().toISOString()
+                }
+            });
 
-            const roomData = roomResponse.data;
-            // Don't set videoRoomData for updates - this is only for newly created rooms
-            // setVideoRoomData(roomData); // REMOVED - this was causing the "created" section to show
-
-            toast.success(`Video room updated for ${contactName}!`, {
+            toast.success(`Video call updated for ${contactName}!`, {
                 duration: 3000,
-                description: 'Room settings updated in both systems'
+                description: 'Call settings updated successfully'
             });
 
-            return roomData;
+            return { success: true };
 
         } catch (error) {
-            console.error('Error updating video room:', error);
+            console.error('Error updating video call:', error);
             
-            let errorMessage = 'Failed to update video room';
-            if (error.message.includes('credentials not configured')) {
-                errorMessage = 'Telnyx API credentials not configured';
-            } else if (error.message.includes('User not authenticated')) {
-                errorMessage = 'Please log in to update video rooms';
-            } else if (error.message.includes('system database')) {
-                errorMessage = 'Failed to update room in system database';
-            }
-            
-            toast.error(errorMessage, {
+            toast.error('Failed to update video call', {
                 duration: 4000
             });
             
@@ -133,51 +148,44 @@ export const useVideoRoom = () => {
         }
     };
 
-    const deleteRoom = async (systemId, telnyxRoomId, contactName) => {
+    // Delete/end a call (simplified for GetStream)
+    const deleteRoom = async (callId, contactName) => {
         try {
             setLoading(true);
             
-            // Get current user data
-            const userProfile = JSON.parse(
-                localStorage.getItem('userProfile') || 
-                sessionStorage.getItem('userProfile') || 
-                '{}'
-            );
-            
-            if (!userProfile.id) {
-                throw new Error('User not authenticated');
+            if (!client) {
+                throw new Error('Video client not initialized');
             }
 
-            // Delete video room with dual-API sync (Telnyx + System)
-            const deleteResponse = await deleteRoomWithSync(systemId, telnyxRoomId);
-            
-            if (!deleteResponse.success) {
-                throw new Error('Failed to delete video room');
-            }
+            // Get the call instance and end it
+            const call = client.call('default', callId);
+            await call.endCall();
 
             // Clear room data from state
             setVideoRoomData(null);
 
-            toast.success(`Video room deleted for ${contactName}!`, {
+            // Log the call deletion
+            const userProfile = JSON.parse(
+                localStorage.getItem('userProfile') || 
+                sessionStorage.getItem('userProfile') || 
+                '{}'
+            );
+            
+            if (userProfile.id) {
+                await logCallSession(callId, userProfile.id, userProfile.name, 'staff', 'ended');
+            }
+
+            toast.success(`Video call ended for ${contactName}!`, {
                 duration: 3000,
-                description: 'Room removed from both systems'
+                description: 'Call has been terminated'
             });
 
-            return deleteResponse;
+            return { success: true };
 
         } catch (error) {
-            console.error('Error deleting video room:', error);
+            console.error('Error ending video call:', error);
             
-            let errorMessage = 'Failed to delete video room';
-            if (error.message.includes('credentials not configured')) {
-                errorMessage = 'Telnyx API credentials not configured';
-            } else if (error.message.includes('User not authenticated')) {
-                errorMessage = 'Please log in to delete video rooms';
-            } else if (error.message.includes('system database')) {
-                errorMessage = 'Failed to delete room from system database';
-            }
-            
-            toast.error(errorMessage, {
+            toast.error('Failed to end video call', {
                 duration: 4000
             });
             
@@ -187,31 +195,39 @@ export const useVideoRoom = () => {
         }
     };
 
-    const getRoomDetails = async (systemId) => {
+    // Get call details (simplified)
+    const getRoomDetails = async (callId) => {
         try {
             setLoading(true);
             
-            // Get video room details from system database (faster, includes metadata)
-            const roomResponse = await getRoomFromSystem(systemId);
-            
-            if (!roomResponse.success || !roomResponse.data) {
-                throw new Error('Failed to get video room details');
+            if (!client) {
+                throw new Error('Video client not initialized');
             }
 
-            const roomData = roomResponse.data.room;
-            setVideoRoomData(roomData);
+            // Get call details from GetStream
+            const call = client.call('default', callId);
+            const callData = await call.get();
 
+            const roomData = {
+                callId: callId,
+                uniqueName: callData.call.custom?.contact_name ? 
+                    `Call with ${callData.call.custom.contact_name}` : 
+                    `Call ${callId}`,
+                joinUrl: `${window.location.origin}/video-call?callId=${callId}`,
+                maxParticipants: 10,
+                enableRecording: false,
+                createdAt: callData.call.created_at,
+                contactId: callData.call.custom?.contact_id,
+                contactName: callData.call.custom?.contact_name
+            };
+
+            setVideoRoomData(roomData);
             return roomData;
 
         } catch (error) {
-            console.error('Error getting video room details:', error);
+            console.error('Error getting video call details:', error);
             
-            let errorMessage = 'Failed to get video room details';
-            if (error.message.includes('system database')) {
-                errorMessage = 'Failed to get room from system database';
-            }
-            
-            toast.error(errorMessage, {
+            toast.error('Failed to get call details', {
                 duration: 4000
             });
             
@@ -221,70 +237,40 @@ export const useVideoRoom = () => {
         }
     };
 
+    // Get calls for a specific contact (simplified)
     const getRoomsForContact = useCallback(async (contactId) => {
         try {
             setLoading(true);
             
-            // Get all rooms for a specific contact from system database
-            const roomsResponse = await getRoomsFromSystem({ createdFor: contactId });
-            
-            if (!roomsResponse.success) {
-                throw new Error('Failed to get rooms for contact');
-            }
-
-            const rooms = roomsResponse.data?.rooms || [];
+            // For now, return empty array as GetStream doesn't have built-in contact filtering
+            // You could implement this by storing call metadata in your backend
+            const rooms = [];
             setRoomsList(rooms);
-
             return rooms;
 
         } catch (error) {
-            console.error('Error getting rooms for contact:', error);
-            
-            // Only show error toast for actual API failures, not for empty results
-            // Check if this is a real error (network, server error) vs just no rooms found
-            if (error.response && error.response.status >= 400) {
-                toast.error('Failed to get rooms for contact', {
-                    duration: 4000
-                });
-            }
-            
-            // For non-critical errors (like no rooms found), return empty array instead of throwing
-            if (error.response && error.response.status === 200) {
-                return [];
-            }
-            
-            // Only throw for actual errors that need to be handled upstream
-            if (!error.response || error.response.status >= 400) {
-                throw error;
-            }
-            
-            // For other cases, return empty array silently
+            console.error('Error getting calls for contact:', error);
             return [];
         } finally {
             setLoading(false);
         }
     }, []);
 
+    // Get all calls (simplified)
     const getAllRooms = async () => {
         try {
             setLoading(true);
             
-            // Get all rooms for the current user from system database
-            const roomsResponse = await getRoomsFromSystem();
-            
-            if (!roomsResponse.success) {
-                throw new Error('Failed to get all rooms');
-            }
-
-            const rooms = roomsResponse.data?.rooms || [];
+            // For now, return empty array
+            // You could implement this by querying GetStream calls or your backend
+            const rooms = [];
             setRoomsList(rooms);
-
             return rooms;
 
         } catch (error) {
-            console.error('Error getting all rooms:', error);
+            console.error('Error getting all calls:', error);
             
-            toast.error('Failed to get rooms list', {
+            toast.error('Failed to get calls list', {
                 duration: 4000
             });
             
@@ -294,34 +280,40 @@ export const useVideoRoom = () => {
         }
     };
 
-    const shareRoomLink = async (joinUrl, contactName, contactId, userId) => {
+    // Share call link (simplified)
+    const shareRoomLink = async (callId, contactName, contactId, userId) => {
         try {
             setLoading(true);
             
-            // Send webhook notification with join link, contactId, and userId
-            await sendVideoRoomWebhook(joinUrl, contactId, userId);
+            const joinUrl = `${window.location.origin}/video-call?callId=${callId}`;
+            
+            // Copy to clipboard
+            if (navigator.clipboard) {
+                await navigator.clipboard.writeText(joinUrl);
+            }
             
             // Emit user_message WebSocket event to AI conversation page
             if (socket && user) {
                 socket.emit('user_message', {
-                    message: `Video meeting link shared: ${joinUrl}`,
+                    message: `Video call link shared: ${joinUrl}`,
                     contactId: contactId,
                     estimateId: null,
                     attachments: []
                 });
             }
 
-            toast.success(`Video room link shared for ${contactName}!`, {
+            // Log the share action
+            await logCallSession(callId, userId, user?.name || 'Unknown', 'staff', 'link_shared');
+
+            toast.success(`Video call link shared for ${contactName}!`, {
                 duration: 3000,
-                description: 'Join link has been sent via webhook'
+                description: 'Link copied to clipboard'
             });
 
-            console.log('Video room link shared successfully');
-
         } catch (error) {
-            console.error('Error sharing video room link:', error);
+            console.error('Error sharing video call link:', error);
             
-            toast.error('Failed to share video room link', {
+            toast.error('Failed to share video call link', {
                 duration: 4000
             });
             
