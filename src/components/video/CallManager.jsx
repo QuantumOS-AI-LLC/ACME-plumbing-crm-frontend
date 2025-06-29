@@ -242,38 +242,40 @@ const GuestLoginForm = ({ onGuestJoin }) => {
 
   return (
     <div className="guest-login-form">
-      <h2>ACME Plumbing</h2>
-      <div className="company-subtitle">Video Call Service</div>
-      <p>Enter your name and the call ID provided by our team to join the video consultation</p>
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="guestName">Your Name</label>
-          <input
-            id="guestName"
-            type="text"
-            placeholder="Enter your full name"
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
-            required
-            disabled={isJoining}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="callId">Call ID</label>
-          <input
-            id="callId"
-            type="text"
-            placeholder="Enter the call ID provided"
-            value={callId}
-            onChange={(e) => setCallId(e.target.value)}
-            required
-            disabled={isJoining}
-          />
-        </div>
-        <button type="submit" disabled={isJoining}>
-          {isJoining ? 'Joining Call...' : '🎥 Join Video Call'}
-        </button>
-      </form>
+      <div className="form-container">
+        <h2>ACME Plumbing</h2>
+        <div className="company-subtitle">Video Call Service</div>
+        <p>Enter your name and the call ID provided by our team to join the video consultation</p>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="guestName">Your Name</label>
+            <input
+              id="guestName"
+              type="text"
+              placeholder="Enter your full name"
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              required
+              disabled={isJoining}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="callId">Call ID</label>
+            <input
+              id="callId"
+              type="text"
+              placeholder="Enter the call ID provided"
+              value={callId}
+              onChange={(e) => setCallId(e.target.value)}
+              required
+              disabled={isJoining}
+            />
+          </div>
+          <button type="submit" disabled={isJoining}>
+            {isJoining ? 'Joining Call...' : '🎥 Join Video Call'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
