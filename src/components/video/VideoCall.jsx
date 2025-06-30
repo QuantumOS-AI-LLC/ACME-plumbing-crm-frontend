@@ -546,9 +546,6 @@ const PreCallSetup = ({
         >
           {isJoining ? 'Joining...' : 'Join Call'}
         </button>
-        <button onClick={onLeave} className="btn-secondary">
-          Back to Lobby
-        </button>
       </div>
     </div>
   );
