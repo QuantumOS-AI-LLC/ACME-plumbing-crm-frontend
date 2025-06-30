@@ -556,7 +556,7 @@ const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, on
   const [call, setCall] = useState(null);
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState(null);
-  const [showPreCallSetup, setShowPreCallSetup] = useState(true);
+  // Removed showPreCallSetup state - always show pre-call setup when not joined
   
   // Lift pre-call settings to parent component
   const [preCallCameraEnabled, setPreCallCameraEnabled] = useState(true);
@@ -709,7 +709,6 @@ const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, on
   }
 
   const handleJoinFromSetup = () => {
-    setShowPreCallSetup(false);
     joinCall();
   };
 
@@ -725,7 +724,7 @@ const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, on
             initialCameraOff={!preCallCameraEnabled}
             initialMicMuted={!preCallMicEnabled}
           />
-        ) : showPreCallSetup ? (
+        ) : (
           <PreCallSetup 
             call={call}
             onJoinCall={handleJoinFromSetup}
@@ -737,22 +736,6 @@ const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, on
             isMicEnabled={preCallMicEnabled}
             setIsMicEnabled={setPreCallMicEnabled}
           />
-        ) : (
-          <div className="call-lobby">
-            <h2>Ready to join call: {callId}</h2>
-            <div className="join-controls">
-              <button 
-                onClick={() => joinCall()} 
-                disabled={isJoining}
-                className="btn-primary"
-              >
-                {isJoining ? 'Joining...' : 'Join Call'}
-              </button>
-              <button onClick={onLeave} className="btn-secondary">
-                Back to Lobby
-              </button>
-            </div>
-          </div>
         )}
       </StreamCall>
     </StreamVideo>

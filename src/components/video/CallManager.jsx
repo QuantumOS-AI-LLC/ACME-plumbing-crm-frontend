@@ -37,8 +37,10 @@ const CallManager = () => {
       console.log('Auto-joining call with secure token');
       autoJoinFromToken(token);
     } else if (callId && client && !isInCall && !currentCallId) {
-      console.log('Auto-joining call with ID:', callId);
-      autoJoinCall(callId);
+      console.log('Auto-joining call with ID for staff user:', callId);
+      // For staff users, directly set the call as active and skip lobby
+      setCurrentCallId(callId);
+      setIsInCall(true);
     }
   }, [client, isInCall, currentCallId]);
 
