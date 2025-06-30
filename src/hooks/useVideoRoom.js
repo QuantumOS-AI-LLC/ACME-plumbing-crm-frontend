@@ -3,11 +3,33 @@ import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../hooks/useAuth';
 import { useVideoClient } from '../contexts/VideoContext';
 import {
+    createRoomInSystem,
     getRoomsFromSystem,
-    getRoomFromSystem,
-    logCallSession
+    updateRoomInSystem,
+    deleteRoomFromSystem,
+    logCallSession,
+    generateVideoToken,
 } from '../services/api';
 import { toast } from 'sonner';
+
+// Helper function to generate a secure guest URL
+const generateGuestUrl = (callId, contactName) => {
+    // Generate compressed token with minimal essential data
+    const compressedTokenData = {
+        c: callId,                                                    // callId (shortened key)
+        n: contactName,                                               // contactName (shortened key)
+        e: Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)    // expiresAt as Unix timestamp
+    };
+    
+    // Create compressed base64 encoded token
+    const compressedToken = btoa(JSON.stringify(compressedTokenData))
+        .replace(/\+/g, '-')    // URL-safe: + to -
+        .replace(/\//g, '_')    // URL-safe: / to _
+        .replace(/=/g, '');     // Remove padding
+    
+    // Generate guest-friendly URL with compressed token
+    return `${window.location.origin}/join-call?token=${compressedToken}`;
+};
 
 export const useVideoRoom = () => {
     const [loading, setLoading] = useState(false);
@@ -17,7 +39,7 @@ export const useVideoRoom = () => {
     const { user } = useAuth();
     const { client } = useVideoClient();
 
-    // Create a GetStream video call (replacing Telnyx room creation)
+    // Create a GetStream video call with backend persistence
     const createRoom = async (contactId, contactName) => {
         try {
             setLoading(true);
@@ -56,16 +78,52 @@ export const useVideoRoom = () => {
                 },
             });
 
-            // Create room data object
-            const roomData = {
-                callId: callId,
-                uniqueName: `Call with ${contactName}`,
-                joinUrl: `${window.location.origin}/video-call?callId=${callId}`,
+            // Generate the secure guest URL
+            const guestUrl = generateGuestUrl(callId, contactName);
+
+            // Save to backend database for persistence
+            const backendResult = await createRoomInSystem({
+                streamCallId: callId,
+                uniqueName: `Call with ${contactName} - ${new Date().toLocaleString()}`,
+                callType: 'default',
                 maxParticipants: 10,
                 enableRecording: false,
-                createdAt: new Date().toISOString(),
+                customData: {
+                    source: 'contact_page',
+                    userAgent: navigator.userAgent,
+                    getStreamCallData: {
+                        type: 'default',
+                        created_by_id: userProfile.id
+                    }
+                },
+                createdFor: contactId,
+                joinUrl: `${window.location.origin}/video-call?callId=${callId}`,
+                guestUrl: guestUrl
+            });
+
+            if (!backendResult.success) {
+                throw new Error(backendResult.message || 'Failed to save call to backend');
+            }
+            
+            const backendRoom = backendResult.data.room;
+
+            // Create room data object with backend data
+            const roomData = {
+                id: backendRoom.id,
+                callId: backendRoom.streamCallId,
+                uniqueName: backendRoom.uniqueName,
+                joinUrl: backendRoom.joinUrl,
+                maxParticipants: backendRoom.maxParticipants,
+                enableRecording: backendRoom.enableRecording,
+                createdAt: backendRoom.createdAt,
                 contactId: contactId,
-                contactName: contactName
+                contactName: contactName,
+                status: backendRoom.status,
+                // Backend provides additional data
+                createdBy: backendRoom.createdBy,
+                createdByName: backendRoom.user?.name,
+                totalDuration: backendRoom.totalDuration || 0,
+                participantCount: backendRoom.participantCount || 0
             };
 
             setVideoRoomData(roomData);
@@ -75,7 +133,7 @@ export const useVideoRoom = () => {
 
             toast.success(`Video call created for ${contactName}!`, {
                 duration: 4000,
-                description: 'Video call is ready to use'
+                description: 'Video call is ready to use and saved'
             });
 
             return roomData;
@@ -88,6 +146,8 @@ export const useVideoRoom = () => {
                 errorMessage = 'Please log in to create video calls';
             } else if (error.message.includes('Video client not initialized')) {
                 errorMessage = 'Video system not ready, please refresh the page';
+            } else if (error.message.includes('Failed to save call to backend')) {
+                errorMessage = 'Video call created but not saved. Please try again.';
             }
             
             toast.error(errorMessage, {
@@ -128,32 +188,40 @@ export const useVideoRoom = () => {
         }
     };
 
-    // Update call settings (simplified for GetStream)
-    const updateRoom = async (callId, updateData, contactName) => {
+    // Update call settings with backend persistence
+    const updateRoom = async (roomId, updateData, contactName) => {
         try {
             setLoading(true);
             
-            if (!client) {
-                throw new Error('Video client not initialized');
-            }
+            // Update in backend database
+            const result = await updateRoomInSystem(roomId, updateData);
 
-            // Get the call instance
-            const call = client.call('default', callId);
+            if (!result.success) {
+                throw new Error(result.message || 'Failed to update video call in backend');
+            }
             
-            // Update call metadata
-            await call.update({
-                custom: {
-                    ...updateData,
-                    updated_at: new Date().toISOString()
+            // Update GetStream call if needed
+            if (client && result.data.room.streamCallId) {
+                try {
+                    const call = client.call('default', result.data.room.streamCallId);
+                    await call.update({
+                        custom: {
+                            ...updateData,
+                            updated_at: new Date().toISOString()
+                        }
+                    });
+                } catch (getStreamError) {
+                    console.warn('Failed to update GetStream call metadata:', getStreamError);
+                    // Don't fail the entire operation if GetStream update fails
                 }
-            });
+            }
 
             toast.success(`Video call updated for ${contactName}!`, {
                 duration: 3000,
                 description: 'Call settings updated successfully'
             });
 
-            return { success: true };
+            return result.data.room;
 
         } catch (error) {
             console.error('Error updating video call:', error);
@@ -168,18 +236,30 @@ export const useVideoRoom = () => {
         }
     };
 
-    // Delete/end a call (simplified for GetStream)
-    const deleteRoom = async (callId, contactName) => {
+    // Delete/end a call with backend persistence
+    const deleteRoom = async (roomId, contactName) => {
         try {
             setLoading(true);
             
-            if (!client) {
-                throw new Error('Video client not initialized');
+            // Delete from backend database
+            const response = await deleteRoomFromSystem(roomId);
+
+            if (!response.success) {
+                throw new Error(response.message || 'Failed to delete video call from backend');
             }
 
-            // Get the call instance and end it
-            const call = client.call('default', callId);
-            await call.endCall();
+            // End GetStream call if client is available
+            if (client) {
+                try {
+                    // We need to find the streamCallId from the room data
+                    // For now, we'll try to end the call if we have the callId
+                    const call = client.call('default', roomId);
+                    await call.endCall();
+                } catch (getStreamError) {
+                    console.warn('Failed to end GetStream call:', getStreamError);
+                    // Don't fail the entire operation if GetStream end fails
+                }
+            }
 
             // Clear room data from state
             setVideoRoomData(null);
@@ -192,20 +272,20 @@ export const useVideoRoom = () => {
             );
             
             if (userProfile.id) {
-                await logCallSession(callId, userProfile.id, userProfile.name, 'staff', 'ended');
+                await logCallSession(roomId, userProfile.id, userProfile.name, 'staff', 'deleted');
             }
 
-            toast.success(`Video call ended for ${contactName}!`, {
+            toast.success(`Video call deleted for ${contactName}!`, {
                 duration: 3000,
-                description: 'Call has been terminated'
+                description: 'Call has been removed'
             });
 
             return { success: true };
 
         } catch (error) {
-            console.error('Error ending video call:', error);
+            console.error('Error deleting video call:', error);
             
-            toast.error('Failed to end video call', {
+            toast.error('Failed to delete video call', {
                 duration: 4000
             });
             
@@ -257,22 +337,45 @@ export const useVideoRoom = () => {
         }
     };
 
-    // Get calls for a specific contact (simplified)
+    // Get calls for a specific contact from backend
     const getRoomsForContact = useCallback(async (contactId) => {
         try {
-            setLoading(true);
+            const result = await getRoomsFromSystem({ createdFor: contactId });
+
+            if (!result.success) {
+                throw new Error(result.message || 'Failed to fetch video calls');
+            }
+
+            const rooms = result.data.rooms || [];
             
-            // For now, return empty array as GetStream doesn't have built-in contact filtering
-            // You could implement this by storing call metadata in your backend
-            const rooms = [];
-            setRoomsList(rooms);
-            return rooms;
+            // Map backend data to frontend format
+            const mappedRooms = rooms.map(room => ({
+                id: room.id,
+                callId: room.streamCallId,
+                uniqueName: room.uniqueName,
+                joinUrl: room.joinUrl,
+                maxParticipants: room.maxParticipants,
+                enableRecording: room.enableRecording,
+                createdAt: room.createdAt,
+                updatedAt: room.updatedAt,
+                startedAt: room.startedAt,
+                endedAt: room.endedAt,
+                status: room.status,
+                totalDuration: room.totalDuration || 0,
+                participantCount: room.participantCount || 0,
+                recordingUrl: room.recordingUrl,
+                contactId: contactId,
+                contactName: room.contact?.name,
+                createdBy: room.createdBy,
+                createdByName: room.user?.name
+            }));
+            
+            setRoomsList(mappedRooms);
+            return mappedRooms;
 
         } catch (error) {
             console.error('Error getting calls for contact:', error);
             return [];
-        } finally {
-            setLoading(false);
         }
     }, []);
 
@@ -305,21 +408,8 @@ export const useVideoRoom = () => {
         try {
             setLoading(true);
             
-            // Generate compressed token with minimal essential data
-            const compressedTokenData = {
-                c: callId,                                                    // callId (shortened key)
-                n: contactName,                                               // contactName (shortened key)
-                e: Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)    // expiresAt as Unix timestamp
-            };
-            
-            // Create compressed base64 encoded token
-            const compressedToken = btoa(JSON.stringify(compressedTokenData))
-                .replace(/\+/g, '-')    // URL-safe: + to -
-                .replace(/\//g, '_')    // URL-safe: / to _
-                .replace(/=/g, '');     // Remove padding
-            
-            // Generate guest-friendly URL with compressed token
-            const guestJoinUrl = `${window.location.origin}/join-call?token=${compressedToken}`;
+            // Generate the secure guest URL
+            const guestJoinUrl = generateGuestUrl(callId, contactName);
             
             // Copy to clipboard
             if (navigator.clipboard) {
@@ -391,6 +481,47 @@ export const useVideoRoom = () => {
         }
     };
 
+    // Update call status (for call lifecycle tracking)
+    const updateCallStatus = async (roomId, status, additionalData = {}) => {
+        try {
+            const result = await updateRoomInSystem(roomId, {
+                status,
+                ...additionalData
+            });
+
+            if (!result.success) {
+                throw new Error(result.message || 'Failed to update call status');
+            }
+            
+            return result.data.room;
+        } catch (error) {
+            console.error('Error updating call status:', error);
+            throw error;
+        }
+    };
+
+    // End a video call with final statistics
+    const endVideoCall = async (streamCallId, callData) => {
+        try {
+            const result = await updateRoomInSystem(streamCallId, {
+                status: 'ended',
+                endedAt: new Date().toISOString(),
+                totalDuration: callData.duration || 0,
+                participantCount: callData.maxParticipants || 0,
+                recordingUrl: callData.recordingUrl || null
+            });
+
+            if (!result.success) {
+                throw new Error(result.message || 'Failed to end video call');
+            }
+
+            return result.data.room;
+        } catch (error) {
+            console.error('Error ending video call:', error);
+            throw error;
+        }
+    };
+
     const clearRoomData = () => {
         setVideoRoomData(null);
     };
@@ -407,7 +538,9 @@ export const useVideoRoom = () => {
         getAllRooms,
         joinRoom,
         shareRoomLink,
-        clearRoomData
+        clearRoomData,
+        updateCallStatus,
+        endVideoCall
     };
 };
 

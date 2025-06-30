@@ -279,18 +279,17 @@ const ContactDetailsPage = () => {
         }
     };
 
-    const handleDeleteVideoRoom = async (systemIdToDelete, telnyxRoomIdToDelete) => {
-        // Use the passed IDs, or fallback to videoRoomData if not provided (e.g., for the "current" room)
-        const targetSystemId = systemIdToDelete || videoRoomData?.systemId;
-        const targetTelnyxRoomId = telnyxRoomIdToDelete || videoRoomData?.roomId;
+    const handleDeleteVideoRoom = async (roomIdToDelete) => {
+        // Use the passed ID, or fallback to videoRoomData if not provided (e.g., for the "current" room)
+        const targetRoomId = roomIdToDelete || videoRoomData?.id;
 
-        if (!targetSystemId || !targetTelnyxRoomId) {
-            console.error('Missing required room IDs for deletion');
+        if (!targetRoomId) {
+            console.error('Missing required room ID for deletion');
             return;
         }
         
         try {
-            await deleteRoom(targetSystemId, targetTelnyxRoomId, contact.name);
+            await deleteRoom(targetRoomId, contact.name);
             console.log('Video room deleted successfully');
             // Reload existing rooms after deletion
             await loadExistingRooms(); // Call the helper function
@@ -303,28 +302,26 @@ const ContactDetailsPage = () => {
         // Handle both newly created rooms and existing rooms
         const roomToUpdate = selectedRoomForUpdate || videoRoomData;
         
-        // Check for the correct property names based on room source
-        const systemId = roomToUpdate?.id || roomToUpdate?.systemId;
-        const telnyxRoomId = roomToUpdate?.telnyxRoomId || roomToUpdate?.roomId;
+        // Use the room ID for backend updates
+        const roomId = roomToUpdate?.id;
         
-        if (!systemId || !telnyxRoomId) {
-            console.error('Missing required room IDs for update');
+        if (!roomId) {
+            console.error('Missing required room ID for update');
             return;
         }
         
         try {
             const updateData = {
-                max_participants: videoRoomSettings.maxParticipants,
-                enable_recording: videoRoomSettings.enableRecording
+                maxParticipants: videoRoomSettings.maxParticipants,
+                enableRecording: videoRoomSettings.enableRecording
             };
             
-            await updateRoom(systemId, telnyxRoomId, updateData, contact.name);
+            await updateRoom(roomId, updateData, contact.name);
             setOpenVideoRoomDialog(false);
             setSelectedRoomForUpdate(null);
             
             // Reload existing rooms to show updated data
-            const rooms = await getRoomsForContact(id);
-            setExistingRooms(rooms);
+            await loadExistingRooms();
         } catch (error) {
             console.error('Failed to update video room:', error);
         }
@@ -745,7 +742,7 @@ const ContactDetailsPage = () => {
                                 variant="outlined"
                                 color="error"
                                 size="small"
-                                onClick={() => handleDeleteVideoRoom(videoRoomData.systemId, videoRoomData.roomId)}
+                                onClick={() => handleDeleteVideoRoom(videoRoomData.id)}
                                 startIcon={<DeleteIcon />}
                                 disabled={videoRoomLoading}
                                 sx={{
@@ -961,12 +958,7 @@ const ContactDetailsPage = () => {
                                             variant="outlined"
                                             color="error"
                                             size="small"
-                                            onClick={async () => {
-                                                if (room.id && room.telnyxRoomId) {
-                                                    await deleteRoom(room.id, room.telnyxRoomId, contact.name);
-                                                    await loadExistingRooms(); // Refresh the list after deletion
-                                                }
-                                            }}
+                                            onClick={() => handleDeleteVideoRoom(room.id)}
                                             startIcon={<DeleteIcon />}
                                             disabled={videoRoomLoading}
                                             sx={{ 
