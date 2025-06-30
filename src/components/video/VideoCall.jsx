@@ -46,14 +46,14 @@ const CustomControlButton = ({ onClick, isActive, children, className, disabled 
   </button>
 );
 
-const VideoCallUI = ({ onLeave, onCallEvent, callId, call }) => {
+const VideoCallUI = ({ onLeave, onCallEvent, callId, call, initialCameraOff, initialMicMuted }) => {
   const { useCallEndedAt, useParticipants } = useCallStateHooks();
   const callEndedAt = useCallEndedAt();
   const participants = useParticipants();
   const { user, userType } = useVideoClient();
 
-  const [isMicMuted, setIsMicMuted] = useState(false);
-  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(initialMicMuted || false);
+  const [isCameraOff, setIsCameraOff] = useState(initialCameraOff || false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [connectionQuality, setConnectionQuality] = useState('good');
@@ -321,23 +321,31 @@ const VideoCallUI = ({ onLeave, onCallEvent, callId, call }) => {
 };
 
 // Pre-call setup component
-const PreCallSetup = ({ call, onJoinCall, onLeave, callId, isJoining }) => {
-  const [isCameraEnabled, setIsCameraEnabled] = useState(true);
-  const [isMicEnabled, setIsMicEnabled] = useState(true);
+const PreCallSetup = ({ 
+  call, 
+  onJoinCall, 
+  onLeave, 
+  callId, 
+  isJoining,
+  isCameraEnabled,
+  setIsCameraEnabled,
+  isMicEnabled,
+  setIsMicEnabled
+}) => {
   const [localStream, setLocalStream] = useState(null);
   const videoRef = React.useRef(null);
 
   useEffect(() => {
-    const setupPreview = async () => {
+    const setupInitialPreview = async () => {
       try {
-        // Get user media for preview
+        // Initial setup - get user media for preview
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: isCameraEnabled,
-          audio: isMicEnabled
+          video: true,
+          audio: true
         });
         setLocalStream(stream);
         
-        if (videoRef.current && isCameraEnabled) {
+        if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
       } catch (error) {
@@ -345,7 +353,7 @@ const PreCallSetup = ({ call, onJoinCall, onLeave, callId, isJoining }) => {
       }
     };
 
-    setupPreview();
+    setupInitialPreview();
 
     // Cleanup function
     return () => {
@@ -353,25 +361,110 @@ const PreCallSetup = ({ call, onJoinCall, onLeave, callId, isJoining }) => {
         localStream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [isCameraEnabled, isMicEnabled]);
+  }, []); // Remove dependencies to prevent interference
 
   const toggleCamera = async () => {
-    setIsCameraEnabled(!isCameraEnabled);
-    if (localStream) {
-      const videoTrack = localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !isCameraEnabled;
+    const newCameraState = !isCameraEnabled;
+    setIsCameraEnabled(newCameraState);
+    
+    if (!newCameraState) {
+      // TURNING CAMERA OFF - Immediate shutdown
+      if (localStream) {
+        // Stop video tracks immediately for instant camera light off
+        const videoTracks = localStream.getVideoTracks();
+        videoTracks.forEach(track => track.stop());
+        
+        // Clear video element immediately
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
+        }
+        
+        // Handle audio stream management in background
+        const audioTracks = localStream.getAudioTracks();
+        if (isMicEnabled && audioTracks.length > 0) {
+          // Keep existing audio tracks running
+          const audioOnlyStream = new MediaStream(audioTracks);
+          setLocalStream(audioOnlyStream);
+        } else {
+          // Stop all tracks and clear stream
+          localStream.getTracks().forEach(track => track.stop());
+          setLocalStream(null);
+        }
+      }
+    } else {
+      // TURNING CAMERA ON - Create new stream with video
+      if (localStream) {
+        // Stop current stream first
+        localStream.getTracks().forEach(track => track.stop());
+        setLocalStream(null);
+      }
+      
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: isMicEnabled
+        });
+        
+        setLocalStream(newStream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = newStream;
+        }
+      } catch (error) {
+        console.error('Error enabling camera:', error);
       }
     }
   };
 
   const toggleMicrophone = async () => {
-    setIsMicEnabled(!isMicEnabled);
+    const newMicState = !isMicEnabled;
+    setIsMicEnabled(newMicState);
+    
+    // Stop current stream completely
     if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !isMicEnabled;
+      localStream.getTracks().forEach(track => track.stop());
+      setLocalStream(null);
+    }
+    
+    // Clear video element first
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    
+    // Create appropriate stream based on device states
+    try {
+      if (isCameraEnabled && newMicState) {
+        // Both camera and mic enabled
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+        setLocalStream(newStream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = newStream;
+        }
+      } else if (isCameraEnabled && !newMicState) {
+        // Only camera enabled
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+        setLocalStream(newStream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = newStream;
+        }
+      } else if (!isCameraEnabled && newMicState) {
+        // Only microphone enabled - NO VIDEO REQUEST
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          audio: true
+        });
+        setLocalStream(newStream);
+        // Don't set video element since camera is off
+      } else {
+        // Both disabled - no stream needed
+        setLocalStream(null);
       }
+    } catch (error) {
+      console.error('Error updating microphone stream:', error);
     }
   };
 
@@ -467,6 +560,10 @@ const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, on
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState(null);
   const [showPreCallSetup, setShowPreCallSetup] = useState(true);
+  
+  // Lift pre-call settings to parent component
+  const [preCallCameraEnabled, setPreCallCameraEnabled] = useState(true);
+  const [preCallMicEnabled, setPreCallMicEnabled] = useState(true);
 
   useEffect(() => {
     const setupCall = async () => {
@@ -508,27 +605,55 @@ const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, on
     setError(null);
 
     try {
-      // Method 1: Direct join (most common)
+      // Configure camera/microphone BEFORE joining based on pre-call settings
+      console.log('Joining call with pre-call settings:', { 
+        camera: preCallCameraEnabled, 
+        mic: preCallMicEnabled 
+      });
+
+      // Apply pre-call camera setting
+      if (!preCallCameraEnabled && callInstance.camera) {
+        try {
+          await callInstance.camera.disable();
+          console.log('Camera disabled before joining');
+        } catch (error) {
+          console.warn('Could not disable camera before joining:', error);
+        }
+      }
+
+      // Apply pre-call microphone setting
+      if (!preCallMicEnabled && callInstance.microphone) {
+        try {
+          await callInstance.microphone.disable();
+          console.log('Microphone disabled before joining');
+        } catch (error) {
+          console.warn('Could not disable microphone before joining:', error);
+        }
+      }
+
+      // Join the call
       if (callInstance && typeof callInstance.join === 'function') {
         await callInstance.join({ create: true });
       } 
-      // Method 2: Camera/Microphone enable first
-      else if (callInstance && callInstance.camera && callInstance.microphone) {
-        await callInstance.camera.enable();
-        await callInstance.microphone.enable();
-        if (typeof callInstance.join === 'function') {
-          await callInstance.join();
-        } else {
-          throw new Error('Join method not available after enabling camera/mic');
-        }
-      }
-      // Method 3: Alternative join without parameters
-      else if (callInstance && typeof callInstance.join === 'function') {
-        await callInstance.join();
-      }
       else {
         throw new Error('No valid join method found on call instance');
       }
+
+      // Apply settings again after joining (fallback)
+      setTimeout(async () => {
+        try {
+          if (!preCallCameraEnabled && callInstance.camera) {
+            await callInstance.camera.disable();
+            console.log('Camera disabled after joining (fallback)');
+          }
+          if (!preCallMicEnabled && callInstance.microphone) {
+            await callInstance.microphone.disable();
+            console.log('Microphone disabled after joining (fallback)');
+          }
+        } catch (error) {
+          console.warn('Error applying settings after join:', error);
+        }
+      }, 1000);
 
       // Optional: Log to backend for analytics
       if (onCallEvent) {
@@ -595,7 +720,14 @@ const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, on
     <StreamVideo client={client}>
       <StreamCall call={call}>
         {call.state.callingState === 'joined' ? (
-          <VideoCallUI onLeave={leaveCall} onCallEvent={onCallEvent} callId={callId} call={call} />
+          <VideoCallUI 
+            onLeave={leaveCall} 
+            onCallEvent={onCallEvent} 
+            callId={callId} 
+            call={call}
+            initialCameraOff={!preCallCameraEnabled}
+            initialMicMuted={!preCallMicEnabled}
+          />
         ) : showPreCallSetup ? (
           <PreCallSetup 
             call={call}
@@ -603,6 +735,10 @@ const VideoCall = ({ callId, callType = 'default', onLeave, autoJoin = false, on
             onLeave={onLeave}
             callId={callId}
             isJoining={isJoining}
+            isCameraEnabled={preCallCameraEnabled}
+            setIsCameraEnabled={setPreCallCameraEnabled}
+            isMicEnabled={preCallMicEnabled}
+            setIsMicEnabled={setPreCallMicEnabled}
           />
         ) : (
           <div className="call-lobby">

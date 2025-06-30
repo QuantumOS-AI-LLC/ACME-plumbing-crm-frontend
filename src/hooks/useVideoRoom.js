@@ -101,10 +101,30 @@ export const useVideoRoom = () => {
     };
 
     // Join a video call (replacing Telnyx room join)
-    const joinRoom = (callId) => {
-        if (callId) {
-            // Navigate to video call page
-            window.location.href = `/video-call?callId=${callId}`;
+    const joinRoom = (callIdOrUrl) => {
+        if (callIdOrUrl) {
+            let actualCallId;
+            
+            // Check if it's a full URL or just a callId
+            if (callIdOrUrl.includes('http')) {
+                // Extract callId from URL
+                try {
+                    const url = new URL(callIdOrUrl);
+                    actualCallId = url.searchParams.get('callId');
+                } catch (error) {
+                    console.error('Error parsing URL:', error);
+                    actualCallId = callIdOrUrl;
+                }
+            } else {
+                // It's already a callId
+                actualCallId = callIdOrUrl;
+            }
+            
+            // Open video call in new tab to keep contact page accessible
+            const callWindow = window.open(`/video-call?callId=${actualCallId}`, '_blank');
+            if (callWindow) {
+                callWindow.focus();
+            }
         }
     };
 
@@ -280,22 +300,70 @@ export const useVideoRoom = () => {
         }
     };
 
-    // Share call link (simplified)
+    // Share call link with compressed secure token
     const shareRoomLink = async (callId, contactName, contactId, userId) => {
         try {
             setLoading(true);
             
-            const joinUrl = `${window.location.origin}/video-call?callId=${callId}`;
+            // Generate compressed token with minimal essential data
+            const compressedTokenData = {
+                c: callId,                                                    // callId (shortened key)
+                n: contactName,                                               // contactName (shortened key)
+                e: Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)    // expiresAt as Unix timestamp
+            };
+            
+            // Create compressed base64 encoded token
+            const compressedToken = btoa(JSON.stringify(compressedTokenData))
+                .replace(/\+/g, '-')    // URL-safe: + to -
+                .replace(/\//g, '_')    // URL-safe: / to _
+                .replace(/=/g, '');     // Remove padding
+            
+            // Generate guest-friendly URL with compressed token
+            const guestJoinUrl = `${window.location.origin}/join-call?token=${compressedToken}`;
             
             // Copy to clipboard
             if (navigator.clipboard) {
-                await navigator.clipboard.writeText(joinUrl);
+                await navigator.clipboard.writeText(guestJoinUrl);
             }
             
-            // Emit user_message WebSocket event to AI conversation page
+            // Send direct webhook to n8n
+            try {
+                const webhookPayload = {
+                    event: 'video_link_shared',
+                    contactId: contactId,
+                    contactName: contactName,
+                    videoLink: guestJoinUrl,
+                    callId: callId,
+                    sharedBy: userId,
+                    sharedByName: user?.name || 'Unknown',
+                    timestamp: new Date().toISOString(),
+                    message: `Video call link shared for ${contactName}: ${guestJoinUrl}`
+                };
+
+                console.log('Sending direct webhook to n8n:', webhookPayload);
+
+                const webhookResponse = await fetch(import.meta.env.VITE_N8N_UPDATE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(webhookPayload)
+                });
+
+                if (webhookResponse.ok) {
+                    console.log('Webhook sent successfully to n8n');
+                } else {
+                    console.error('Webhook failed:', webhookResponse.status, webhookResponse.statusText);
+                }
+            } catch (webhookError) {
+                console.error('Error sending webhook to n8n:', webhookError);
+                // Don't fail the share operation if webhook fails
+            }
+
+            // Optional: Keep socket for real-time UI updates (if needed)
             if (socket && user) {
                 socket.emit('user_message', {
-                    message: `Video call link shared: ${joinUrl}`,
+                    message: `Video call link shared: ${guestJoinUrl}`,
                     contactId: contactId,
                     estimateId: null,
                     attachments: []
@@ -307,7 +375,7 @@ export const useVideoRoom = () => {
 
             toast.success(`Video call link shared for ${contactName}!`, {
                 duration: 3000,
-                description: 'Link copied to clipboard'
+                description: 'Secure guest link copied to clipboard'
             });
 
         } catch (error) {

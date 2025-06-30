@@ -274,8 +274,8 @@ const ContactDetailsPage = () => {
     };
 
     const handleJoinVideoRoom = () => {
-        if (videoRoomData?.joinUrl) {
-            joinRoom(videoRoomData.joinUrl);
+        if (videoRoomData?.callId) {
+            joinRoom(videoRoomData.callId);
         }
     };
 
@@ -364,10 +364,28 @@ const ContactDetailsPage = () => {
         }));
     };
 
-    const handleShareVideoRoomLink = async (joinUrlToShare) => {
-        const urlToShare = joinUrlToShare || videoRoomData?.joinUrl;
-        if (!urlToShare) {
-            toast.error('No video room link available to share.', { duration: 3000 });
+    const handleShareVideoRoomLink = async (callIdOrUrl) => {
+        // Extract callId from URL if needed
+        let callId;
+        if (callIdOrUrl) {
+            if (callIdOrUrl.includes('http')) {
+                try {
+                    const url = new URL(callIdOrUrl);
+                    callId = url.searchParams.get('callId');
+                } catch (error) {
+                    console.error('Error parsing URL:', error);
+                    callId = callIdOrUrl;
+                }
+            } else {
+                callId = callIdOrUrl;
+            }
+        } else {
+            // Fallback to videoRoomData
+            callId = videoRoomData?.callId;
+        }
+        
+        if (!callId) {
+            toast.error('No video room available to share.', { duration: 3000 });
             return;
         }
         
@@ -379,9 +397,9 @@ const ContactDetailsPage = () => {
                 '{}'
             );
             
-            await shareRoomLink(urlToShare, contact.name, contact.id, userProfile.id);
+            // Call shareRoomLink with correct parameters: callId, contactName, contactId, userId
+            await shareRoomLink(callId, contact.name, contact.id, userProfile.id);
             console.log('Video room link shared successfully');
-            toast.success('Video room link shared successfully!', { duration: 3000 });
         } catch (error) {
             console.error('Failed to share video room link:', error);
             toast.error('Failed to share video room link. Please try again.', { duration: 3000 });
@@ -890,7 +908,7 @@ const ContactDetailsPage = () => {
                                             variant="contained"
                                             color="primary"
                                             size="small"
-                                            onClick={() => joinRoom(room.joinUrl)}
+                                            onClick={() => joinRoom(room.callId || room.joinUrl)}
                                             startIcon={<VideoCallIcon />}
                                             sx={{ 
                                                 px: { xs: 2, sm: 2 }, 

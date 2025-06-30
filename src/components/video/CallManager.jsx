@@ -27,6 +27,83 @@ const CallManager = () => {
     }
   }, [currentUser, client, initializeForCRMUser]);
 
+  // Auto-join call if callId or token is in URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const callId = urlParams.get('callId');
+    const token = urlParams.get('token');
+    
+    if (token && !client && !isInCall && !currentCallId) {
+      console.log('Auto-joining call with secure token');
+      autoJoinFromToken(token);
+    } else if (callId && client && !isInCall && !currentCallId) {
+      console.log('Auto-joining call with ID:', callId);
+      autoJoinCall(callId);
+    }
+  }, [client, isInCall, currentCallId]);
+
+  // Auto-join function for compressed secure token-based calls
+  const autoJoinFromToken = async (token) => {
+    try {
+      // Restore URL-safe base64 format
+      let base64Token = token
+        .replace(/-/g, '+')    // Restore + from -
+        .replace(/_/g, '/')    // Restore / from _
+        .padEnd(token.length + (4 - token.length % 4) % 4, '='); // Restore padding
+      
+      // Decode the compressed token
+      const compressedData = JSON.parse(atob(base64Token));
+      
+      // Map compressed keys back to full format
+      const tokenData = {
+        callId: compressedData.c,           // c -> callId
+        contactName: compressedData.n,      // n -> contactName
+        expiresAt: compressedData.e * 1000  // e -> expiresAt (convert Unix timestamp to milliseconds)
+      };
+      
+      // Check if token is expired
+      if (new Date().getTime() > tokenData.expiresAt) {
+        alert('This call link has expired. Please request a new link.');
+        return;
+      }
+      
+      console.log('Auto-joining call with contact info:', tokenData);
+      
+      // Initialize guest with contact name from token
+      await initializeForGuest(tokenData.contactName, tokenData.callId);
+      setCurrentCallId(tokenData.callId);
+      setIsInCall(true);
+      
+      console.log(`Successfully auto-joined call as ${tokenData.contactName}`);
+    } catch (err) {
+      console.error('Failed to auto-join from token:', err);
+      alert('Invalid or expired call link. Please request a new link.');
+    }
+  };
+
+  // Auto-join function for URL-based calls
+  const autoJoinCall = async (callId) => {
+    if (!callId || !client) return;
+
+    try {
+      // Check if call exists and join directly
+      const call = client.call('default', callId);
+      
+      // Get call info to verify it exists
+      await call.get();
+      
+      setCurrentCallId(callId);
+      setIsInCall(true);
+      
+      console.log('Successfully auto-joined call:', callId);
+    } catch (err) {
+      console.error('Failed to auto-join call:', err);
+      // Set the callId in the join field so user can manually try
+      setJoinCallId(callId);
+      alert('Call found but unable to auto-join. Please try joining manually.');
+    }
+  };
+
   const handleGuestJoin = async (guestName, callId) => {
     try {
       await initializeForGuest(guestName, callId);
@@ -222,6 +299,17 @@ const GuestLoginForm = ({ onGuestJoin }) => {
   const [guestName, setGuestName] = useState('');
   const [callId, setCallId] = useState('');
   const [isJoining, setIsJoining] = useState(false);
+
+  // Auto-populate callId from URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlCallId = urlParams.get('callId');
+    
+    if (urlCallId) {
+      setCallId(urlCallId);
+      console.log('Auto-populated callId for guest:', urlCallId);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

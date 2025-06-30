@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { StreamVideoClient } from '@stream-io/video-react-sdk';
 
 const VideoContext = createContext();
@@ -204,6 +204,30 @@ export const VideoProvider = ({ children }) => {
       setUserType(null);
     }
   }, [client]);
+
+  // Auto-initialize video client for authenticated CRM users
+  useEffect(() => {
+    const initializeForAuthenticatedUser = async () => {
+      // Get user from localStorage/sessionStorage (same pattern as other parts of app)
+      const userProfile = JSON.parse(
+        localStorage.getItem('userProfile') || 
+        sessionStorage.getItem('userProfile') || 
+        '{}'
+      );
+      
+      if (userProfile.id && !client && !isConnecting) {
+        try {
+          console.log('Auto-initializing video client for user:', userProfile.name);
+          await initializeForCRMUser(userProfile);
+        } catch (error) {
+          console.error('Auto-initialization failed:', error);
+          // Don't throw error to avoid breaking the app
+        }
+      }
+    };
+
+    initializeForAuthenticatedUser();
+  }, [client, isConnecting, initializeForCRMUser]); // Dependencies to prevent infinite loops
 
   return (
     <VideoContext.Provider
