@@ -68,6 +68,15 @@ const AspectRatioTest = () => {
         </button>
       </div>
 
+      <div style={{ marginBottom: '20px', padding: '15px', background: '#e3f2fd', borderRadius: '8px' }}>
+        <h4 style={{ margin: '0 0 10px 0', color: '#1976d2' }}>Mobile Testing Instructions:</h4>
+        <p style={{ margin: '0', fontSize: '14px', color: '#424242' }}>
+          📱 <strong>On Mobile Portrait (≤480px):</strong> Aspect ratio is forced to 9:16 regardless of video source<br/>
+          📱 <strong>On Mobile Landscape (≤768px):</strong> Aspect ratio switches to 16:9 for better viewing<br/>
+          💻 <strong>On Desktop (&gt;768px):</strong> Dynamic aspect ratio detection based on actual video dimensions
+        </p>
+      </div>
+
       <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
         <div>
           <h3>Test Video</h3>

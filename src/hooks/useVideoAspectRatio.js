@@ -7,8 +7,40 @@ import { useState, useEffect, useRef } from 'react';
  */
 export const useVideoAspectRatio = (isVideoEnabled = true) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9); // Default 16:9
+  const [isMobile, setIsMobile] = useState(false);
+  const [orientation, setOrientation] = useState('portrait');
   const videoRef = useRef(null);
   const resizeObserverRef = useRef(null);
+
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                    window.innerWidth <= 768;
+      setIsMobile(mobile);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Orientation detection
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      const newOrientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+      setOrientation(newOrientation);
+    };
+
+    handleOrientationChange();
+    window.addEventListener('resize', handleOrientationChange);
+    window.addEventListener('orientationchange', handleOrientationChange);
+
+    return () => {
+      window.removeEventListener('resize', handleOrientationChange);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+    };
+  }, []);
 
   // Function to calculate aspect ratio from video element
   const calculateAspectRatio = (videoElement) => {
@@ -36,11 +68,38 @@ export const useVideoAspectRatio = (isVideoEnabled = true) => {
     return 16 / 9; // Default fallback
   };
 
-  // Function to update aspect ratio
+  // Function to update aspect ratio with mobile overrides
   const updateAspectRatio = (videoElement) => {
+    // Mobile override: force specific aspect ratios on mobile devices
+    if (isMobile && window.innerWidth <= 480) {
+      if (orientation === 'portrait') {
+        // Force 9:16 on mobile portrait
+        setAspectRatio(9 / 16);
+        return;
+      } else if (orientation === 'landscape') {
+        // Force 16:9 on mobile landscape
+        setAspectRatio(16 / 9);
+        return;
+      }
+    }
+
+    // For desktop or larger screens, use dynamic detection
     const newRatio = calculateAspectRatio(videoElement);
     setAspectRatio(newRatio);
   };
+
+  // Update aspect ratio when mobile state or orientation changes
+  useEffect(() => {
+    if (isMobile && isVideoEnabled) {
+      if (window.innerWidth <= 480) {
+        if (orientation === 'portrait') {
+          setAspectRatio(9 / 16);
+        } else {
+          setAspectRatio(16 / 9);
+        }
+      }
+    }
+  }, [isMobile, orientation, isVideoEnabled]);
 
   // Function to attach video element for monitoring
   const attachVideoElement = (element) => {

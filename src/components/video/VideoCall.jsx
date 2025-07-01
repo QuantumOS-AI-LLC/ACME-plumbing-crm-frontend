@@ -13,6 +13,72 @@ import { useVideoClient } from "../../contexts/VideoContext";
 import { useVideoAspectRatio } from "../../hooks/useVideoAspectRatio";
 import "./VideoCall.css";
 
+// Mobile detection utility
+const isMobile = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+         window.innerWidth <= 768;
+};
+
+// Touch gesture hook for mobile interactions
+const useTouchGestures = (onTap, onDoubleTap, onSwipeUp, onSwipeDown) => {
+  const touchStartRef = useRef(null);
+  const touchEndRef = useRef(null);
+  const lastTapRef = useRef(0);
+
+  const handleTouchStart = (e) => {
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      time: Date.now()
+    };
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!touchStartRef.current) return;
+
+    touchEndRef.current = {
+      x: e.changedTouches[0].clientX,
+      y: e.changedTouches[0].clientY,
+      time: Date.now()
+    };
+
+    const deltaX = touchEndRef.current.x - touchStartRef.current.x;
+    const deltaY = touchEndRef.current.y - touchStartRef.current.y;
+    const deltaTime = touchEndRef.current.time - touchStartRef.current.time;
+
+    // Detect swipe gestures
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50 && deltaTime < 300) {
+      if (deltaY > 0 && onSwipeDown) {
+        onSwipeDown();
+      } else if (deltaY < 0 && onSwipeUp) {
+        onSwipeUp();
+      }
+    }
+    // Detect tap gestures
+    else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && deltaTime < 300) {
+      const now = Date.now();
+      const timeSinceLastTap = now - lastTapRef.current;
+      
+      if (timeSinceLastTap < 300 && onDoubleTap) {
+        onDoubleTap();
+        lastTapRef.current = 0;
+      } else {
+        lastTapRef.current = now;
+        setTimeout(() => {
+          if (lastTapRef.current === now && onTap) {
+            onTap();
+          }
+        }, 300);
+      }
+    }
+
+    touchStartRef.current = null;
+    touchEndRef.current = null;
+  };
+
+  return { handleTouchStart, handleTouchEnd };
+};
+
 const Avatar = ({ name }) => {
   const initial = name ? name[0].toUpperCase() : "?";
   // Simple hash function to get a color for the avatar
@@ -187,8 +253,82 @@ const VideoCallUI = ({
   const [callDuration, setCallDuration] = useState(0);
   const [connectionQuality, setConnectionQuality] = useState("good");
   const callStartTime = useState(() => new Date())[0];
-  const [controlsVisible, setControlsVisible] = useState(true); // New state for controls visibility
-  const controlsHideTimeoutRef = React.useRef(null); // Ref for the timeout
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const controlsHideTimeoutRef = React.useRef(null);
+  const videoContainerRef = useRef(null);
+
+  // Mobile-specific state
+  const [isMobileDevice] = useState(isMobile());
+  
+  // Touch gesture handlers for mobile
+  const handleTap = () => {
+    if (isMobileDevice) {
+      // Toggle controls visibility on tap
+      setControlsVisible(!controlsVisible);
+      resetHideTimer();
+    }
+  };
+
+  const handleDoubleTap = () => {
+    if (isMobileDevice) {
+      // Toggle fullscreen on double tap
+      toggleFullscreen();
+    }
+  };
+
+  const handleSwipeUp = () => {
+    if (isMobileDevice) {
+      // Show controls on swipe up
+      setControlsVisible(true);
+      resetHideTimer();
+    }
+  };
+
+  const handleSwipeDown = () => {
+    if (isMobileDevice) {
+      // Hide controls on swipe down
+      setControlsVisible(false);
+      if (controlsHideTimeoutRef.current) {
+        clearTimeout(controlsHideTimeoutRef.current);
+      }
+    }
+  };
+
+  const { handleTouchStart, handleTouchEnd } = useTouchGestures(
+    handleTap,
+    handleDoubleTap,
+    handleSwipeUp,
+    handleSwipeDown
+  );
+
+  // Fullscreen functionality
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await videoContainerRef.current?.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } catch (error) {
+      console.error("Error toggling fullscreen:", error);
+    }
+  };
+
+  // Enhanced hide timer function
+  const resetHideTimer = () => {
+    setControlsVisible(true);
+    if (controlsHideTimeoutRef.current) {
+      clearTimeout(controlsHideTimeoutRef.current);
+    }
+    // Longer timeout on mobile for better UX
+    const timeout = isMobileDevice ? 4000 : 3000;
+    controlsHideTimeoutRef.current = setTimeout(() => {
+      setControlsVisible(false);
+    }, timeout);
+  };
 
   // Call duration timer
   useEffect(() => {
@@ -258,11 +398,44 @@ const VideoCallUI = ({
     }
   };
 
-  // Log participant changes
+  // Enhanced participant debugging
   useEffect(() => {
     if (participants && onCallEvent) {
-      participants.forEach((participant) => {
-        if (participant.userId !== user.id) {
+      const remoteParticipants = participants.filter((p) => p.userId !== user.id);
+      
+      // Only log when there are actual changes to avoid spam
+      if (remoteParticipants.length > 0) {
+        console.log(`Participants update: ${remoteParticipants.length} remote participants`);
+        
+        remoteParticipants.forEach((participant) => {
+          // Comprehensive participant object logging
+          console.log('=== PARTICIPANT DEBUG ===');
+          console.log('Full participant object:', participant);
+          console.log('Participant keys:', Object.keys(participant));
+          console.log('userId:', participant.userId);
+          console.log('name:', participant.name);
+          console.log('videoTrack:', participant.videoTrack);
+          console.log('audioTrack:', participant.audioTrack);
+          console.log('isLocalParticipant:', participant.isLocalParticipant);
+          console.log('connectionQuality:', participant.connectionQuality);
+          console.log('isDominantSpeaker:', participant.isDominantSpeaker);
+          console.log('isSpeaking:', participant.isSpeaking);
+          console.log('publishedTracks:', participant.publishedTracks);
+          console.log('videoEnabled:', participant.videoEnabled);
+          console.log('audioEnabled:', participant.audioEnabled);
+          
+          // Check for video in different possible locations
+          if (participant.tracks) {
+            console.log('participant.tracks:', participant.tracks);
+          }
+          if (participant.videoStream) {
+            console.log('participant.videoStream:', participant.videoStream);
+          }
+          if (participant.stream) {
+            console.log('participant.stream:', participant.stream);
+          }
+          console.log('========================');
+          
           onCallEvent(
             callId,
             participant.userId,
@@ -270,10 +443,15 @@ const VideoCallUI = ({
             "unknown",
             "joined"
           );
-        }
-      });
+        });
+      }
     }
   }, [participants, onCallEvent, callId, user.id]);
+
+  // Debug effect to monitor re-renders
+  useEffect(() => {
+    console.log('VideoCallUI re-rendered');
+  });
 
   const toggleMicrophone = async () => {
     try {
@@ -425,19 +603,27 @@ const VideoCallUI = ({
           <span className="call-duration">{formatDuration(callDuration)}</span>
         </div>
 
-        <div className="video-container">
+        <div 
+          className="video-container"
+          ref={videoContainerRef}
+          onTouchStart={isMobileDevice ? handleTouchStart : undefined}
+          onTouchEnd={isMobileDevice ? handleTouchEnd : undefined}
+        >
           <div className="remote-participants-grid">
             {participants
               .filter((p) => p.userId !== user.id)
-              .map((participant) => {
-                console.log(`Remote participant ${participant.userId} videoTrack:`, participant.videoTrack);
-                return (
-                  <ParticipantView
-                    key={participant.userId}
-                    participant={participant}
-                  />
-                );
-              })}
+              .map((participant) => (
+                <div key={participant.userId} className="participant-container">
+                  {/* Try native ParticipantView first to test video display */}
+                  <ParticipantView participant={participant} />
+                  {/* Fallback avatar if needed */}
+                  {!participant.videoTrack && (
+                    <div className="avatar-container" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)' }}>
+                      <Avatar name={participant.name || participant.userId} />
+                    </div>
+                  )}
+                </div>
+              ))}
           </div>
           <FloatingLocalParticipant isCameraOff={isCameraOff} />
         </div>

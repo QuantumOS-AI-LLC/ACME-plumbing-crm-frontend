@@ -4,12 +4,19 @@
   width: 100vw;
   background: #f8fafc;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch; /* Changed from center to stretch */
+  justify-content: stretch; /* Changed from center to stretch */
   padding: 0;
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow: hidden;
+}
+
+/* Ensure VideoCall component fills the entire CallManager */
+.call-manager > * {
+  width: 100%;
+  height: 100%;
+  flex: 1;
 }
 
 .guest-login-form {
