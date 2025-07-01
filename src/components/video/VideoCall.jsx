@@ -11,7 +11,53 @@ import {
 import { useVideoClient } from '../../contexts/VideoContext';
 import './VideoCall.css';
 
-const FloatingLocalParticipant = () => {
+const Avatar = ({ name }) => {
+  const initial = name ? name[0].toUpperCase() : '?';
+  // Simple hash function to get a color for the avatar
+  const hashCode = (str) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return hash;
+  };
+
+  const intToRGB = (i) => {
+    const c = (i & 0x00FFFFFF)
+      .toString(16)
+      .toUpperCase();
+    return "00000".substring(0, 6 - c.length) + c;
+  };
+
+  const backgroundColor = `#${intToRGB(hashCode(name || ''))}`;
+
+  return (
+    <div className="avatar" style={{ backgroundColor }}>
+      <span className="avatar-initial">{initial}</span>
+    </div>
+  );
+};
+
+const ParticipantWithAvatar = ({ participant, isLocalParticipant, localCameraOff }) => {
+  // For local participant, use the passed localCameraOff state
+  // For remote participants, use the videoTrack check
+  const isCameraOn = isLocalParticipant ? !localCameraOff : !!participant.videoTrack;
+
+  return (
+    <div className="participant-container">
+      {isCameraOn ? (
+        <ParticipantView participant={participant} />
+      ) : (
+        <div className="avatar-container">
+          <Avatar name={participant.name || participant.userId} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+const FloatingLocalParticipant = ({ isCameraOff }) => {
   const { useParticipants } = useCallStateHooks();
   const participants = useParticipants();
   const { user } = useVideoClient();
@@ -26,9 +72,10 @@ const FloatingLocalParticipant = () => {
   return (
     <div className="floating-local-participant">
       <div className="floating-participant-video">
-        <ParticipantView 
-          participant={localParticipant}
-          trackType="videoTrack"
+        <ParticipantWithAvatar 
+          participant={localParticipant} 
+          isLocalParticipant={true}
+          localCameraOff={isCameraOff}
         />
       </div>
     </div>
@@ -263,14 +310,13 @@ const VideoCallUI = ({ onLeave, onCallEvent, callId, call, initialCameraOff, ini
         </div>
         
         <div className="video-container">
-          <SpeakerLayout />
-          <FloatingLocalParticipant />
+          <SpeakerLayout ParticipantViewUI={ParticipantWithAvatar} />
+          <FloatingLocalParticipant isCameraOff={isCameraOff} />
         </div>
         
-        <div className="controls-container">
-          <div className="custom-call-controls">
-            <CustomControlButton
-              onClick={toggleMicrophone}
+        <div className="custom-call-controls">
+          <CustomControlButton
+            onClick={toggleMicrophone}
               isActive={isMicMuted}
               className="microphone-btn"
             >
@@ -313,7 +359,6 @@ const VideoCallUI = ({ onLeave, onCallEvent, callId, call, initialCameraOff, ini
               </svg>
               Leave Call
             </button>
-          </div>
         </div>
       </div>
     </StreamTheme>
