@@ -79,6 +79,41 @@ const useTouchGestures = (onTap, onDoubleTap, onSwipeUp, onSwipeDown) => {
   return { handleTouchStart, handleTouchEnd };
 };
 
+// Stream.io compatible video detection function with smart logging
+const hasVideo = (participant) => {
+  // Method 1: Check videoEnabled property (most reliable for Stream.io)
+  if (typeof participant.videoEnabled === 'boolean') {
+    return participant.videoEnabled;
+  }
+  
+  // Method 2: Check publishedTracks for video tracks
+  if (participant.publishedTracks && Array.isArray(participant.publishedTracks)) {
+    const hasVideoTrack = participant.publishedTracks.some(track => 
+      track.kind === 'video' || track.type === 'video'
+    );
+    if (hasVideoTrack) return true;
+  }
+  
+  // Method 3: Check tracks object
+  if (participant.tracks) {
+    const hasVideoInTracks = !!(participant.tracks.video || participant.tracks.videoTrack);
+    if (hasVideoInTracks) return true;
+  }
+  
+  // Method 4: Check isVideoEnabled
+  if (typeof participant.isVideoEnabled === 'boolean') {
+    return participant.isVideoEnabled;
+  }
+  
+  // Method 5: Check hasVideo property
+  if (typeof participant.hasVideo === 'boolean') {
+    return participant.hasVideo;
+  }
+  
+  // Method 6: Check videoTrack (fallback)
+  return !!participant.videoTrack;
+};
+
 const Avatar = ({ name }) => {
   const initial = name ? name[0].toUpperCase() : "?";
   // Simple hash function to get a color for the avatar
@@ -398,60 +433,22 @@ const VideoCallUI = ({
     }
   };
 
-  // Enhanced participant debugging
+  // Clean participant tracking for call events
   useEffect(() => {
     if (participants && onCallEvent) {
       const remoteParticipants = participants.filter((p) => p.userId !== user.id);
       
-      // Only log when there are actual changes to avoid spam
-      if (remoteParticipants.length > 0) {
-        console.log(`Participants update: ${remoteParticipants.length} remote participants`);
-        
-        remoteParticipants.forEach((participant) => {
-          // Comprehensive participant object logging
-          console.log('=== PARTICIPANT DEBUG ===');
-          console.log('Full participant object:', participant);
-          console.log('Participant keys:', Object.keys(participant));
-          console.log('userId:', participant.userId);
-          console.log('name:', participant.name);
-          console.log('videoTrack:', participant.videoTrack);
-          console.log('audioTrack:', participant.audioTrack);
-          console.log('isLocalParticipant:', participant.isLocalParticipant);
-          console.log('connectionQuality:', participant.connectionQuality);
-          console.log('isDominantSpeaker:', participant.isDominantSpeaker);
-          console.log('isSpeaking:', participant.isSpeaking);
-          console.log('publishedTracks:', participant.publishedTracks);
-          console.log('videoEnabled:', participant.videoEnabled);
-          console.log('audioEnabled:', participant.audioEnabled);
-          
-          // Check for video in different possible locations
-          if (participant.tracks) {
-            console.log('participant.tracks:', participant.tracks);
-          }
-          if (participant.videoStream) {
-            console.log('participant.videoStream:', participant.videoStream);
-          }
-          if (participant.stream) {
-            console.log('participant.stream:', participant.stream);
-          }
-          console.log('========================');
-          
-          onCallEvent(
-            callId,
-            participant.userId,
-            participant.name,
-            "unknown",
-            "joined"
-          );
-        });
-      }
+      remoteParticipants.forEach((participant) => {
+        onCallEvent(
+          callId,
+          participant.userId,
+          participant.name,
+          "unknown",
+          "joined"
+        );
+      });
     }
   }, [participants, onCallEvent, callId, user.id]);
-
-  // Debug effect to monitor re-renders
-  useEffect(() => {
-    console.log('VideoCallUI re-rendered');
-  });
 
   const toggleMicrophone = async () => {
     try {
@@ -614,11 +611,11 @@ const VideoCallUI = ({
               .filter((p) => p.userId !== user.id)
               .map((participant) => (
                 <div key={participant.userId} className="participant-container">
-                  {/* Try native ParticipantView first to test video display */}
+                  {/* Stream.io native ParticipantView for video display */}
                   <ParticipantView participant={participant} />
-                  {/* Fallback avatar if needed */}
-                  {!participant.videoTrack && (
-                    <div className="avatar-container" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)' }}>
+                  {/* Smart avatar fallback using Stream.io compatible detection */}
+                  {!hasVideo(participant) && (
+                    <div className="avatar-container" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10 }}>
                       <Avatar name={participant.name || participant.userId} />
                     </div>
                   )}
