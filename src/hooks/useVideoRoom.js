@@ -430,8 +430,6 @@ export const useVideoRoom = () => {
                     message: `Video call link shared for ${contactName}: ${guestJoinUrl}`
                 };
 
-                console.log('Sending direct webhook to n8n:', webhookPayload);
-
                 const webhookResponse = await fetch(import.meta.env.VITE_N8N_UPDATE_URL, {
                     method: 'POST',
                     headers: {
@@ -440,11 +438,7 @@ export const useVideoRoom = () => {
                     body: JSON.stringify(webhookPayload)
                 });
 
-                if (webhookResponse.ok) {
-                    console.log('Webhook sent successfully to n8n');
-                } else {
-                    console.error('Webhook failed:', webhookResponse.status, webhookResponse.statusText);
-                }
+                // Silent webhook handling - don't log success/failure
             } catch (webhookError) {
                 console.error('Error sending webhook to n8n:', webhookError);
                 // Don't fail the share operation if webhook fails

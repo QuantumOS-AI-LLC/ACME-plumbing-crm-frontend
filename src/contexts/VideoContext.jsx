@@ -217,11 +217,9 @@ export const VideoProvider = ({ children }) => {
       
       if (userProfile.id && !client && !isConnecting) {
         try {
-          console.log('Auto-initializing video client for user:', userProfile.name);
           await initializeForCRMUser(userProfile);
         } catch (error) {
-          console.error('Auto-initialization failed:', error);
-          // Don't throw error to avoid breaking the app
+          // Silent fail - don't break the app for video initialization issues
         }
       }
     };

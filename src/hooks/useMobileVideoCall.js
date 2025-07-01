@@ -114,7 +114,7 @@ export const useMobileVideoCall = () => {
         }
       }
     } catch (error) {
-      console.error('Error toggling fullscreen:', error);
+      // Silent fail - fullscreen toggle not critical
     }
   }, []);
 

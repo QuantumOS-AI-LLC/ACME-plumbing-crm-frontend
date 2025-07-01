@@ -930,19 +930,12 @@ const VideoCall = ({
     setError(null);
 
     try {
-      // Configure camera/microphone BEFORE joining based on pre-call settings
-      console.log("Joining call with pre-call settings:", {
-        camera: preCallCameraEnabled,
-        mic: preCallMicEnabled,
-      });
-
       // Apply pre-call camera setting
       if (!preCallCameraEnabled && callInstance.camera) {
         try {
           await callInstance.camera.disable();
-          console.log("Camera disabled before joining");
         } catch (error) {
-          console.warn("Could not disable camera before joining:", error);
+          // Silent fail - camera will be disabled after join
         }
       }
 
@@ -950,9 +943,8 @@ const VideoCall = ({
       if (!preCallMicEnabled && callInstance.microphone) {
         try {
           await callInstance.microphone.disable();
-          console.log("Microphone disabled before joining");
         } catch (error) {
-          console.warn("Could not disable microphone before joining:", error);
+          // Silent fail - microphone will be disabled after join
         }
       }
 
@@ -968,14 +960,12 @@ const VideoCall = ({
         try {
           if (!preCallCameraEnabled && callInstance.camera) {
             await callInstance.camera.disable();
-            console.log("Camera disabled after joining (fallback)");
           }
           if (!preCallMicEnabled && callInstance.microphone) {
             await callInstance.microphone.disable();
-            console.log("Microphone disabled after joining (fallback)");
           }
         } catch (error) {
-          console.warn("Error applying settings after join:", error);
+          // Silent fail - settings will be applied by UI controls
         }
       }, 1000);
 
