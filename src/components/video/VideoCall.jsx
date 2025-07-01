@@ -79,40 +79,6 @@ const useTouchGestures = (onTap, onDoubleTap, onSwipeUp, onSwipeDown) => {
   return { handleTouchStart, handleTouchEnd };
 };
 
-// Stream.io compatible video detection function with smart logging
-const hasVideo = (participant) => {
-  // Method 1: Check videoEnabled property (most reliable for Stream.io)
-  if (typeof participant.videoEnabled === 'boolean') {
-    return participant.videoEnabled;
-  }
-  
-  // Method 2: Check publishedTracks for video tracks
-  if (participant.publishedTracks && Array.isArray(participant.publishedTracks)) {
-    const hasVideoTrack = participant.publishedTracks.some(track => 
-      track.kind === 'video' || track.type === 'video'
-    );
-    if (hasVideoTrack) return true;
-  }
-  
-  // Method 3: Check tracks object
-  if (participant.tracks) {
-    const hasVideoInTracks = !!(participant.tracks.video || participant.tracks.videoTrack);
-    if (hasVideoInTracks) return true;
-  }
-  
-  // Method 4: Check isVideoEnabled
-  if (typeof participant.isVideoEnabled === 'boolean') {
-    return participant.isVideoEnabled;
-  }
-  
-  // Method 5: Check hasVideo property
-  if (typeof participant.hasVideo === 'boolean') {
-    return participant.hasVideo;
-  }
-  
-  // Method 6: Check videoTrack (fallback)
-  return !!participant.videoTrack;
-};
 
 const Avatar = ({ name }) => {
   const initial = name ? name[0].toUpperCase() : "?";
@@ -611,14 +577,8 @@ const VideoCallUI = ({
               .filter((p) => p.userId !== user.id)
               .map((participant) => (
                 <div key={participant.userId} className="participant-container">
-                  {/* Stream.io native ParticipantView for video display */}
+                  {/* Let Stream.io handle video/avatar display natively */}
                   <ParticipantView participant={participant} />
-                  {/* Smart avatar fallback using Stream.io compatible detection */}
-                  {!hasVideo(participant) && (
-                    <div className="avatar-container" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10 }}>
-                      <Avatar name={participant.name || participant.userId} />
-                    </div>
-                  )}
                 </div>
               ))}
           </div>
