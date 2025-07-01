@@ -144,6 +144,12 @@
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: opacity 0.3s ease-in-out; /* Add transition for smooth fade */
+}
+
+.custom-call-controls.hide-controls {
+  opacity: 0;
+  pointer-events: none; /* Disable interactions when hidden */
 }
 
 /* Custom Control Button Styling */
@@ -865,6 +871,10 @@ button:disabled::before {
 
 .device-btn svg {
   flex-shrink: 0;
+  width: 24px !important; /* Ensure consistent sizing */
+  height: 24px !important; /* Ensure consistent sizing */
+  color: white !important; /* Ensure consistent color */
+  fill: white !important; /* Ensure consistent fill color */
 }
 
 .join-controls {

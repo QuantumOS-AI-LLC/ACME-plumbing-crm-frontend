@@ -122,6 +122,8 @@ const VideoCallUI = ({
   const [callDuration, setCallDuration] = useState(0);
   const [connectionQuality, setConnectionQuality] = useState("good");
   const callStartTime = useState(() => new Date())[0];
+  const [controlsVisible, setControlsVisible] = useState(true); // New state for controls visibility
+  const controlsHideTimeoutRef = React.useRef(null); // Ref for the timeout
 
   // Call duration timer
   useEffect(() => {
@@ -131,6 +133,42 @@ const VideoCallUI = ({
 
     return () => clearInterval(timer);
   }, [callStartTime]);
+
+  // Effect to hide controls after inactivity
+  useEffect(() => {
+    const hideControls = () => {
+      setControlsVisible(false);
+    };
+
+    const resetHideTimer = () => {
+      setControlsVisible(true);
+      if (controlsHideTimeoutRef.current) {
+        clearTimeout(controlsHideTimeoutRef.current);
+      }
+      controlsHideTimeoutRef.current = setTimeout(hideControls, 3000); // Hide after 3 seconds of inactivity
+    };
+
+    // Initial setup: show controls and start timer
+    resetHideTimer();
+
+    const videoContainer = document.querySelector(".video-container");
+    if (videoContainer) {
+      videoContainer.addEventListener("mousemove", resetHideTimer);
+      videoContainer.addEventListener("mouseenter", resetHideTimer);
+      // Removed mouseleave listener to prevent immediate hiding and flickering
+    }
+
+    return () => {
+      if (controlsHideTimeoutRef.current) {
+        clearTimeout(controlsHideTimeoutRef.current);
+      }
+      if (videoContainer) {
+        videoContainer.removeEventListener("mousemove", resetHideTimer);
+        videoContainer.removeEventListener("mouseenter", resetHideTimer);
+        // Removed mouseleave listener
+      }
+    };
+  }, []); // Empty dependency array means this runs once on mount
 
   // Format call duration
   const formatDuration = (seconds) => {
@@ -339,7 +377,7 @@ const VideoCallUI = ({
           <FloatingLocalParticipant isCameraOff={isCameraOff} />
         </div>
 
-        <div className="custom-call-controls">
+        <div className={`custom-call-controls ${controlsVisible ? "" : "hide-controls"}`}>
           <CustomControlButton
             onClick={toggleMicrophone}
               isActive={isMicMuted}
