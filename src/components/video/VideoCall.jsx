@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 import {
   StreamVideo,
@@ -10,6 +10,7 @@ import {
   CallControls,
 } from "@stream-io/video-react-sdk";
 import { useVideoClient } from "../../contexts/VideoContext";
+import { useVideoAspectRatio } from "../../hooks/useVideoAspectRatio";
 import "./VideoCall.css";
 
 const Avatar = ({ name }) => {
@@ -65,16 +66,80 @@ const FloatingLocalParticipant = ({ isCameraOff }) => {
   const { useParticipants } = useCallStateHooks();
   const participants = useParticipants();
   const { user } = useVideoClient();
+  const floatingContainerRef = useRef(null);
+  
+  // Use the aspect ratio hook to track video dimensions
+  const { aspectRatio, attachVideoElement } = useVideoAspectRatio(!isCameraOff);
 
   // Find the local participant (current user)
   const localParticipant = participants.find((p) => p.userId === user?.id);
+
+  // Update CSS custom property when aspect ratio changes
+  useEffect(() => {
+    if (floatingContainerRef.current) {
+      floatingContainerRef.current.style.setProperty(
+        '--local-video-aspect-ratio', 
+        aspectRatio.toString()
+      );
+    }
+  }, [aspectRatio]);
+
+  // Attach video element for aspect ratio monitoring
+  useEffect(() => {
+    if (!isCameraOff && floatingContainerRef.current) {
+      // Find the video element within the floating participant
+      const findVideoElement = () => {
+        const videoElement = floatingContainerRef.current.querySelector('video');
+        if (videoElement) {
+          const cleanup = attachVideoElement(videoElement);
+          return cleanup;
+        }
+        return null;
+      };
+
+      // Try to find video element immediately
+      let cleanup = findVideoElement();
+
+      // If not found, set up a MutationObserver to watch for video element
+      let observer = null;
+      if (!cleanup) {
+        observer = new MutationObserver(() => {
+          if (!cleanup) {
+            cleanup = findVideoElement();
+            if (cleanup && observer) {
+              observer.disconnect();
+              observer = null;
+            }
+          }
+        });
+
+        observer.observe(floatingContainerRef.current, {
+          childList: true,
+          subtree: true,
+        });
+      }
+
+      // Cleanup function
+      return () => {
+        if (cleanup && typeof cleanup === 'function') {
+          cleanup();
+        }
+        if (observer) {
+          observer.disconnect();
+        }
+      };
+    }
+  }, [isCameraOff, attachVideoElement, localParticipant]);
 
   if (!localParticipant) {
     return null;
   }
 
   return (
-    <div className="floating-local-participant">
+    <div 
+      className="floating-local-participant" 
+      ref={floatingContainerRef}
+    >
       <div className="floating-participant-video">
         <ParticipantWithAvatar
           participant={localParticipant}

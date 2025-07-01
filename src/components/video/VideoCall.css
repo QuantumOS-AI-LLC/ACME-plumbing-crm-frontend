@@ -470,14 +470,27 @@ button:disabled::before {
   border: 2px solid rgba(255, 255, 255, 0.1);
   z-index: 1000;
   transition: all 0.3s ease;
+  
+  /* CSS custom property for dynamic aspect ratio */
+  --local-video-aspect-ratio: 1.777; /* Default 16/9 = 1.777 */
+  
+  /* Constraints to prevent extreme sizes */
+  max-height: 300px; /* Prevent very tall videos from taking too much space */
+  min-height: 100px; /* Ensure minimum visibility */
 }
 
 .floating-participant-video {
   position: relative;
   width: 100%;
-  aspect-ratio: 16/9;
+  /* Use dynamic aspect ratio from CSS custom property */
+  aspect-ratio: var(--local-video-aspect-ratio);
   overflow: hidden;
   border-radius: 12px;
+  transition: aspect-ratio 0.3s ease;
+  
+  /* Additional constraints for extreme aspect ratios */
+  max-height: 280px; /* Account for container padding */
+  min-height: 80px;
 }
 
 .floating-participant-video video {
@@ -633,7 +646,8 @@ button:disabled::before {
   }
   
   .floating-participant-video {
-    aspect-ratio: 16/9;
+    /* Use dynamic aspect ratio on mobile too */
+    aspect-ratio: var(--local-video-aspect-ratio);
   }
   
   .floating-participant-header {
