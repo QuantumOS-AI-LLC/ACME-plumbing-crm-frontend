@@ -323,7 +323,19 @@ const VideoCallUI = ({
         </div>
 
         <div className="video-container">
-          <SpeakerLayout ParticipantViewUI={ParticipantWithAvatar} />
+          <div className="remote-participants-grid">
+            {participants
+              .filter((p) => p.userId !== user.id)
+              .map((participant) => {
+                console.log(`Remote participant ${participant.userId} videoTrack:`, participant.videoTrack);
+                return (
+                  <ParticipantView
+                    key={participant.userId}
+                    participant={participant}
+                  />
+                );
+              })}
+          </div>
           <FloatingLocalParticipant isCameraOff={isCameraOff} />
         </div>
 
