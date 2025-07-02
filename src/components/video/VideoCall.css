@@ -1080,7 +1080,7 @@ button:disabled::before {
     }
 
     .custom-call-controls {
-      bottom: max(12px, env(safe-area-inset-bottom));
+      bottom: max(80px, env(safe-area-inset-bottom));
       left: max(50%, env(safe-area-inset-left));
       right: max(auto, env(safe-area-inset-right));
     }
