@@ -252,26 +252,13 @@
 
 /* Leave Call Button */
 .leave-call-btn {
-  background: rgba(239, 68, 68, 0.2) !important;
-  border-color: rgba(239, 68, 68, 0.4) !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  padding: 0 20px !important;
-  width: auto !important;
-  border-radius: 26px !important;
-  font-weight: 600 !important;
-  font-size: 14px !important;
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
 .leave-call-btn:hover {
-  background: rgba(239, 68, 68, 0.3) !important;
-  border-color: rgba(239, 68, 68, 0.6) !important;
-}
-
-.leave-call-btn svg {
-  width: 18px !important;
-  height: 18px !important;
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.6);
 }
 
 /* Muted/disabled states */
