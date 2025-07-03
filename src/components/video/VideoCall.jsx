@@ -238,43 +238,13 @@ const MobileFloatingParticipant = React.memo(({ participant, isCameraOff, call }
           </span>
         </div>
       ) : (
-        <>
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className="mobile-video"
-          />
-          {hasMultipleCameras && (
-            <button
-              onClick={switchCamera}
-              disabled={isSwitchingCamera}
-              className="camera-switch-btn mobile-switch"
-              aria-label="Switch camera"
-            >
-              {isSwitchingCamera ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z">
-                    <animateTransform
-                      attributeName="transform"
-                      type="rotate"
-                      from="0 12 12"
-                      to="360 12 12"
-                      dur="1s"
-                      repeatCount="indefinite"
-                    />
-                  </path>
-                </svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM9 4.5h6l.83 1.5H9V4.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.65 0-3 1.35-3 3s1.35 3 3 3 3-1.35 3-3-1.35-3-3-3z"/>
-                  <path d="M14.5 11.5L16 10l1.5 1.5L16 13l-1.5-1.5z"/>
-                </svg>
-              )}
-            </button>
-          )}
-        </>
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className="mobile-video"
+        />
       )}
     </div>
   );
@@ -415,43 +385,13 @@ const TabletFloatingParticipant = React.memo(({ participant, isCameraOff, call }
           </span>
         </div>
       ) : (
-        <>
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className="tablet-video"
-          />
-          {hasMultipleCameras && (
-            <button
-              onClick={switchCamera}
-              disabled={isSwitchingCamera}
-              className="camera-switch-btn tablet-switch"
-              aria-label="Switch camera"
-            >
-              {isSwitchingCamera ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z">
-                    <animateTransform
-                      attributeName="transform"
-                      type="rotate"
-                      from="0 12 12"
-                      to="360 12 12"
-                      dur="1s"
-                      repeatCount="indefinite"
-                    />
-                  </path>
-                </svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM9 4.5h6l.83 1.5H9V4.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.65 0-3 1.35-3 3s1.35 3 3 3 3-1.35 3-3-1.35-3-3-3z"/>
-                  <path d="M14.5 11.5L16 10l1.5 1.5L16 13l-1.5-1.5z"/>
-                </svg>
-              )}
-            </button>
-          )}
-        </>
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className="tablet-video"
+        />
       )}
     </div>
   );
@@ -635,8 +575,43 @@ const VideoCallUI = ({
   const controlsHideTimeoutRef = React.useRef(null);
   const videoContainerRef = useRef(null);
 
+  // Camera switching state
+  const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
+  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
+
   // Mobile-specific state
   const [isMobileDevice] = useState(isMobile());
+  const [deviceType] = useState(getDeviceType());
+
+  // Check for multiple cameras on component mount
+  useEffect(() => {
+    const checkCameraCapabilities = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(device => device.kind === 'videoinput');
+        setHasMultipleCameras(cameras.length > 1);
+      } catch (error) {
+        console.error('Error checking camera capabilities:', error);
+        setHasMultipleCameras(false);
+      }
+    };
+
+    checkCameraCapabilities();
+  }, []);
+
+  // Camera switching function
+  const switchCamera = async () => {
+    if (!call?.camera || isSwitchingCamera) return;
+
+    setIsSwitchingCamera(true);
+    try {
+      await call.camera.flip();
+    } catch (error) {
+      console.error('Camera switch failed:', error);
+    } finally {
+      setIsSwitchingCamera(false);
+    }
+  };
   
   // Touch gesture handlers for mobile
   const handleTap = () => {
@@ -989,6 +964,35 @@ const VideoCallUI = ({
                 )}
               </svg>
             </CustomControlButton>
+
+            {/* Camera Switch Button - Only show on mobile/tablet with multiple cameras */}
+            {(deviceType === 'mobile' || deviceType === 'tablet') && hasMultipleCameras && !isCameraOff && (
+              <CustomControlButton
+                onClick={switchCamera}
+                disabled={isSwitchingCamera}
+                className="camera-switch-btn"
+              >
+                {isSwitchingCamera ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z">
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0 12 12"
+                        to="360 12 12"
+                        dur="1s"
+                        repeatCount="indefinite"
+                      />
+                    </path>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM9 4.5h6l.83 1.5H9V4.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.65 0-3 1.35-3 3s1.35 3 3 3 3-1.35 3-3-1.35-3-3-3z"/>
+                    <path d="M14.5 11.5L16 10l1.5 1.5L16 13l-1.5-1.5z"/>
+                  </svg>
+                )}
+              </CustomControlButton>
+            )}
 
             <CustomControlButton
               onClick={toggleScreenShare}
