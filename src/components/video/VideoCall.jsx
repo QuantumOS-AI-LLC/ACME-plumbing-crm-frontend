@@ -104,50 +104,76 @@ const useTouchGestures = (onTap, onDoubleTap, onSwipeUp, onSwipeDown) => {
 
 
 // Custom Mobile Floating Participant - Clean implementation without GetStream UI (Phones)
-const MobileFloatingParticipant = ({ participant, isCameraOff }) => {
+const MobileFloatingParticipant = React.memo(({ participant, isCameraOff }) => {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
   const [dynamicAspectRatio, setDynamicAspectRatio] = useState('9/16'); // fallback to phone camera ratio
+  const [currentVideoTrack, setCurrentVideoTrack] = useState(null);
+  const aspectRatioTimeoutRef = useRef(null);
 
-  // Attach video stream to video element using GetStream's approach
+  // Stable video track reference to prevent flickering
+  const videoTrackId = participant?.videoStream?.getVideoTracks()?.[0]?.id;
+
+  // Attach video stream to video element using stable track reference
   useEffect(() => {
-    if (!isCameraOff && videoRef.current && participant) {
-      // Use GetStream's video track directly
-      const videoTrack = participant.videoStream?.getVideoTracks()?.[0];
-      if (videoTrack) {
+    if (!isCameraOff && videoRef.current && participant?.videoStream) {
+      const videoTrack = participant.videoStream.getVideoTracks()?.[0];
+      
+      // Only update if track actually changed (prevents flickering on audio activity)
+      if (videoTrack && videoTrack.id !== currentVideoTrack?.id) {
+        setCurrentVideoTrack(videoTrack);
+        
         const stream = new MediaStream([videoTrack]);
         videoRef.current.srcObject = stream;
       }
-    } else if (videoRef.current) {
+    } else if (videoRef.current && (isCameraOff || !participant?.videoStream)) {
       videoRef.current.srcObject = null;
+      setCurrentVideoTrack(null);
     }
-  }, [participant, isCameraOff, participant?.videoStream]);
+  }, [participant?.userId, isCameraOff, videoTrackId]); // Use stable references
 
-  // Monitor video element for aspect ratio changes
+  // Debounced aspect ratio update function
+  const updateAspectRatio = React.useCallback(() => {
+    const video = videoRef.current;
+    if (video && video.videoWidth && video.videoHeight) {
+      const ratio = video.videoWidth / video.videoHeight;
+      setDynamicAspectRatio(ratio.toString());
+    }
+  }, []);
+
+  // Monitor video element for aspect ratio changes with debouncing
   useEffect(() => {
     const video = videoRef.current;
-    if (video && !isCameraOff) {
-      const updateAspectRatio = () => {
-        if (video.videoWidth && video.videoHeight) {
-          const ratio = video.videoWidth / video.videoHeight;
-          setDynamicAspectRatio(ratio.toString());
+    if (video && !isCameraOff && currentVideoTrack) {
+      const debouncedUpdateAspectRatio = () => {
+        // Clear previous timeout
+        if (aspectRatioTimeoutRef.current) {
+          clearTimeout(aspectRatioTimeoutRef.current);
         }
+        
+        // Debounce aspect ratio updates to prevent flickering
+        aspectRatioTimeoutRef.current = setTimeout(updateAspectRatio, 150);
       };
       
-      video.addEventListener('loadedmetadata', updateAspectRatio);
-      video.addEventListener('resize', updateAspectRatio);
+      video.addEventListener('loadedmetadata', debouncedUpdateAspectRatio);
+      video.addEventListener('resize', debouncedUpdateAspectRatio);
       
       // Check immediately if metadata is already loaded
       if (video.videoWidth && video.videoHeight) {
-        updateAspectRatio();
+        debouncedUpdateAspectRatio();
       }
       
       return () => {
-        video.removeEventListener('loadedmetadata', updateAspectRatio);
-        video.removeEventListener('resize', updateAspectRatio);
+        video.removeEventListener('loadedmetadata', debouncedUpdateAspectRatio);
+        video.removeEventListener('resize', debouncedUpdateAspectRatio);
+        
+        // Clear timeout on cleanup
+        if (aspectRatioTimeoutRef.current) {
+          clearTimeout(aspectRatioTimeoutRef.current);
+        }
       };
     }
-  }, [isCameraOff, participant?.videoStream]);
+  }, [isCameraOff, currentVideoTrack, updateAspectRatio]);
 
   // Apply dynamic aspect ratio to container
   useEffect(() => {
@@ -190,53 +216,79 @@ const MobileFloatingParticipant = ({ participant, isCameraOff }) => {
       )}
     </div>
   );
-};
+});
 
 // Custom Tablet Floating Participant - Hybrid approach for iPads
-const TabletFloatingParticipant = ({ participant, isCameraOff }) => {
+const TabletFloatingParticipant = React.memo(({ participant, isCameraOff }) => {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
   const [dynamicAspectRatio, setDynamicAspectRatio] = useState('9/16'); // fallback to phone camera ratio
+  const [currentVideoTrack, setCurrentVideoTrack] = useState(null);
+  const aspectRatioTimeoutRef = useRef(null);
 
-  // Attach video stream to video element using GetStream's approach
+  // Stable video track reference to prevent flickering
+  const videoTrackId = participant?.videoStream?.getVideoTracks()?.[0]?.id;
+
+  // Attach video stream to video element using stable track reference
   useEffect(() => {
-    if (!isCameraOff && videoRef.current && participant) {
-      // Use GetStream's video track directly
-      const videoTrack = participant.videoStream?.getVideoTracks()?.[0];
-      if (videoTrack) {
+    if (!isCameraOff && videoRef.current && participant?.videoStream) {
+      const videoTrack = participant.videoStream.getVideoTracks()?.[0];
+      
+      // Only update if track actually changed (prevents flickering on audio activity)
+      if (videoTrack && videoTrack.id !== currentVideoTrack?.id) {
+        setCurrentVideoTrack(videoTrack);
+        
         const stream = new MediaStream([videoTrack]);
         videoRef.current.srcObject = stream;
       }
-    } else if (videoRef.current) {
+    } else if (videoRef.current && (isCameraOff || !participant?.videoStream)) {
       videoRef.current.srcObject = null;
+      setCurrentVideoTrack(null);
     }
-  }, [participant, isCameraOff, participant?.videoStream]);
+  }, [participant?.userId, isCameraOff, videoTrackId]); // Use stable references
 
-  // Monitor video element for aspect ratio changes
+  // Debounced aspect ratio update function
+  const updateAspectRatio = React.useCallback(() => {
+    const video = videoRef.current;
+    if (video && video.videoWidth && video.videoHeight) {
+      const ratio = video.videoWidth / video.videoHeight;
+      setDynamicAspectRatio(ratio.toString());
+    }
+  }, []);
+
+  // Monitor video element for aspect ratio changes with debouncing
   useEffect(() => {
     const video = videoRef.current;
-    if (video && !isCameraOff) {
-      const updateAspectRatio = () => {
-        if (video.videoWidth && video.videoHeight) {
-          const ratio = video.videoWidth / video.videoHeight;
-          setDynamicAspectRatio(ratio.toString());
+    if (video && !isCameraOff && currentVideoTrack) {
+      const debouncedUpdateAspectRatio = () => {
+        // Clear previous timeout
+        if (aspectRatioTimeoutRef.current) {
+          clearTimeout(aspectRatioTimeoutRef.current);
         }
+        
+        // Debounce aspect ratio updates to prevent flickering
+        aspectRatioTimeoutRef.current = setTimeout(updateAspectRatio, 150);
       };
       
-      video.addEventListener('loadedmetadata', updateAspectRatio);
-      video.addEventListener('resize', updateAspectRatio);
+      video.addEventListener('loadedmetadata', debouncedUpdateAspectRatio);
+      video.addEventListener('resize', debouncedUpdateAspectRatio);
       
       // Check immediately if metadata is already loaded
       if (video.videoWidth && video.videoHeight) {
-        updateAspectRatio();
+        debouncedUpdateAspectRatio();
       }
       
       return () => {
-        video.removeEventListener('loadedmetadata', updateAspectRatio);
-        video.removeEventListener('resize', updateAspectRatio);
+        video.removeEventListener('loadedmetadata', debouncedUpdateAspectRatio);
+        video.removeEventListener('resize', debouncedUpdateAspectRatio);
+        
+        // Clear timeout on cleanup
+        if (aspectRatioTimeoutRef.current) {
+          clearTimeout(aspectRatioTimeoutRef.current);
+        }
       };
     }
-  }, [isCameraOff, participant?.videoStream]);
+  }, [isCameraOff, currentVideoTrack, updateAspectRatio]);
 
   // Apply dynamic aspect ratio to container
   useEffect(() => {
@@ -279,7 +331,7 @@ const TabletFloatingParticipant = ({ participant, isCameraOff }) => {
       )}
     </div>
   );
-};
+});
 
 // Desktop Floating Participant - Uses GetStream's ParticipantView
 const DesktopFloatingParticipant = ({ isCameraOff }) => {
