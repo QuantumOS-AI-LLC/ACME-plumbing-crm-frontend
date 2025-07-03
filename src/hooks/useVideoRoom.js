@@ -18,7 +18,7 @@ const generateGuestUrl = (callId, contactName) => {
     const compressedTokenData = {
         c: callId,                                                    // callId (shortened key)
         n: contactName,                                               // contactName (shortened key)
-        e: Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)    // expiresAt as Unix timestamp
+        e: Date.now() + 24 * 60 * 60 * 1000                         // expiresAt in milliseconds (fixed)
     };
     
     // Create compressed base64 encoded token

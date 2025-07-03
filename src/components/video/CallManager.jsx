@@ -20,11 +20,23 @@ const CallManager = () => {
   const [joinCallId, setJoinCallId] = useState('');
   const [isInCall, setIsInCall] = useState(false);
   const [isGuestRoute, setIsGuestRoute] = useState(false);
+  const [isAutoJoining, setIsAutoJoining] = useState(false);
+  const [hasUrlCredentials, setHasUrlCredentials] = useState(false);
 
-  // Detect if we're on the guest route
+  // Detect if we're on the guest route and check for URL credentials
   useEffect(() => {
     const guestRoute = window.location.pathname === '/join-call';
     setIsGuestRoute(guestRoute);
+    
+    // Check if URL has credentials for auto-joining
+    const urlParams = new URLSearchParams(window.location.search);
+    const callId = urlParams.get('callId');
+    const token = urlParams.get('token');
+    
+    if (guestRoute && (token || callId)) {
+      setHasUrlCredentials(true);
+      setIsAutoJoining(true);
+    }
   }, []);
 
   // Auto-initialize for authenticated CRM users (only on protected routes)
@@ -67,11 +79,12 @@ const CallManager = () => {
       const tokenData = {
         callId: compressedData.c,           // c -> callId
         contactName: compressedData.n,      // n -> contactName
-        expiresAt: compressedData.e * 1000  // e -> expiresAt (convert Unix timestamp to milliseconds)
+        expiresAt: compressedData.e         // e -> expiresAt (already in milliseconds)
       };
       
       // Check if token is expired
       if (new Date().getTime() > tokenData.expiresAt) {
+        setIsAutoJoining(false);
         alert('This call link has expired. Please request a new link.');
         return;
       }
@@ -82,10 +95,12 @@ const CallManager = () => {
       await initializeForGuest(tokenData.contactName, tokenData.callId);
       setCurrentCallId(tokenData.callId);
       setIsInCall(true);
+      setIsAutoJoining(false);
       
       console.log(`Successfully auto-joined call as ${tokenData.contactName}`);
     } catch (err) {
       console.error('Failed to auto-join from token:', err);
+      setIsAutoJoining(false);
       alert('Invalid or expired call link. Please request a new link.');
     }
   };
@@ -209,8 +224,21 @@ const CallManager = () => {
     }
   };
 
-  // For guests without CRM login
+  // For guests without CRM login - show loading if auto-joining, otherwise show form
   if (!currentUser && !client) {
+    // Show loading state if we're auto-joining with URL credentials
+    if (isAutoJoining && hasUrlCredentials) {
+      return (
+        <div className="call-manager">
+          <div className="loading">
+            <div className="loading-spinner"></div>
+            <p>Joining your video call...</p>
+          </div>
+        </div>
+      );
+    }
+    
+    // Show guest form only if no URL credentials or auto-join failed
     return (
       <div className="call-manager">
         <GuestLoginForm onGuestJoin={handleGuestJoin} />
