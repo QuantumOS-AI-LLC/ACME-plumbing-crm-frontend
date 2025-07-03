@@ -963,6 +963,113 @@ const VideoCallUI = ({
   );
 };
 
+// Enhanced device detection hook for preview
+const useDeviceInfo = () => {
+  const [deviceInfo, setDeviceInfo] = useState(() => {
+    const userAgent = navigator.userAgent;
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    const hasTouch = 'ontouchstart' in window;
+    const isLandscape = screenWidth > screenHeight;
+    
+    let deviceType = 'desktop';
+    let previewSize = { width: 400, height: 300 };
+    
+    // Enhanced device detection
+    if (/iPad/.test(userAgent) || 
+        (screenWidth >= 768 && screenWidth <= 1024 && hasTouch) ||
+        (screenWidth >= 1024 && screenWidth <= 1366 && hasTouch && /Safari/.test(userAgent))) {
+      deviceType = 'tablet';
+      previewSize = isLandscape 
+        ? { width: 360, height: 270 } 
+        : { width: 320, height: 240 };
+    } else if (screenWidth <= 767 || 
+               /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|webOS/i.test(userAgent)) {
+      deviceType = 'mobile';
+      previewSize = isLandscape 
+        ? { width: 320, height: 180 } 
+        : { width: 280, height: 210 };
+    }
+    
+    return { deviceType, previewSize, isLandscape, screenWidth, screenHeight };
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+      const isLandscape = screenWidth > screenHeight;
+      const hasTouch = 'ontouchstart' in window;
+      
+      let deviceType = 'desktop';
+      let previewSize = { width: 400, height: 300 };
+      
+      if (screenWidth >= 768 && screenWidth <= 1024 && hasTouch) {
+        deviceType = 'tablet';
+        previewSize = isLandscape 
+          ? { width: 360, height: 270 } 
+          : { width: 320, height: 240 };
+      } else if (screenWidth <= 767) {
+        deviceType = 'mobile';
+        previewSize = isLandscape 
+          ? { width: 320, height: 180 } 
+          : { width: 280, height: 210 };
+      }
+      
+      setDeviceInfo({ deviceType, previewSize, isLandscape, screenWidth, screenHeight });
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
+  return deviceInfo;
+};
+
+// Dynamic aspect ratio hook for preview
+const usePreviewAspectRatio = (videoElement, isEnabled) => {
+  const [aspectRatio, setAspectRatio] = useState(4/3); // Default 4:3
+  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (!videoElement || !isEnabled) return;
+
+    const updateAspectRatio = () => {
+      if (videoElement.videoWidth && videoElement.videoHeight) {
+        const ratio = videoElement.videoWidth / videoElement.videoHeight;
+        setAspectRatio(ratio);
+        setNaturalSize({ 
+          width: videoElement.videoWidth, 
+          height: videoElement.videoHeight 
+        });
+      }
+    };
+
+    const handleLoadedMetadata = () => updateAspectRatio();
+    const handleResize = () => updateAspectRatio();
+
+    videoElement.addEventListener('loadedmetadata', handleLoadedMetadata);
+    videoElement.addEventListener('resize', handleResize);
+
+    // Check immediately if metadata is already loaded
+    if (videoElement.videoWidth && videoElement.videoHeight) {
+      updateAspectRatio();
+    }
+
+    return () => {
+      videoElement.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      videoElement.removeEventListener('resize', handleResize);
+    };
+  }, [videoElement, isEnabled]);
+
+  return { aspectRatio, naturalSize };
+};
+
 // Pre-call setup component
 const PreCallSetup = ({
   call,
@@ -977,13 +1084,58 @@ const PreCallSetup = ({
 }) => {
   const [localStream, setLocalStream] = useState(null);
   const videoRef = React.useRef(null);
+  const containerRef = React.useRef(null);
+  const [streamError, setStreamError] = useState(null);
+  
+  // Enhanced device detection
+  const { deviceType, previewSize, isLandscape } = useDeviceInfo();
+  
+  // Dynamic aspect ratio detection
+  const { aspectRatio, naturalSize } = usePreviewAspectRatio(videoRef.current, isCameraEnabled);
+
+  // Apply dynamic sizing to container
+  useEffect(() => {
+    if (containerRef.current && isCameraEnabled) {
+      const container = containerRef.current;
+      
+      // Calculate optimal size based on aspect ratio and device constraints
+      const maxWidth = previewSize.width;
+      const maxHeight = previewSize.height;
+      
+      let finalWidth, finalHeight;
+      
+      if (aspectRatio > 1) {
+        // Landscape video
+        finalWidth = Math.min(maxWidth, maxHeight * aspectRatio);
+        finalHeight = finalWidth / aspectRatio;
+      } else {
+        // Portrait video
+        finalHeight = Math.min(maxHeight, maxWidth / aspectRatio);
+        finalWidth = finalHeight * aspectRatio;
+      }
+      
+      container.style.width = `${finalWidth}px`;
+      container.style.height = `${finalHeight}px`;
+      container.style.aspectRatio = aspectRatio.toString();
+    } else if (containerRef.current && !isCameraEnabled) {
+      // Camera off - use default size
+      containerRef.current.style.width = `${previewSize.width}px`;
+      containerRef.current.style.height = `${previewSize.height}px`;
+      containerRef.current.style.aspectRatio = 'unset';
+    }
+  }, [aspectRatio, isCameraEnabled, previewSize]);
 
   useEffect(() => {
     const setupInitialPreview = async () => {
       try {
+        setStreamError(null);
         // Initial setup - get user media for preview
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          },
           audio: true,
         });
         setLocalStream(stream);
@@ -993,6 +1145,7 @@ const PreCallSetup = ({
         }
       } catch (error) {
         console.error("Error accessing media devices:", error);
+        setStreamError(error.message);
       }
     };
 
@@ -1009,6 +1162,7 @@ const PreCallSetup = ({
   const toggleCamera = async () => {
     const newCameraState = !isCameraEnabled;
     setIsCameraEnabled(newCameraState);
+    setStreamError(null);
 
     if (!newCameraState) {
       // TURNING CAMERA OFF - Immediate shutdown
@@ -1043,17 +1197,25 @@ const PreCallSetup = ({
       }
 
       try {
-        const newStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+        const constraints = {
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          },
           audio: isMicEnabled,
-        });
+        };
 
+        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
         setLocalStream(newStream);
+        
         if (videoRef.current) {
           videoRef.current.srcObject = newStream;
         }
       } catch (error) {
         console.error("Error enabling camera:", error);
+        setStreamError(`Camera access failed: ${error.message}`);
+        setIsCameraEnabled(false); // Reset state on error
       }
     }
   };
@@ -1061,6 +1223,7 @@ const PreCallSetup = ({
   const toggleMicrophone = async () => {
     const newMicState = !isMicEnabled;
     setIsMicEnabled(newMicState);
+    setStreamError(null);
 
     // Stop current stream completely
     if (localStream) {
@@ -1069,45 +1232,53 @@ const PreCallSetup = ({
     }
 
     // Clear video element first
-    if (videoRef.current) {
+    if (videoRef.current && !isCameraEnabled) {
       videoRef.current.srcObject = null;
     }
 
     // Create appropriate stream based on device states
     try {
+      let constraints = {};
+      
       if (isCameraEnabled && newMicState) {
         // Both camera and mic enabled
-        const newStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+        constraints = {
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          },
           audio: true,
-        });
-        setLocalStream(newStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = newStream;
-        }
+        };
       } else if (isCameraEnabled && !newMicState) {
         // Only camera enabled
-        const newStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+        constraints = {
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          },
           audio: false,
-        });
-        setLocalStream(newStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = newStream;
-        }
+        };
       } else if (!isCameraEnabled && newMicState) {
         // Only microphone enabled - NO VIDEO REQUEST
-        const newStream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
-        setLocalStream(newStream);
-        // Don't set video element since camera is off
+        constraints = { audio: true };
       } else {
         // Both disabled - no stream needed
         setLocalStream(null);
+        return;
+      }
+
+      const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setLocalStream(newStream);
+      
+      if (videoRef.current && isCameraEnabled) {
+        videoRef.current.srcObject = newStream;
       }
     } catch (error) {
       console.error("Error updating microphone stream:", error);
+      setStreamError(`Microphone access failed: ${error.message}`);
+      setIsMicEnabled(!newMicState); // Reset state on error
     }
   };
 
@@ -1185,6 +1356,13 @@ const PreCallSetup = ({
           </button>
         </div>
       </div>
+
+      {streamError && (
+        <div className="stream-error">
+          <p>⚠️ {streamError}</p>
+        </div>
+      )}
+
 
       <div className="join-controls">
         <button

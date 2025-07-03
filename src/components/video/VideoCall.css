@@ -918,21 +918,23 @@ button:disabled::before {
     bottom: 12px;
     left: 50%;
     transform: translateX(-50%);
-    padding: 10px 12px;
-    gap: 8px;
-    border-radius: 24px;
+    padding: 8px 10px;
+    gap: 6px;
+    border-radius: 20px;
     /* Ensure controls don't get too wide on small screens */
-    max-width: calc(100vw - 24px);
+    max-width: calc(100vw - 20px);
     flex-wrap: nowrap;
     justify-content: center;
+    overflow: hidden;
   }
 
   .custom-control-btn {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     /* Larger touch targets for mobile */
-    min-width: 48px;
-    min-height: 48px;
+    min-width: 44px;
+    min-height: 44px;
+    flex-shrink: 0;
   }
 
   .leave-call-btn {
@@ -1414,24 +1416,36 @@ button:disabled::before {
   position: relative;
   z-index: 1;
   animation: fadeInUp 0.8s ease-out 0.4s both;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .video-preview {
-  width: 400px;
-  height: 300px;
+  /* Dynamic sizing controlled by JavaScript */
+  min-width: 200px;
+  min-height: 150px;
+  max-width: 90vw;
+  max-height: 60vh;
   border-radius: 16px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.8);
   border: 3px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   position: relative;
+  transition: all 0.3s ease;
+  
+  /* Default fallback size */
+  width: 400px;
+  height: 300px;
 }
 
 .preview-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain; /* Changed from cover to prevent cropping */
   border-radius: 13px;
+  background: #000;
 }
 
 .camera-off-preview {
@@ -1513,6 +1527,24 @@ button:disabled::before {
   color: white !important; /* Ensure consistent color */
   fill: white !important; /* Ensure consistent fill color */
 }
+
+.stream-error {
+  margin: 20px 0;
+  padding: 12px 20px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.stream-error p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 
 .join-controls {
   display: flex;
