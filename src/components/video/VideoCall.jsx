@@ -13,10 +13,32 @@ import { useVideoClient } from "../../contexts/VideoContext";
 import { useVideoAspectRatio } from "../../hooks/useVideoAspectRatio";
 import "./VideoCall.css";
 
-// Mobile detection utility
+// Enhanced device detection utility for mobile, tablet, and desktop
+const getDeviceType = () => {
+  const userAgent = navigator.userAgent;
+  const screenWidth = window.innerWidth;
+  const hasTouch = 'ontouchstart' in window;
+  
+  // iPad detection (including modern iPads that report as desktop)
+  if (/iPad/.test(userAgent) || 
+      (screenWidth >= 768 && screenWidth <= 1024 && hasTouch) ||
+      (screenWidth >= 1024 && screenWidth <= 1366 && hasTouch && /Safari/.test(userAgent))) {
+    return 'tablet';
+  }
+  
+  // Phone detection
+  if (screenWidth <= 767 || 
+      /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|webOS/i.test(userAgent)) {
+    return 'mobile';
+  }
+  
+  // Desktop detection
+  return 'desktop';
+};
+
+// Legacy mobile detection for backward compatibility
 const isMobile = () => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-         window.innerWidth <= 768;
+  return getDeviceType() === 'mobile';
 };
 
 // Touch gesture hook for mobile interactions
@@ -81,7 +103,7 @@ const useTouchGestures = (onTap, onDoubleTap, onSwipeUp, onSwipeDown) => {
 
 
 
-// Custom Mobile Floating Participant - Clean implementation without GetStream UI
+// Custom Mobile Floating Participant - Clean implementation without GetStream UI (Phones)
 const MobileFloatingParticipant = ({ participant, isCameraOff }) => {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
@@ -130,6 +152,61 @@ const MobileFloatingParticipant = ({ participant, isCameraOff }) => {
           muted
           playsInline
           className="mobile-video"
+        />
+      )}
+    </div>
+  );
+};
+
+// Custom Tablet Floating Participant - Hybrid approach for iPads
+const TabletFloatingParticipant = ({ participant, isCameraOff }) => {
+  const videoRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Attach video stream to video element using GetStream's approach
+  useEffect(() => {
+    if (!isCameraOff && videoRef.current && participant) {
+      // Use GetStream's video track directly
+      const videoTrack = participant.videoStream?.getVideoTracks()?.[0];
+      if (videoTrack) {
+        const stream = new MediaStream([videoTrack]);
+        videoRef.current.srcObject = stream;
+      }
+    } else if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, [participant, isCameraOff, participant?.videoStream]);
+
+  if (!participant) {
+    return null;
+  }
+
+  // Get participant initials for avatar
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  return (
+    <div className="tablet-floating-participant" ref={containerRef}>
+      {isCameraOff ? (
+        <div className="tablet-avatar">
+          <span className="avatar-initials">
+            {getInitials(participant.name || participant.userId)}
+          </span>
+        </div>
+      ) : (
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className="tablet-video"
         />
       )}
     </div>
@@ -233,12 +310,12 @@ const DesktopFloatingParticipant = ({ isCameraOff }) => {
   );
 };
 
-// Smart Floating Participant - Chooses implementation based on device
+// Smart Floating Participant - Chooses implementation based on device type
 const FloatingLocalParticipant = ({ isCameraOff }) => {
   const { useParticipants } = useCallStateHooks();
   const participants = useParticipants();
   const { user } = useVideoClient();
-  const [isMobileDevice] = useState(isMobile());
+  const [deviceType] = useState(getDeviceType());
 
   // Find the local participant (current user)
   const localParticipant = participants.find((p) => p.userId === user?.id);
@@ -248,14 +325,27 @@ const FloatingLocalParticipant = ({ isCameraOff }) => {
   }
 
   // Render different components based on device type
-  return isMobileDevice ? (
-    <MobileFloatingParticipant 
-      participant={localParticipant} 
-      isCameraOff={isCameraOff} 
-    />
-  ) : (
-    <DesktopFloatingParticipant isCameraOff={isCameraOff} />
-  );
+  switch (deviceType) {
+    case 'mobile':
+      return (
+        <MobileFloatingParticipant 
+          participant={localParticipant} 
+          isCameraOff={isCameraOff} 
+        />
+      );
+    case 'tablet':
+      return (
+        <TabletFloatingParticipant 
+          participant={localParticipant} 
+          isCameraOff={isCameraOff} 
+        />
+      );
+    case 'desktop':
+    default:
+      return (
+        <DesktopFloatingParticipant isCameraOff={isCameraOff} />
+      );
+  }
 };
 
 // Custom control buttons using GetStream hooks
