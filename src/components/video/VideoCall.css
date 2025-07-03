@@ -587,26 +587,36 @@ button:disabled::before {
   transform: translateY(-1px) !important;
 }
 
-/* Gentle Stream.io mobile optimizations */
+/* Stream.io mobile optimizations - natural aspect ratios */
 @media (max-width: 480px) {
   /* Mobile-friendly participant view styling */
   .str-video__participant-view {
-    border-radius: 0 !important;
+    border-radius: 8px !important;
     margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 200px !important;
+    max-height: 70vh !important;
   }
 
-  /* Apply 9:16 aspect ratio to video elements only */
+  /* Natural aspect ratio for video elements - no forced stretching */
   .str-video__participant-view video {
-    aspect-ratio: 9/16 !important;
-    object-fit: cover !important;
-    width: 100% !important;
-    height: 100% !important;
+    /* Remove forced aspect ratio to prevent stretching */
+    object-fit: contain !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    border-radius: 8px !important;
   }
 
   /* Mobile grid layout optimization */
   .str-video__participants-grid {
-    gap: 0 !important;
-    padding: 0 !important;
+    gap: 8px !important;
+    padding: 8px !important;
+    align-items: center !important;
+    justify-items: center !important;
   }
 
   /* Single column layout for mobile */
@@ -653,43 +663,54 @@ button:disabled::before {
     padding: 1px 4px;
   }
 
-  /* Mobile participant grid optimization */
+  /* Mobile participant grid optimization - flexible layout */
   .remote-participants-grid {
     grid-template-columns: 1fr !important;
-    gap: 4px !important;
-    padding: 4px !important;
+    gap: 8px !important;
+    padding: 8px !important;
     width: 100% !important;
     height: 100% !important;
     margin: 0 !important;
     overflow: hidden !important;
+    align-items: center !important;
+    justify-items: center !important;
   }
 
-  /* Mobile participant container with 9:16 aspect ratio */
+  /* Mobile participant container - flexible sizing */
   .remote-participants-grid .participant-container {
-    aspect-ratio: 9/16 !important;
+    /* Remove forced aspect ratio to prevent stretching */
     width: 100% !important;
+    min-height: 200px !important;
+    max-height: 70vh !important;
     border-radius: 8px !important;
     margin: 0 !important;
     padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #1a1a1a !important;
   }
 
-  /* Mobile video styling */
+  /* Mobile video styling - natural aspect ratio */
   .remote-participants-grid .participant-container video {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
+    /* Remove forced aspect ratio and use contain to prevent stretching */
+    object-fit: contain !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
     border-radius: 8px !important;
   }
 
-  /* Enhanced mobile floating participant with 9:16 aspect ratio */
+  /* Enhanced mobile floating participant - dynamic aspect ratio */
   .floating-local-participant {
-    width: 80px !important; /* Smaller for full-screen main video */
+    width: 100px !important; /* Slightly larger for better visibility */
     top: 46px !important; /* Below smaller header */
     right: 8px !important;
-    max-height: 160px !important;
+    max-height: 180px !important;
+    min-height: 80px !important;
     border-width: 1px !important;
-    /* Force 9:16 aspect ratio on mobile */
-    --local-video-aspect-ratio: 0.5625 !important; /* 9/16 = 0.5625 */
+    /* Remove forced aspect ratio - let it be dynamic */
     z-index: 1001 !important; /* Ensure it's above main video */
   }
 
@@ -790,11 +811,22 @@ button:disabled::before {
     padding: 6px 12px;
   }
 
-  /* Switch to 16:9 aspect ratio in landscape for better viewing */
+  /* Flexible container sizing for landscape - no forced aspect ratio */
   .remote-participants-grid .participant-container {
-    aspect-ratio: 16/9 !important;
     max-height: 60vh; /* Adjust for landscape */
     min-height: 120px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Natural aspect ratio for landscape videos */
+  .remote-participants-grid .participant-container video {
+    object-fit: contain !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
   }
 
   .floating-local-participant {
@@ -802,8 +834,7 @@ button:disabled::before {
     top: 46px;
     right: 8px;
     max-height: 120px;
-    /* Switch to 16:9 aspect ratio in landscape */
-    --local-video-aspect-ratio: 1.777 !important; /* 16/9 = 1.777 */
+    /* Remove forced aspect ratio - let it be dynamic */
   }
 
   .custom-call-controls {
