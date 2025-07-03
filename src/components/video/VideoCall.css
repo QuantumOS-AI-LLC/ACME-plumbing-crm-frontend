@@ -495,6 +495,89 @@ button:disabled::before {
   justify-content: center !important;
 }
 
+/* Custom Mobile Floating Participant Styles */
+.mobile-floating-participant {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 120px;
+  height: 160px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.mobile-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.mobile-avatar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+}
+
+.avatar-initials {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .mobile-floating-participant {
+    width: 100px;
+    height: 130px;
+    top: 60px;
+    right: 12px;
+  }
+  
+  .avatar-initials {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-floating-participant {
+    width: 80px;
+    height: 100px;
+    top: 50px;
+    right: 8px;
+  }
+  
+  .avatar-initials {
+    font-size: 16px;
+  }
+}
+
+/* Desktop: Hide UI overlays from GetStream ParticipantView */
+@media (min-width: 769px) {
+  /* Keep existing desktop CSS hiding rules for GetStream components */
+  .floating-local-participant .str-video__participant-view__label {
+    display: none !important;
+  }
+  
+  .floating-local-participant .str-video__connection-quality {
+    display: none !important;
+  }
+  
+  .floating-local-participant .str-video__participant-view__menu {
+    display: none !important;
+  }
+}
+
 .floating-participant-video video {
   width: 100% !important;
   height: 100% !important;

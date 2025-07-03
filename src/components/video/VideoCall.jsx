@@ -81,7 +81,63 @@ const useTouchGestures = (onTap, onDoubleTap, onSwipeUp, onSwipeDown) => {
 
 
 
-const FloatingLocalParticipant = ({ isCameraOff }) => {
+// Custom Mobile Floating Participant - Clean implementation without GetStream UI
+const MobileFloatingParticipant = ({ participant, isCameraOff }) => {
+  const videoRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Attach video stream to video element using GetStream's approach
+  useEffect(() => {
+    if (!isCameraOff && videoRef.current && participant) {
+      // Use GetStream's video track directly
+      const videoTrack = participant.videoStream?.getVideoTracks()?.[0];
+      if (videoTrack) {
+        const stream = new MediaStream([videoTrack]);
+        videoRef.current.srcObject = stream;
+      }
+    } else if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, [participant, isCameraOff, participant?.videoStream]);
+
+  if (!participant) {
+    return null;
+  }
+
+  // Get participant initials for avatar
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  return (
+    <div className="mobile-floating-participant" ref={containerRef}>
+      {isCameraOff ? (
+        <div className="mobile-avatar">
+          <span className="avatar-initials">
+            {getInitials(participant.name || participant.userId)}
+          </span>
+        </div>
+      ) : (
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className="mobile-video"
+        />
+      )}
+    </div>
+  );
+};
+
+// Desktop Floating Participant - Uses GetStream's ParticipantView
+const DesktopFloatingParticipant = ({ isCameraOff }) => {
   const { useParticipants } = useCallStateHooks();
   const participants = useParticipants();
   const { user } = useVideoClient();
@@ -170,10 +226,35 @@ const FloatingLocalParticipant = ({ isCameraOff }) => {
       ref={floatingContainerRef}
     >
       <div className="floating-participant-video">
-        {/* Use native GetStream ParticipantView - handles video/avatar automatically */}
+        {/* Use native GetStream ParticipantView - UI elements hidden via CSS */}
         <ParticipantView participant={localParticipant} />
       </div>
     </div>
+  );
+};
+
+// Smart Floating Participant - Chooses implementation based on device
+const FloatingLocalParticipant = ({ isCameraOff }) => {
+  const { useParticipants } = useCallStateHooks();
+  const participants = useParticipants();
+  const { user } = useVideoClient();
+  const [isMobileDevice] = useState(isMobile());
+
+  // Find the local participant (current user)
+  const localParticipant = participants.find((p) => p.userId === user?.id);
+
+  if (!localParticipant) {
+    return null;
+  }
+
+  // Render different components based on device type
+  return isMobileDevice ? (
+    <MobileFloatingParticipant 
+      participant={localParticipant} 
+      isCameraOff={isCameraOff} 
+    />
+  ) : (
+    <DesktopFloatingParticipant isCameraOff={isCameraOff} />
   );
 };
 
