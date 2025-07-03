@@ -566,7 +566,6 @@ const VideoCallUI = ({
 
   const [isMicMuted, setIsMicMuted] = useState(initialMicMuted || false);
   const [isCameraOff, setIsCameraOff] = useState(initialCameraOff || false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [connectionQuality, setConnectionQuality] = useState("good");
   const callStartTime = useState(() => new Date())[0];
@@ -846,50 +845,6 @@ const VideoCallUI = ({
     }
   };
 
-  const toggleScreenShare = async () => {
-    try {
-      if (call) {
-        if (isScreenSharing) {
-          // Try different possible stop methods
-          if (typeof call.stopScreenShare === "function") {
-            await call.stopScreenShare();
-          } else if (
-            call.screenShare &&
-            typeof call.screenShare.disable === "function"
-          ) {
-            await call.screenShare.disable();
-          } else if (
-            call.screenShare &&
-            typeof call.screenShare.stop === "function"
-          ) {
-            await call.screenShare.stop();
-          } else {
-            return;
-          }
-        } else {
-          // Try different possible start methods
-          if (typeof call.startScreenShare === "function") {
-            await call.startScreenShare();
-          } else if (
-            call.screenShare &&
-            typeof call.screenShare.enable === "function"
-          ) {
-            await call.screenShare.enable();
-          } else if (
-            call.screenShare &&
-            typeof call.screenShare.start === "function"
-          ) {
-            await call.screenShare.start();
-          } else {
-            return;
-          }
-        }
-        setIsScreenSharing(!isScreenSharing);
-      }
-    } catch (error) {
-      console.error("Error toggling screen share:", error);
-    }
-  };
 
   if (callEndedAt) {
     return (
@@ -992,16 +947,6 @@ const VideoCallUI = ({
                 )}
               </CustomControlButton>
             )}
-
-            <CustomControlButton
-              onClick={toggleScreenShare}
-              isActive={isScreenSharing}
-              className="screen-share-btn"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.11-.9-2-2-2H4c-1.11 0-2 .89-2 2v10c0 1.1.89 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>
-              </svg>
-            </CustomControlButton>
 
             <CustomControlButton
               onClick={onLeave}

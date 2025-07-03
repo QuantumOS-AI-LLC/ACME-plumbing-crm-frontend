@@ -212,20 +212,6 @@
   border-color: rgba(239, 68, 68, 0.7);
 }
 
-.screen-share-btn {
-  background: rgba(245, 158, 11, 0.2);
-  border-color: rgba(245, 158, 11, 0.4);
-}
-
-.screen-share-btn:hover {
-  background: rgba(245, 158, 11, 0.3);
-  border-color: rgba(245, 158, 11, 0.6);
-}
-
-.screen-share-btn.active {
-  background: rgba(245, 158, 11, 0.4);
-  border-color: rgba(245, 158, 11, 0.7);
-}
 
 /* Leave Call Button */
 .leave-call-btn {
