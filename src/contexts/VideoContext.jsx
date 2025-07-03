@@ -11,7 +11,7 @@ export const useVideoClient = () => {
   return context;
 };
 
-export const VideoProvider = ({ children }) => {
+export const VideoProvider = ({ children, skipAutoInit = false }) => {
   const [client, setClient] = useState(null);
   const [user, setUser] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -205,8 +205,19 @@ export const VideoProvider = ({ children }) => {
     }
   }, [client]);
 
-  // Auto-initialize video client for authenticated CRM users
+  // Auto-initialize video client for authenticated CRM users (only on protected routes)
   useEffect(() => {
+    // Skip auto-initialization if explicitly disabled or on guest routes
+    if (skipAutoInit) {
+      return;
+    }
+
+    // Check if we're on a guest route
+    const isGuestRoute = window.location.pathname === '/join-call';
+    if (isGuestRoute) {
+      return;
+    }
+
     const initializeForAuthenticatedUser = async () => {
       // Get user from localStorage/sessionStorage (same pattern as other parts of app)
       const userProfile = JSON.parse(
@@ -215,17 +226,21 @@ export const VideoProvider = ({ children }) => {
         '{}'
       );
       
-      if (userProfile.id && !client && !isConnecting) {
+      // Only initialize if we have a valid user profile and valid auth token
+      const jwtToken = localStorage.getItem("token") || sessionStorage.getItem("token");
+      
+      if (userProfile.id && jwtToken && !client && !isConnecting) {
         try {
           await initializeForCRMUser(userProfile);
         } catch (error) {
           // Silent fail - don't break the app for video initialization issues
+          console.warn('Video initialization failed for authenticated user:', error.message);
         }
       }
     };
 
     initializeForAuthenticatedUser();
-  }, [client, isConnecting, initializeForCRMUser]); // Dependencies to prevent infinite loops
+  }, [client, isConnecting, initializeForCRMUser, skipAutoInit]); // Dependencies to prevent infinite loops
 
   return (
     <VideoContext.Provider

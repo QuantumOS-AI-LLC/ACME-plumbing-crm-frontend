@@ -123,6 +123,11 @@ export const AuthProvider = ({ children }) => {
         setIsLoggedIn(false);
         setUser(null);
         setError(null);
+        
+        // Clear any stale user profile data that might cause video auth issues
+        localStorage.removeItem('userProfile');
+        sessionStorage.removeItem('userProfile');
+        
         // Keep isInitialized as true since we're still initialized, just logged out
     };
 

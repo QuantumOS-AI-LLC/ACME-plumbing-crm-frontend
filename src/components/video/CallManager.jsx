@@ -19,13 +19,20 @@ const CallManager = () => {
   const [currentCallId, setCurrentCallId] = useState('');
   const [joinCallId, setJoinCallId] = useState('');
   const [isInCall, setIsInCall] = useState(false);
+  const [isGuestRoute, setIsGuestRoute] = useState(false);
 
-  // Auto-initialize for authenticated CRM users
+  // Detect if we're on the guest route
   useEffect(() => {
-    if (currentUser && !client) {
+    const guestRoute = window.location.pathname === '/join-call';
+    setIsGuestRoute(guestRoute);
+  }, []);
+
+  // Auto-initialize for authenticated CRM users (only on protected routes)
+  useEffect(() => {
+    if (currentUser && !client && !isGuestRoute) {
       initializeForCRMUser(currentUser).catch(console.error);
     }
-  }, [currentUser, client, initializeForCRMUser]);
+  }, [currentUser, client, initializeForCRMUser, isGuestRoute]);
 
   // Auto-join call if callId or token is in URL parameters
   useEffect(() => {
@@ -222,8 +229,8 @@ const CallManager = () => {
     );
   }
 
-  // Error state
-  if (error) {
+  // Error state - but show guest form on guest routes instead of error screen
+  if (error && !isGuestRoute) {
     return (
       <div className="call-manager">
         <div className="error">
@@ -233,6 +240,15 @@ const CallManager = () => {
             Retry
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // On guest route with error (likely auth token issue), show guest form
+  if (error && isGuestRoute && !currentUser && !client) {
+    return (
+      <div className="call-manager">
+        <GuestLoginForm onGuestJoin={handleGuestJoin} />
       </div>
     );
   }
