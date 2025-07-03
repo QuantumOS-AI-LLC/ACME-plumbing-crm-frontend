@@ -576,93 +576,27 @@ button:disabled::before {
   font-size: 32px;
 }
 
-/* Camera Switch Button Styles */
+/* Camera Switch Button - Now in main controls */
 .camera-switch-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  z-index: 1001;
-  padding: 0;
-  outline: none;
+  background: rgba(156, 163, 175, 0.2);
+  border-color: rgba(156, 163, 175, 0.4);
 }
 
-.camera-switch-btn:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.9);
-  border-color: rgba(255, 255, 255, 0.4);
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.camera-switch-btn:active {
-  transform: scale(0.95);
+.camera-switch-btn:hover {
+  background: rgba(156, 163, 175, 0.3);
+  border-color: rgba(156, 163, 175, 0.6);
 }
 
 .camera-switch-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .camera-switch-btn svg {
-  color: white;
-  fill: white;
-}
-
-/* Mobile Switch Button */
-.mobile-switch {
-  width: 32px;
-  height: 32px;
-  top: 8px;
-  right: 8px;
-}
-
-/* Tablet Switch Button */
-.tablet-switch {
-  width: 36px;
-  height: 36px;
-  top: 12px;
-  right: 12px;
-}
-
-/* Touch device optimizations */
-@media (hover: none) and (pointer: coarse) {
-  .camera-switch-btn:hover {
-    transform: none;
-    box-shadow: none;
-    background: rgba(0, 0, 0, 0.7);
-    border-color: rgba(255, 255, 255, 0.2);
-  }
-  
-  .camera-switch-btn:active {
-    transform: scale(0.9);
-    background: rgba(0, 0, 0, 0.9);
-  }
-  
-  /* Larger touch targets for mobile */
-  .mobile-switch {
-    width: 36px;
-    height: 36px;
-    top: 6px;
-    right: 6px;
-  }
-  
-  .tablet-switch {
-    width: 40px;
-    height: 40px;
-    top: 10px;
-    right: 10px;
-  }
+  color: white !important;
+  fill: white !important;
 }
 
 /* Mobile responsive adjustments (Phones only) */
