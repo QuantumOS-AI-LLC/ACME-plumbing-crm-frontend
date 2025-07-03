@@ -87,21 +87,31 @@ const FloatingLocalParticipant = ({ isCameraOff }) => {
   const { user } = useVideoClient();
   const floatingContainerRef = useRef(null);
   
-  // Use the aspect ratio hook to track video dimensions
+  // Use the aspect ratio hook to track video dimensions only when camera is on
   const { aspectRatio, attachVideoElement } = useVideoAspectRatio(!isCameraOff);
 
   // Find the local participant (current user)
   const localParticipant = participants.find((p) => p.userId === user?.id);
 
-  // Update CSS custom property when aspect ratio changes
+  // Update CSS custom property when aspect ratio changes, but only when camera is on
   useEffect(() => {
     if (floatingContainerRef.current) {
-      floatingContainerRef.current.style.setProperty(
-        '--local-video-aspect-ratio', 
-        aspectRatio.toString()
-      );
+      if (!isCameraOff) {
+        // Camera is on - use dynamic aspect ratio
+        floatingContainerRef.current.style.setProperty(
+          '--local-video-aspect-ratio', 
+          aspectRatio.toString()
+        );
+        floatingContainerRef.current.classList.remove('camera-off');
+        floatingContainerRef.current.classList.add('camera-on');
+      } else {
+        // Camera is off - remove aspect ratio constraint and use flexible sizing
+        floatingContainerRef.current.style.removeProperty('--local-video-aspect-ratio');
+        floatingContainerRef.current.classList.remove('camera-on');
+        floatingContainerRef.current.classList.add('camera-off');
+      }
     }
-  }, [aspectRatio]);
+  }, [aspectRatio, isCameraOff]);
 
   // Attach video element for aspect ratio monitoring
   useEffect(() => {

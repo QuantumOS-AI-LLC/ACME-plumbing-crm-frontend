@@ -460,8 +460,6 @@ button:disabled::before {
 .floating-participant-video {
   position: relative;
   width: 100%;
-  /* Use dynamic aspect ratio from CSS custom property */
-  aspect-ratio: var(--local-video-aspect-ratio);
   overflow: hidden;
   border-radius: 12px;
   transition: aspect-ratio 0.3s ease;
@@ -469,6 +467,32 @@ button:disabled::before {
   /* Additional constraints for extreme aspect ratios */
   max-height: 280px; /* Account for container padding */
   min-height: 80px;
+}
+
+/* Camera-on state: use dynamic aspect ratio */
+.floating-local-participant.camera-on .floating-participant-video {
+  aspect-ratio: var(--local-video-aspect-ratio);
+}
+
+/* Camera-off state: flexible sizing for avatar content */
+.floating-local-participant.camera-off .floating-participant-video {
+  /* Remove aspect ratio constraint and use flexible sizing */
+  aspect-ratio: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  height: auto;
+}
+
+/* Ensure avatar content in camera-off state is properly sized */
+.floating-local-participant.camera-off .str-video__participant-view {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 80px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .floating-participant-video video {
