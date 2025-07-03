@@ -987,9 +987,7 @@ const VideoCallUI = ({
                   </svg>
                 ) : (
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M9 12l1.41 1.41L16 8.83V12h2V6h-6v2h3.17l-5.58 5.59z"/>
-                    <path d="M21 9h-2v3c0 .55-.45 1-1 1h-3v2h3c1.66 0 3-1.34 3-3V9z"/>
-                    <path d="M3 9v3c0 1.66 1.34 3 3 3h3v-2H6c-.55 0-1-.45-1-1V9H3z"/>
+                    <path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/>
                   </svg>
                 )}
               </CustomControlButton>
