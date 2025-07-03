@@ -107,6 +107,7 @@ const useTouchGestures = (onTap, onDoubleTap, onSwipeUp, onSwipeDown) => {
 const MobileFloatingParticipant = ({ participant, isCameraOff }) => {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
+  const [dynamicAspectRatio, setDynamicAspectRatio] = useState('9/16'); // fallback to phone camera ratio
 
   // Attach video stream to video element using GetStream's approach
   useEffect(() => {
@@ -121,6 +122,39 @@ const MobileFloatingParticipant = ({ participant, isCameraOff }) => {
       videoRef.current.srcObject = null;
     }
   }, [participant, isCameraOff, participant?.videoStream]);
+
+  // Monitor video element for aspect ratio changes
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && !isCameraOff) {
+      const updateAspectRatio = () => {
+        if (video.videoWidth && video.videoHeight) {
+          const ratio = video.videoWidth / video.videoHeight;
+          setDynamicAspectRatio(ratio.toString());
+        }
+      };
+      
+      video.addEventListener('loadedmetadata', updateAspectRatio);
+      video.addEventListener('resize', updateAspectRatio);
+      
+      // Check immediately if metadata is already loaded
+      if (video.videoWidth && video.videoHeight) {
+        updateAspectRatio();
+      }
+      
+      return () => {
+        video.removeEventListener('loadedmetadata', updateAspectRatio);
+        video.removeEventListener('resize', updateAspectRatio);
+      };
+    }
+  }, [isCameraOff, participant?.videoStream]);
+
+  // Apply dynamic aspect ratio to container
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.style.aspectRatio = dynamicAspectRatio;
+    }
+  }, [dynamicAspectRatio]);
 
   if (!participant) {
     return null;
@@ -162,6 +196,7 @@ const MobileFloatingParticipant = ({ participant, isCameraOff }) => {
 const TabletFloatingParticipant = ({ participant, isCameraOff }) => {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
+  const [dynamicAspectRatio, setDynamicAspectRatio] = useState('9/16'); // fallback to phone camera ratio
 
   // Attach video stream to video element using GetStream's approach
   useEffect(() => {
@@ -176,6 +211,39 @@ const TabletFloatingParticipant = ({ participant, isCameraOff }) => {
       videoRef.current.srcObject = null;
     }
   }, [participant, isCameraOff, participant?.videoStream]);
+
+  // Monitor video element for aspect ratio changes
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && !isCameraOff) {
+      const updateAspectRatio = () => {
+        if (video.videoWidth && video.videoHeight) {
+          const ratio = video.videoWidth / video.videoHeight;
+          setDynamicAspectRatio(ratio.toString());
+        }
+      };
+      
+      video.addEventListener('loadedmetadata', updateAspectRatio);
+      video.addEventListener('resize', updateAspectRatio);
+      
+      // Check immediately if metadata is already loaded
+      if (video.videoWidth && video.videoHeight) {
+        updateAspectRatio();
+      }
+      
+      return () => {
+        video.removeEventListener('loadedmetadata', updateAspectRatio);
+        video.removeEventListener('resize', updateAspectRatio);
+      };
+    }
+  }, [isCameraOff, participant?.videoStream]);
+
+  // Apply dynamic aspect ratio to container
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.style.aspectRatio = dynamicAspectRatio;
+    }
+  }, [dynamicAspectRatio]);
 
   if (!participant) {
     return null;

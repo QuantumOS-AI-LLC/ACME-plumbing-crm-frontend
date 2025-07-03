@@ -502,7 +502,7 @@ button:disabled::before {
   top: 20px;
   right: 20px;
   width: 140px;
-  aspect-ratio: 9/16; /* Proper phone camera aspect ratio */
+  /* aspect-ratio controlled dynamically by JavaScript */
   background: rgba(0, 0, 0, 0.8);
   border-radius: 12px;
   overflow: hidden;
@@ -536,7 +536,7 @@ button:disabled::before {
   top: 20px;
   right: 20px;
   width: 180px;
-  height: 240px;
+  /* height controlled dynamically by JavaScript */
   background: rgba(0, 0, 0, 0.8);
   border-radius: 16px;
   overflow: hidden;
