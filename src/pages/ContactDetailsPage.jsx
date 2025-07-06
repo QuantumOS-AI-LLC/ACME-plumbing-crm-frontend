@@ -34,6 +34,7 @@ import PageHeader from "../components/common/PageHeader";
 import { toast } from "sonner";
 import { useWebhook } from "../hooks/webHook";
 import { useVideoRoom } from "../hooks/useVideoRoom";
+import CallDurationSelector from "../components/video/CallDurationSelector";
 
 const ContactDetailsPage = () => {
     const { id } = useParams();
@@ -75,6 +76,7 @@ const ContactDetailsPage = () => {
     });
     const [existingRooms, setExistingRooms] = useState([]);
     const [selectedRoomForUpdate, setSelectedRoomForUpdate] = useState(null);
+    const [openDurationSelector, setOpenDurationSelector] = useState(false);
     
     // Define pipeline stage options
     const pipelineStageOptions = [
@@ -262,15 +264,24 @@ const ContactDetailsPage = () => {
         navigate("/contacts");
     };
 
-    const handleVideoRoom = async () => {
+    const handleVideoRoom = () => {
+        setOpenDurationSelector(true);
+    };
+
+    const handleCreateCallWithDuration = async (durationMinutes) => {
         try {
-            const roomData = await createRoom(id, contact.name);
-            console.log('Video room created:', roomData);
+            setOpenDurationSelector(false);
+            const roomData = await createRoom(id, contact.name, durationMinutes);
+            console.log('Video room created with duration:', durationMinutes, 'minutes:', roomData);
             // Refresh the list of existing rooms after a new one is created
             await loadExistingRooms();
         } catch (error) {
             console.error('Failed to create video room:', error);
         }
+    };
+
+    const handleCloseDurationSelector = () => {
+        setOpenDurationSelector(false);
     };
 
     const handleJoinVideoRoom = () => {
@@ -1338,6 +1349,15 @@ const ContactDetailsPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Call Duration Selector Dialog */}
+            <CallDurationSelector
+                open={openDurationSelector}
+                onClose={handleCloseDurationSelector}
+                onCreateCall={handleCreateCallWithDuration}
+                contactName={contact?.name}
+                loading={videoRoomLoading}
+            />
         </Box>
     );
 };
