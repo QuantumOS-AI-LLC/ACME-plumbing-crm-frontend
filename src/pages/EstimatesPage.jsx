@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
 import {
-    Box,
-    Typography,
-    Tabs,
-    Tab,
-    Grid,
-    Paper,
-    Button,
-    CircularProgress,
-    TextField,
-    InputAdornment,
-    IconButton,
+  Box,
+  Typography,
+  Tabs,
+  Tab,
+  Grid,
+  Paper,
+  Button,
+  CircularProgress,
+  TextField,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -26,677 +26,680 @@ import { useEstimates } from "../contexts/EstimatesContext";
 import CreateEstimateForm from "../components/estimates/CreateEstimateForm";
 
 const ESTIMATE_STATUS = {
-    PENDING: "pending",
-    ACCEPTED: "accepted",
-    REJECTED: "rejected",
+  PENDING: "pending",
+  ACCEPTED: "accepted",
+  REJECTED: "rejected",
 };
 
 const EstimatesPage = () => {
-    const { user } = useContext(AuthContext);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-    const [activeTab, setActiveTab] = useState("active");
-    const [openForm, setOpenForm] = useState(false);
-    const [editingEstimate, setEditingEstimate] = useState(null);
+  const { user } = useContext(AuthContext);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("active");
+  const [openForm, setOpenForm] = useState(false);
+  const [editingEstimate, setEditingEstimate] = useState(null);
 
-    // Modal states
-    const [selectedEstimate, setSelectedEstimate] = useState(null);
-    const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  // Modal states
+  const [selectedEstimate, setSelectedEstimate] = useState(null);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
 
-    // Use Estimates context with pagination
-    const {
-        estimates,
-        loading,
-        error,
-        pagination,
-        loadEstimatesWithPagination,
-        updateEstimateInState,
-    } = useEstimates();
+  // Use Estimates context with pagination
+  const {
+    estimates,
+    loading,
+    error,
+    pagination,
+    loadEstimatesWithPagination,
+    updateEstimateInState,
+  } = useEstimates();
 
-    // Debounce search term
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            setDebouncedSearchTerm(searchTerm);
-        }, 500);
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
 
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [searchTerm]);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
 
-    // Ensure at least 1 page if there are estimates
-    const totalPages = Math.max(
-        pagination.totalPages,
-        estimates.length > 0 ? 1 : 0
+  // Ensure at least 1 page if there are estimates
+  const totalPages = Math.max(
+    pagination.totalPages,
+    estimates.length > 0 ? 1 : 0
+  );
+  const pages = [...Array(totalPages).keys()];
+
+  const getStatusFilters = (tab) => {
+    switch (tab) {
+      case "active":
+        return [ESTIMATE_STATUS.PENDING];
+      case "accepted":
+        return [ESTIMATE_STATUS.ACCEPTED];
+      case "rejected":
+        return [ESTIMATE_STATUS.REJECTED];
+      default:
+        return [];
+    }
+  };
+
+  // Helper function to determine which tab an estimate should belong to based on its status
+  const getTabForStatus = (status) => {
+    switch (status) {
+      case ESTIMATE_STATUS.PENDING:
+        return "active";
+      case ESTIMATE_STATUS.ACCEPTED:
+        return "accepted";
+      case ESTIMATE_STATUS.REJECTED:
+        return "rejected";
+      default:
+        return "active";
+    }
+  };
+
+  // Helper function to get user-friendly tab names
+  const getTabDisplayName = (tabValue) => {
+    switch (tabValue) {
+      case "active":
+        return "Pending";
+      case "accepted":
+        return "Accepted";
+      case "rejected":
+        return "Rejected";
+      default:
+        return "Pending";
+    }
+  };
+
+  // Load estimates when debounced search term or tab changes
+  useEffect(() => {
+    const statusFilter = getStatusFilters(activeTab);
+    console.log("Loading estimates with:", {
+      activeTab,
+      debouncedSearchTerm,
+      statusFilter,
+      status: statusFilter.length > 0 ? statusFilter[0] : null,
+    });
+
+    loadEstimatesWithPagination(
+      1,
+      statusFilter.length > 0 ? statusFilter[0] : null,
+      debouncedSearchTerm
     );
-    const pages = [...Array(totalPages).keys()];
+  }, [activeTab, debouncedSearchTerm]);
 
-    const getStatusFilters = (tab) => {
-        switch (tab) {
-            case "active":
-                return [ESTIMATE_STATUS.PENDING];
-            case "accepted":
-                return [ESTIMATE_STATUS.ACCEPTED];
-            case "rejected":
-                return [ESTIMATE_STATUS.REJECTED];
-            default:
-                return [];
-        }
-    };
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    setSearchTerm(""); // This will trigger the debounce and eventually clear debouncedSearchTerm
+  };
 
-    // Load estimates when debounced search term or tab changes
-    useEffect(() => {
-        const statusFilter = getStatusFilters(activeTab);
-        console.log("Loading estimates with:", {
-            activeTab,
-            debouncedSearchTerm,
-            statusFilter,
-            status: statusFilter.length > 0 ? statusFilter[0] : null,
-        });
+  // Handle search button click
+  const handleSearchClick = () => {
+    if (searchTerm.trim()) {
+      const statusFilter = getStatusFilters(activeTab);
+      loadEstimatesWithPagination(
+        1,
+        statusFilter.length > 0 ? statusFilter[0] : null,
+        searchTerm.trim()
+      );
+    }
+  };
 
-        loadEstimatesWithPagination(
-            1,
-            statusFilter.length > 0 ? statusFilter[0] : null,
-            debouncedSearchTerm
-        );
-    }, [activeTab, debouncedSearchTerm]);
+  // Handle clear search
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    // This will trigger the debounce and reload estimates without search
+  };
 
-    const handleTabChange = (event, newValue) => {
-        setActiveTab(newValue);
-        setSearchTerm(""); // This will trigger the debounce and eventually clear debouncedSearchTerm
-    };
+  // Handle Enter key press
+  const handleKeyPress = (event) => {
+    if (event.key === "Enter") {
+      handleSearchClick();
+    }
+  };
 
-    // Handle search button click
-    const handleSearchClick = () => {
-        if (searchTerm.trim()) {
-            const statusFilter = getStatusFilters(activeTab);
-            loadEstimatesWithPagination(
-                1,
-                statusFilter.length > 0 ? statusFilter[0] : null,
-                searchTerm.trim()
-            );
-        }
-    };
+  // Handle estimate view modal
+  const handleViewEstimate = (estimate) => {
+    console.log("View estimate:", estimate.id);
+    setSelectedEstimate(estimate);
+    setDetailsModalOpen(true);
+  };
 
-    // Handle clear search
-    const handleClearSearch = () => {
-        setSearchTerm("");
-        // This will trigger the debounce and reload estimates without search
-    };
+  // Close details modal
+  const handleCloseDetailsModal = () => {
+    setDetailsModalOpen(false);
+    setSelectedEstimate(null);
+  };
 
-    // Handle Enter key press
-    const handleKeyPress = (event) => {
-        if (event.key === "Enter") {
-            handleSearchClick();
-        }
-    };
+  const handleOpenForm = (estimate = null) => {
+    setEditingEstimate(estimate);
+    setOpenForm(true);
+  };
 
-    // Handle estimate view modal
-    const handleViewEstimate = (estimate) => {
-        console.log("View estimate:", estimate.id);
-        setSelectedEstimate(estimate);
-        setDetailsModalOpen(true);
-    };
+  const handleCloseForm = () => {
+    setOpenForm(false);
+    setEditingEstimate(null);
+  };
 
-    // Close details modal
-    const handleCloseDetailsModal = () => {
-        setDetailsModalOpen(false);
-        setSelectedEstimate(null);
-    };
+  // Updated to use context instead of refetching
+  const handleFormSubmit = async (newEstimate) => {
+    try {
+      // Close the form first
+      handleCloseForm();
 
-    const handleOpenForm = (estimate = null) => {
-        setEditingEstimate(estimate);
-        setOpenForm(true);
-    };
+      // Show success message
+      toast.success(
+        editingEstimate
+          ? "Estimate updated successfully"
+          : "Estimate created successfully"
+      );
 
-    const handleCloseForm = () => {
-        setOpenForm(false);
-        setEditingEstimate(null);
-    };
+      // Refresh the current tab with search term
+      const statusFilter = getStatusFilters(activeTab);
+      loadEstimatesWithPagination(
+        1,
+        statusFilter.length > 0 ? statusFilter[0] : null,
+        debouncedSearchTerm
+      );
+    } catch (error) {
+      console.error("Error after form submission:", error);
+      toast.error("Failed to refresh estimates data");
+    }
+  };
 
-    // Updated to use context instead of refetching
-    const handleFormSubmit = async (newEstimate) => {
-        try {
-            // Close the form first
-            handleCloseForm();
+  // Updated to use context for updates with smart tab refresh and automatic navigation
+  const handleUpdate = async (updatedEstimate) => {
+    try {
+      // Get the old estimate to compare status
+      const oldEstimate = estimates.find((e) => e.id === updatedEstimate.id);
+      const statusChanged =
+        oldEstimate && oldEstimate.status !== updatedEstimate.status;
 
-            // Show success message
-            toast.success(
-                editingEstimate
-                    ? "Estimate updated successfully"
-                    : "Estimate created successfully"
-            );
+      // Use context to update estimate state (this will also update dashboard stats)
+      updateEstimateInState(updatedEstimate);
 
-            // Refresh the current tab with search term
-            const statusFilter = getStatusFilters(activeTab);
-            loadEstimatesWithPagination(
-                1,
-                statusFilter.length > 0 ? statusFilter[0] : null,
-                debouncedSearchTerm
-            );
-        } catch (error) {
-            console.error("Error after form submission:", error);
-            toast.error("Failed to refresh estimates data");
-        }
-    };
+      // If status changed, automatically navigate to the correct tab
+      if (statusChanged) {
+        const newTab = getTabForStatus(updatedEstimate.status);
+        const oldTabName = getTabDisplayName(activeTab);
+        const newTabName = getTabDisplayName(newTab);
 
-    // Updated to use context for updates
-    const handleUpdate = async (updatedEstimate) => {
-        try {
-            // Use context to update estimate state (this will also update dashboard stats)
-            updateEstimateInState(updatedEstimate);
-        } catch (error) {
-            console.error("Error after update:", error);
-        }
-    };
+        // Auto-navigate to the correct tab if it's different from current tab
+        if (newTab !== activeTab) {
+          console.log(
+            `Estimate status changed from ${oldEstimate.status} to ${updatedEstimate.status}, switching from ${activeTab} to ${newTab} tab`
+          );
 
-    // For pagination
-    const handlePageChange = useCallback(
-        (newPage) => {
-            if (newPage !== pagination.page) {
-                const statusFilter = getStatusFilters(activeTab);
-                loadEstimatesWithPagination(
-                    newPage,
-                    statusFilter.length > 0 ? statusFilter[0] : null,
-                    debouncedSearchTerm
-                );
+          // Clear search term when switching tabs for better UX
+          setSearchTerm("");
+
+          // Switch to the new tab
+          setActiveTab(newTab);
+
+          // Show enhanced toast notification
+          toast.success(
+            `Status updated to "${
+              updatedEstimate.status.charAt(0).toUpperCase() +
+              updatedEstimate.status.slice(1)
+            }" - Switched to ${newTabName} tab`,
+            {
+              duration: 4000,
             }
-        },
-        [pagination.page, activeTab, debouncedSearchTerm]
-    );
+          );
+        } else {
+          // If staying on the same tab, just show status update message
+          toast.success(
+            `Status updated to "${
+              updatedEstimate.status.charAt(0).toUpperCase() +
+              updatedEstimate.status.slice(1)
+            }"`,
+            {
+              duration: 3000,
+            }
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error after update:", error);
+      toast.error("Failed to update estimate status");
+    }
+  };
 
-    const handleRetry = useCallback(() => {
+  // For pagination
+  const handlePageChange = useCallback(
+    (newPage) => {
+      if (newPage !== pagination.page) {
         const statusFilter = getStatusFilters(activeTab);
         loadEstimatesWithPagination(
-            1,
-            statusFilter.length > 0 ? statusFilter[0] : null,
-            debouncedSearchTerm
+          newPage,
+          statusFilter.length > 0 ? statusFilter[0] : null,
+          debouncedSearchTerm
         );
-    }, [activeTab, debouncedSearchTerm]);
+      }
+    },
+    [pagination.page, activeTab, debouncedSearchTerm]
+  );
 
-    return (
-        <Box>
-            <PageHeader
-                title="Estimates"
-                action={true}
-                actionText="Add Estimate"
-                onAction={() => handleOpenForm()}
-            />
-
-            {/* Enhanced Search Section - Full Width Button */}
-            <Box sx={{ mb: 3, width: "100%" }}>
-                <Box
-                    sx={{
-                        display: "flex",
-                        alignItems: "stretch",
-                        gap: 2,
-                        width: "100%", // Full width container
-                        // Stack on mobile, side by side on larger screens
-                        flexDirection: { xs: "column", sm: "row" },
-                    }}
-                >
-                    <TextField
-                        label="Search estimates"
-                        value={searchTerm}
-                        onChange={(e) => {
-                            console.log(
-                                "Search term changed to:",
-                                e.target.value
-                            );
-                            setSearchTerm(e.target.value);
-                        }}
-                        onKeyPress={handleKeyPress}
-                        fullWidth
-                        size="medium"
-                        sx={{
-                            flex: 1,
-                            "& .MuiOutlinedInput-root": {
-                                borderRadius: "8px",
-                                transition: "all 0.3s ease",
-                                height: "48px", // Reduced height
-                                fontSize: "0.95rem",
-                                "&:hover": {
-                                    boxShadow:
-                                        "0 2px 8px rgba(156, 39, 176, 0.15)",
-                                },
-                                "&.Mui-focused": {
-                                    boxShadow:
-                                        "0 4px 12px rgba(156, 39, 176, 0.25)",
-                                },
-                            },
-                            "& .MuiInputLabel-root": {
-                                fontSize: "0.95rem",
-                            },
-                        }}
-                        variant="outlined"
-                        placeholder="Enter lead name..."
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon
-                                        sx={{
-                                            color: "primary.main",
-                                            fontSize: "1.1rem",
-                                        }}
-                                    />
-                                </InputAdornment>
-                            ),
-                            endAdornment: searchTerm && (
-                                <InputAdornment position="end">
-                                    <IconButton
-                                        onClick={handleClearSearch}
-                                        edge="end"
-                                        size="small"
-                                        sx={{
-                                            color: "text.secondary",
-                                            "&:hover": {
-                                                color: "error.main",
-                                                backgroundColor: "error.light",
-                                                opacity: 0.1,
-                                            },
-                                        }}
-                                    >
-                                        <ClearIcon fontSize="small" />
-                                    </IconButton>
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-
-                    {/* Full Width Search Button with White Text */}
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={handleSearchClick}
-                        disabled={!searchTerm.trim() || loading}
-                        sx={{
-                            height: "48px", // Match TextField height
-                            minWidth: { xs: "100%", sm: "200px" }, // Wider on desktop
-                            borderRadius: "8px",
-                            fontWeight: "600",
-                            fontSize: "0.9rem",
-                            textTransform: "none",
-                            color: "#ffffff", // Force white text
-                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                            boxShadow: (theme) =>
-                                `0 3px 12px ${theme.palette.primary.main}40`,
-                            "&:hover": {
-                                transform: "translateY(-1px)",
-                                boxShadow: (theme) =>
-                                    `0 5px 16px ${theme.palette.primary.main}50`,
-                                color: "#ffffff", // Keep white on hover
-                            },
-                            "&:active": {
-                                transform: "translateY(0px)",
-                                color: "#ffffff", // Keep white on active
-                            },
-                            "&:disabled": {
-                                transform: "none",
-                                boxShadow: "none",
-                                color: "rgba(255, 255, 255, 0.7)", // Semi-transparent white when disabled
-                            },
-                            // Subtle shine effect
-                            position: "relative",
-                            overflow: "hidden",
-                            "&::before": {
-                                content: '""',
-                                position: "absolute",
-                                top: 0,
-                                left: "-100%",
-                                width: "100%",
-                                height: "100%",
-                                background:
-                                    "linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)",
-                                transition: "left 0.6s",
-                            },
-                            "&:hover::before": {
-                                left: "100%",
-                            },
-                        }}
-                        startIcon={
-                            <SearchIcon
-                                sx={{ fontSize: "1rem", color: "#ffffff" }}
-                            />
-                        }
-                    >
-                        {loading ? "Searching" : "Search"}
-                    </Button>
-                </Box>
-            </Box>
-
-            <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
-                <Tabs
-                    value={activeTab}
-                    onChange={handleTabChange}
-                    aria-label="estimate tabs"
-                >
-                    <Tab label="Pending Estimates" value="active" />
-                    <Tab label="Accepted" value="accepted" />
-                    <Tab label="Rejected" value="rejected" />
-                    <Tab label="Reports" value="reports" />
-                </Tabs>
-            </Box>
-
-            <CreateEstimateForm
-                open={openForm}
-                handleCloseForm={handleCloseForm}
-                handleFormSubmit={handleFormSubmit}
-                estimate={editingEstimate}
-            />
-
-            <EstimateDetailsModal
-                open={detailsModalOpen}
-                onClose={handleCloseDetailsModal}
-                estimate={selectedEstimate}
-            />
-
-            {loading ? (
-                <Box
-                    sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        height: 200,
-                    }}
-                >
-                    <CircularProgress />
-                </Box>
-            ) : error ? (
-                <Box sx={{ textAlign: "center", py: 3 }}>
-                    <Typography color="error">{error}</Typography>
-                    <Button
-                        variant="outlined"
-                        color="primary"
-                        sx={{ mt: 2 }}
-                        onClick={handleRetry}
-                    >
-                        Retry
-                    </Button>
-                </Box>
-            ) : activeTab !== "reports" ? (
-                <>
-                    <Grid container spacing={3}>
-                        {estimates.length === 0 ? (
-                            <Grid item xs={12}>
-                                <Box sx={{ textAlign: "center", py: 4 }}>
-                                    <Typography variant="body1">
-                                        No{" "}
-                                        {activeTab === "active"
-                                            ? "active"
-                                            : activeTab === "accepted"
-                                            ? "accepted"
-                                            : "rejected"}{" "}
-                                        estimates found.
-                                    </Typography>
-                                    {debouncedSearchTerm && (
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                            sx={{ mt: 1 }}
-                                        >
-                                            Search term: "{debouncedSearchTerm}"
-                                        </Typography>
-                                    )}
-                                </Box>
-                            </Grid>
-                        ) : (
-                            estimates.map((estimate) => (
-                                <Grid item xs={12} key={estimate.id}>
-                                    <EstimateCard
-                                        estimate={estimate}
-                                        onClick={() =>
-                                            handleViewEstimate(estimate)
-                                        }
-                                        onViewClick={handleViewEstimate}
-                                        onUpdate={handleUpdate}
-                                        onEdit={() => handleOpenForm(estimate)}
-                                    />
-                                </Grid>
-                            ))
-                        )}
-                    </Grid>
-                </>
-            ) : (
-                <Box>
-                    <Grid container spacing={3} mb={4}>
-                        <Grid item xs={12} sm={6} md={3}>
-                            <Paper sx={{ p: 3 }}>
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    mb={1}
-                                >
-                                    Total Estimates
-                                </Typography>
-                                <Typography
-                                    variant="h4"
-                                    color="primary"
-                                    fontWeight="bold"
-                                >
-                                    {estimates.length}
-                                </Typography>
-                                <Typography
-                                    variant="body2"
-                                    color="success.main"
-                                    mt={0.5}
-                                >
-                                    All time
-                                </Typography>
-                            </Paper>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
-                            <Paper sx={{ p: 3 }}>
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    mb={1}
-                                >
-                                    Pending Estimates
-                                </Typography>
-                                <Typography
-                                    variant="h4"
-                                    color="primary"
-                                    fontWeight="bold"
-                                >
-                                    {
-                                        estimates.filter(
-                                            (e) =>
-                                                e.status ===
-                                                ESTIMATE_STATUS.PENDING
-                                        ).length
-                                    }
-                                </Typography>
-                                <Typography
-                                    variant="body2"
-                                    color="success.main"
-                                    mt={0.5}
-                                >
-                                    Awaiting response
-                                </Typography>
-                            </Paper>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
-                            <Paper sx={{ p: 3 }}>
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    mb={1}
-                                >
-                                    Acceptance Rate
-                                </Typography>
-                                <Typography
-                                    variant="h4"
-                                    color="primary"
-                                    fontWeight="bold"
-                                >
-                                    {estimates.length > 0
-                                        ? Math.round(
-                                              (estimates.filter(
-                                                  (e) =>
-                                                      e.status ===
-                                                      ESTIMATE_STATUS.ACCEPTED
-                                              ).length /
-                                                  estimates.length) *
-                                                  100
-                                          )
-                                        : 0}
-                                    %
-                                </Typography>
-                                <Typography
-                                    variant="body2"
-                                    color="success.main"
-                                    mt={0.5}
-                                >
-                                    Overall rate
-                                </Typography>
-                            </Paper>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={3}>
-                            <Paper sx={{ p: 3 }}>
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    mb={1}
-                                >
-                                    Total Value (Accepted)
-                                </Typography>
-                                <Typography
-                                    variant="h4"
-                                    color="primary"
-                                    fontWeight="bold"
-                                >
-                                    $
-                                    {estimates
-                                        .filter(
-                                            (e) =>
-                                                e.status ===
-                                                ESTIMATE_STATUS.ACCEPTED
-                                        )
-                                        .reduce(
-                                            (sum, e) =>
-                                                sum + (e.bidAmount || 0),
-                                            0
-                                        )
-                                        .toLocaleString()}
-                                </Typography>
-                                <Typography
-                                    variant="body2"
-                                    color="success.main"
-                                    mt={0.5}
-                                >
-                                    Converted to jobs
-                                </Typography>
-                            </Paper>
-                        </Grid>
-                    </Grid>
-
-                    <Paper sx={{ p: 3 }}>
-                        <Typography variant="h6" mb={2}>
-                            Estimate Performance
-                        </Typography>
-                        <Box
-                            sx={{
-                                height: 300,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                bgcolor: "#f5f5f5",
-                                borderRadius: 1,
-                            }}
-                        >
-                            <Typography>Conversion Rate Chart</Typography>
-                        </Box>
-                    </Paper>
-                </Box>
-            )}
-
-            {/* Pagination controller */}
-            {activeTab !== "reports" && estimates.length > 0 && (
-                <Box
-                    sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        mt: 4,
-                        gap: 1,
-                    }}
-                >
-                    <Button
-                        variant="outlined"
-                        onClick={() => handlePageChange(pagination.page - 1)}
-                        disabled={pagination.page === 1}
-                        sx={{
-                            minWidth: "40px",
-                            height: "40px",
-                            borderRadius: "8px",
-                            color: "#666",
-                            borderColor: "#e0e0e0",
-                            "&:hover": {
-                                borderColor: "#9c27b0",
-                                backgroundColor: "#f3e5f5",
-                            },
-                        }}
-                    >
-                        <ChevronLeftIcon />
-                    </Button>
-
-                    {pages.map((page) => (
-                        <Button
-                            key={page}
-                            variant={
-                                pagination.page === page + 1
-                                    ? "contained"
-                                    : "outlined"
-                            }
-                            onClick={() => handlePageChange(page + 1)}
-                            sx={{
-                                minWidth: "40px",
-                                height: "40px",
-                                borderRadius: "8px",
-                                ...(pagination.page === page + 1
-                                    ? {
-                                          backgroundColor: "#9c27b0",
-                                          color: "#fff",
-                                          "&:hover": {
-                                              backgroundColor: "#7b1fa2",
-                                          },
-                                      }
-                                    : {
-                                          color: "#666",
-                                          borderColor: "#e0e0e0",
-                                          "&:hover": {
-                                              borderColor: "#9c27b0",
-                                              backgroundColor: "#f3e5f5",
-                                          },
-                                      }),
-                            }}
-                        >
-                            {page + 1}
-                        </Button>
-                    ))}
-
-                    <Button
-                        variant="outlined"
-                        onClick={() => handlePageChange(pagination.page + 1)}
-                        disabled={pagination.page >= totalPages}
-                        sx={{
-                            minWidth: "40px",
-                            height: "40px",
-                            borderRadius: "8px",
-                            color: "#666",
-                            borderColor: "#e0e0e0",
-                            "&:hover": {
-                                borderColor: "#9c27b0",
-                                backgroundColor: "#f3e5f5",
-                            },
-                        }}
-                    >
-                        <ChevronRightIcon />
-                    </Button>
-                </Box>
-            )}
-        </Box>
+  const handleRetry = useCallback(() => {
+    const statusFilter = getStatusFilters(activeTab);
+    loadEstimatesWithPagination(
+      1,
+      statusFilter.length > 0 ? statusFilter[0] : null,
+      debouncedSearchTerm
     );
+  }, [activeTab, debouncedSearchTerm]);
+
+  return (
+    <Box>
+      <PageHeader
+        title="Estimates"
+        action={true}
+        actionText="Add Estimate"
+        onAction={() => handleOpenForm()}
+      />
+
+      {/* Enhanced Search Section - Full Width Button */}
+      <Box sx={{ mb: 3, width: "100%" }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "stretch",
+            gap: 2,
+            width: "100%", // Full width container
+            // Stack on mobile, side by side on larger screens
+            flexDirection: { xs: "column", sm: "row" },
+          }}
+        >
+          <TextField
+            label="Search estimates"
+            value={searchTerm}
+            onChange={(e) => {
+              console.log("Search term changed to:", e.target.value);
+              setSearchTerm(e.target.value);
+            }}
+            onKeyPress={handleKeyPress}
+            fullWidth
+            size="medium"
+            sx={{
+              flex: 1,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "8px",
+                transition: "all 0.3s ease",
+                height: "48px", // Reduced height
+                fontSize: "0.95rem",
+                "&:hover": {
+                  boxShadow: "0 2px 8px rgba(156, 39, 176, 0.15)",
+                },
+                "&.Mui-focused": {
+                  boxShadow: "0 4px 12px rgba(156, 39, 176, 0.25)",
+                },
+              },
+              "& .MuiInputLabel-root": {
+                fontSize: "0.95rem",
+              },
+            }}
+            variant="outlined"
+            placeholder="Enter lead name..."
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon
+                    sx={{
+                      color: "primary.main",
+                      fontSize: "1.1rem",
+                    }}
+                  />
+                </InputAdornment>
+              ),
+              endAdornment: searchTerm && (
+                <InputAdornment position="end">
+                  <IconButton
+                    onClick={handleClearSearch}
+                    edge="end"
+                    size="small"
+                    sx={{
+                      color: "text.secondary",
+                      "&:hover": {
+                        color: "error.main",
+                        backgroundColor: "error.light",
+                        opacity: 0.1,
+                      },
+                    }}
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          {/* Full Width Search Button with White Text */}
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSearchClick}
+            disabled={!searchTerm.trim() || loading}
+            sx={{
+              height: "48px", // Match TextField height
+              minWidth: { xs: "100%", sm: "200px" }, // Wider on desktop
+              borderRadius: "8px",
+              fontWeight: "600",
+              fontSize: "0.9rem",
+              textTransform: "none",
+              color: "#ffffff", // Force white text
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              boxShadow: (theme) =>
+                `0 3px 12px ${theme.palette.primary.main}40`,
+              "&:hover": {
+                transform: "translateY(-1px)",
+                boxShadow: (theme) =>
+                  `0 5px 16px ${theme.palette.primary.main}50`,
+                color: "#ffffff", // Keep white on hover
+              },
+              "&:active": {
+                transform: "translateY(0px)",
+                color: "#ffffff", // Keep white on active
+              },
+              "&:disabled": {
+                transform: "none",
+                boxShadow: "none",
+                color: "rgba(255, 255, 255, 0.7)", // Semi-transparent white when disabled
+              },
+              // Subtle shine effect
+              position: "relative",
+              overflow: "hidden",
+              "&::before": {
+                content: '""',
+                position: "absolute",
+                top: 0,
+                left: "-100%",
+                width: "100%",
+                height: "100%",
+                background:
+                  "linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)",
+                transition: "left 0.6s",
+              },
+              "&:hover::before": {
+                left: "100%",
+              },
+            }}
+            startIcon={
+              <SearchIcon sx={{ fontSize: "1rem", color: "#ffffff" }} />
+            }
+          >
+            {loading ? "Searching" : "Search"}
+          </Button>
+        </Box>
+      </Box>
+
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          aria-label="estimate tabs"
+        >
+          <Tab label="Pending Estimates" value="active" />
+          <Tab label="Accepted" value="accepted" />
+          <Tab label="Rejected" value="rejected" />
+          <Tab label="Reports" value="reports" />
+        </Tabs>
+      </Box>
+
+      <CreateEstimateForm
+        open={openForm}
+        handleCloseForm={handleCloseForm}
+        handleFormSubmit={handleFormSubmit}
+        estimate={editingEstimate}
+      />
+
+      <EstimateDetailsModal
+        open={detailsModalOpen}
+        onClose={handleCloseDetailsModal}
+        estimate={selectedEstimate}
+      />
+
+      {loading ? (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: 200,
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Box sx={{ textAlign: "center", py: 3 }}>
+          <Typography color="error">{error}</Typography>
+          <Button
+            variant="outlined"
+            color="primary"
+            sx={{ mt: 2 }}
+            onClick={handleRetry}
+          >
+            Retry
+          </Button>
+        </Box>
+      ) : activeTab !== "reports" ? (
+        <>
+          <Grid container spacing={3}>
+            {estimates.length === 0 ? (
+              <Grid item xs={12}>
+                <Box sx={{ textAlign: "center", py: 4 }}>
+                  <Typography variant="body1">
+                    No{" "}
+                    {activeTab === "active"
+                      ? "active"
+                      : activeTab === "accepted"
+                      ? "accepted"
+                      : "rejected"}{" "}
+                    estimates found.
+                  </Typography>
+                  {debouncedSearchTerm && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 1 }}
+                    >
+                      Search term: "{debouncedSearchTerm}"
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+            ) : (
+              estimates.map((estimate) => (
+                <Grid item xs={12} key={estimate.id}>
+                  <EstimateCard
+                    estimate={estimate}
+                    onClick={() => handleViewEstimate(estimate)}
+                    onViewClick={handleViewEstimate}
+                    onUpdate={handleUpdate}
+                    onEdit={() => handleOpenForm(estimate)}
+                  />
+                </Grid>
+              ))
+            )}
+          </Grid>
+        </>
+      ) : (
+        <Box>
+          <Grid container spacing={3} mb={4}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="body2" color="text.secondary" mb={1}>
+                  Total Estimates
+                </Typography>
+                <Typography variant="h4" color="primary" fontWeight="bold">
+                  {estimates.length}
+                </Typography>
+                <Typography variant="body2" color="success.main" mt={0.5}>
+                  All time
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="body2" color="text.secondary" mb={1}>
+                  Pending Estimates
+                </Typography>
+                <Typography variant="h4" color="primary" fontWeight="bold">
+                  {
+                    estimates.filter(
+                      (e) => e.status === ESTIMATE_STATUS.PENDING
+                    ).length
+                  }
+                </Typography>
+                <Typography variant="body2" color="success.main" mt={0.5}>
+                  Awaiting response
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="body2" color="text.secondary" mb={1}>
+                  Acceptance Rate
+                </Typography>
+                <Typography variant="h4" color="primary" fontWeight="bold">
+                  {estimates.length > 0
+                    ? Math.round(
+                        (estimates.filter(
+                          (e) => e.status === ESTIMATE_STATUS.ACCEPTED
+                        ).length /
+                          estimates.length) *
+                          100
+                      )
+                    : 0}
+                  %
+                </Typography>
+                <Typography variant="body2" color="success.main" mt={0.5}>
+                  Overall rate
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="body2" color="text.secondary" mb={1}>
+                  Total Value (Accepted)
+                </Typography>
+                <Typography variant="h4" color="primary" fontWeight="bold">
+                  $
+                  {estimates
+                    .filter((e) => e.status === ESTIMATE_STATUS.ACCEPTED)
+                    .reduce((sum, e) => sum + (e.bidAmount || 0), 0)
+                    .toLocaleString()}
+                </Typography>
+                <Typography variant="body2" color="success.main" mt={0.5}>
+                  Converted to jobs
+                </Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" mb={2}>
+              Estimate Performance
+            </Typography>
+            <Box
+              sx={{
+                height: 300,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: "#f5f5f5",
+                borderRadius: 1,
+              }}
+            >
+              <Typography>Conversion Rate Chart</Typography>
+            </Box>
+          </Paper>
+        </Box>
+      )}
+
+      {/* Pagination controller */}
+      {activeTab !== "reports" && estimates.length > 0 && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            mt: 4,
+            gap: 1,
+          }}
+        >
+          <Button
+            variant="outlined"
+            onClick={() => handlePageChange(pagination.page - 1)}
+            disabled={pagination.page === 1}
+            sx={{
+              minWidth: "40px",
+              height: "40px",
+              borderRadius: "8px",
+              color: "#666",
+              borderColor: "#e0e0e0",
+              "&:hover": {
+                borderColor: "#9c27b0",
+                backgroundColor: "#f3e5f5",
+              },
+            }}
+          >
+            <ChevronLeftIcon />
+          </Button>
+
+          {pages.map((page) => (
+            <Button
+              key={page}
+              variant={pagination.page === page + 1 ? "contained" : "outlined"}
+              onClick={() => handlePageChange(page + 1)}
+              sx={{
+                minWidth: "40px",
+                height: "40px",
+                borderRadius: "8px",
+                ...(pagination.page === page + 1
+                  ? {
+                      backgroundColor: "#9c27b0",
+                      color: "#fff",
+                      "&:hover": {
+                        backgroundColor: "#7b1fa2",
+                      },
+                    }
+                  : {
+                      color: "#666",
+                      borderColor: "#e0e0e0",
+                      "&:hover": {
+                        borderColor: "#9c27b0",
+                        backgroundColor: "#f3e5f5",
+                      },
+                    }),
+              }}
+            >
+              {page + 1}
+            </Button>
+          ))}
+
+          <Button
+            variant="outlined"
+            onClick={() => handlePageChange(pagination.page + 1)}
+            disabled={pagination.page >= totalPages}
+            sx={{
+              minWidth: "40px",
+              height: "40px",
+              borderRadius: "8px",
+              color: "#666",
+              borderColor: "#e0e0e0",
+              "&:hover": {
+                borderColor: "#9c27b0",
+                backgroundColor: "#f3e5f5",
+              },
+            }}
+          >
+            <ChevronRightIcon />
+          </Button>
+        </Box>
+      )}
+    </Box>
+  );
 };
 
 export default EstimatesPage;
