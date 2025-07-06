@@ -34,6 +34,37 @@ import {
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
+// DetailItem component extracted outside to prevent re-creation on every render
+const DetailItem = ({ label, value, isEditing, editComponent }) => (
+  <Box sx={{ mb: 2 }}>
+    <Typography
+      variant="caption"
+      sx={{
+        color: "text.secondary",
+        display: "block",
+        fontWeight: 500,
+        letterSpacing: "0.5px",
+        mb: 0.5,
+      }}
+    >
+      {label}
+    </Typography>
+    {isEditing ? (
+      editComponent
+    ) : (
+      <Typography
+        variant="body1"
+        sx={{
+          fontWeight: 500,
+          color: "text.primary",
+        }}
+      >
+        {value || "Not specified"}
+      </Typography>
+    )}
+  </Box>
+);
+
 export const ServiceViewModal = ({
   open,
   onClose,
@@ -362,37 +393,6 @@ export const ServiceViewModal = ({
   };
 
   const categoryColors = getCategoryColor(service.category);
-
-  // Simplified detail item component
-  const DetailItem = ({ label, value, isEditing, editComponent }) => (
-    <Box sx={{ mb: 2 }}>
-      <Typography
-        variant="caption"
-        sx={{
-          color: "text.secondary",
-          display: "block",
-          fontWeight: 500,
-          letterSpacing: "0.5px",
-          mb: 0.5,
-        }}
-      >
-        {label}
-      </Typography>
-      {isEditing ? (
-        editComponent
-      ) : (
-        <Typography
-          variant="body1"
-          sx={{
-            fontWeight: 500,
-            color: "text.primary",
-          }}
-        >
-          {value || "Not specified"}
-        </Typography>
-      )}
-    </Box>
-  );
 
   return (
     <Dialog
