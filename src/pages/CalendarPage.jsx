@@ -172,11 +172,42 @@ const CalendarPage = () => {
     setEditingEvent(null);
   };
 
+  // Navigation helper function with optional updated event
+  const navigateToDate = (date, updatedEvent = null) => {
+    const newDate = new Date(date);
+    setSelectedDate(newDate);
+    setCurrentDate(newDate);
+
+    if (updatedEvent) {
+      setTimeout(() => {
+        setEvents((prevEvents) => {
+          const eventExists = prevEvents.some(
+            (ev) => ev.id === updatedEvent.id
+          );
+          if (!eventExists) {
+            return [...prevEvents, updatedEvent];
+          } else {
+            return prevEvents.map((ev) =>
+              ev.id === updatedEvent.id ? updatedEvent : ev
+            );
+          }
+        });
+      }, 100);
+    }
+  };
+
   const handleSubmitEvent = async (eventData) => {
     try {
       let response;
 
       if (editingEvent) {
+        // Check if the date has changed for navigation
+        const originalDate = new Date(
+          editingEvent.startTime || editingEvent.start
+        );
+        const newDate = new Date(eventData.startTime);
+        const dateChanged = !isSameDay(originalDate, newDate);
+
         response = await updateEvent(editingEvent.id, eventData);
 
         // Construct the complete updated event object
@@ -203,6 +234,10 @@ const CalendarPage = () => {
             ev.id === editingEvent.id ? completeUpdatedEvent : ev
           )
         );
+        if (dateChanged) {
+          navigateToDate(completeUpdatedEvent.start, completeUpdatedEvent);
+        }
+
         showNotification("Event updated successfully!", "success");
       } else {
         response = await createEvent(eventData);
@@ -229,9 +264,8 @@ const CalendarPage = () => {
         setEvents((prevEvents) => [...prevEvents, newEvent]);
         showNotification("Event created successfully!", "success");
 
-        // Navigate to the new event's date
-        setSelectedDate(newEvent.start);
-        setCurrentDate(newEvent.start);
+        // Navigate to the new event's date, passing the new event
+        navigateToDate(newEvent.start, newEvent);
       }
     } catch (err) {
       console.error("Error saving event:", err);
