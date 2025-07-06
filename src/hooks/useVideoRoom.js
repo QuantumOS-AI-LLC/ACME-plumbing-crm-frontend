@@ -40,7 +40,7 @@ export const useVideoRoom = () => {
     const { client } = useVideoClient();
 
     // Create a GetStream video call with backend persistence
-    const createRoom = async (contactId, contactName) => {
+    const createRoom = async (contactId, contactName, durationMinutes = 30) => {
         try {
             setLoading(true);
             
@@ -62,6 +62,10 @@ export const useVideoRoom = () => {
             // Generate unique call ID
             const callId = `contact_${contactId}_${Date.now()}`;
             
+            // Calculate expiration time
+            const durationSeconds = durationMinutes * 60;
+            const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
+            
             // Create GetStream call
             const call = client.call('default', callId);
             
@@ -69,11 +73,19 @@ export const useVideoRoom = () => {
                 data: {
                     created_by_id: userProfile.id,
                     members: [{ user_id: userProfile.id }],
+                    settings_override: {
+                        limits: {
+                            max_duration_seconds: durationSeconds
+                        }
+                    },
                     custom: {
                         contact_id: contactId,
                         contact_name: contactName,
                         call_type: 'customer_support',
-                        created_at: new Date().toISOString()
+                        created_at: new Date().toISOString(),
+                        expires_at: expiresAt.toISOString(),
+                        duration_minutes: durationMinutes,
+                        max_duration_seconds: durationSeconds
                     }
                 },
             });
@@ -98,7 +110,10 @@ export const useVideoRoom = () => {
                 },
                 createdFor: contactId,
                 joinUrl: `${window.location.origin}/video-call?callId=${callId}`,
-                guestUrl: guestUrl
+                guestUrl: guestUrl,
+                expiresAt: expiresAt.toISOString(),
+                durationMinutes: durationMinutes,
+                maxDurationSeconds: durationSeconds
             });
 
             if (!backendResult.success) {
