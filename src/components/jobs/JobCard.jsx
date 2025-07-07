@@ -28,7 +28,7 @@ import JobEditModal from "./JobEditModal";
 import { toast } from "sonner";
 import { updateJob } from "../../services/api";
 import { useNotifications } from "../../contexts/NotificationContext"; // Add this import
-import { useWebActivityHook } from "../../hooks/webHook";
+import { useWebActivityHook, useWebhook } from "../../hooks/webHook";
 
 const JOB_STATUS = {
     OPEN: "open",
@@ -97,6 +97,7 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
     const [isUpdatingActivity, setIsUpdatingActivity] = useState(false);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const { sendActivityWebHook } = useWebActivityHook();
+    const { sendWebhook } = useWebhook();
 
     const { addNotification } = useNotifications();
 
@@ -146,7 +147,7 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
 
         try {
             const result = await updateJob(job.id, { status: newStatus });
-
+            console.log("status", result);
             if (result.success) {
                 if (newStatus === JOB_STATUS.COMPLETED) {
                     const statusNotification = {
@@ -167,6 +168,12 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                 if (onStatusChange) {
                     onStatusChange(transformedJob.id, newStatus);
                 }
+
+                console.log("Job status updated:", result.data);
+
+                const webHookData = { ...result.data };
+
+                await sendWebhook({ payload: webHookData });
 
                 toast.success(
                     `Job status updated to "${getStatusChip(newStatus).label}"`
@@ -219,6 +226,7 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                 jobLocationLat: result.data.jobLocationLat,
                 jobLocationLon: result.data.jobLocationLon,
             };
+
             await sendActivityWebHook({ payload: webHookData });
             toast.success(`Activity updated to "${updatedAction}"`);
 
@@ -273,7 +281,9 @@ const JobCard = ({ job, onClick, onStatusChange, onUpdate }) => {
                 }}
                 onClick={handleCardClick}
             >
-                <CardContent sx={{ paddingLeft: 3,paddingRight:3, paddingTop: 2 }}>
+                <CardContent
+                    sx={{ paddingLeft: 3, paddingRight: 3, paddingTop: 2 }}
+                >
                     <Box
                         sx={{
                             display: "flex",
