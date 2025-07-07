@@ -417,7 +417,12 @@ const ContactDetailsPage = () => {
     // Helper function to check if a video room has expired
     const isRoomExpired = (room) => {
         if (!room.createdAt || !room.durationMinutes) {
-            console.log('Room missing data:', { createdAt: room.createdAt, durationMinutes: room.durationMinutes });
+            console.log('Room missing data:', { 
+                roomId: room.id,
+                createdAt: room.createdAt, 
+                durationMinutes: room.durationMinutes,
+                roomObject: room 
+            });
             return false;
         }
         
@@ -427,6 +432,10 @@ const ContactDetailsPage = () => {
         
         const isExpired = currentTime > expirationTime;
         
+        // TEMPORARY TEST: Force first room to be expired for testing
+        const isFirstRoom = room.id && existingRooms.length > 0 && room.id === existingRooms[0].id;
+        const forceExpired = isFirstRoom; // Set to true to test expired state
+        
         console.log('Room expiration check:', {
             roomId: room.id,
             uniqueName: room.uniqueName,
@@ -435,10 +444,13 @@ const ContactDetailsPage = () => {
             createdTime: new Date(createdTime).toLocaleString(),
             expirationTime: new Date(expirationTime).toLocaleString(),
             currentTime: new Date(currentTime).toLocaleString(),
-            isExpired: isExpired
+            calculatedExpired: isExpired,
+            isFirstRoom: isFirstRoom,
+            forceExpired: forceExpired,
+            finalResult: forceExpired || isExpired
         });
         
-        return isExpired;
+        return forceExpired || isExpired;
     };
 
     // Helper function to get room status
