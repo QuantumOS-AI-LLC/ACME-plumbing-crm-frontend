@@ -11,33 +11,47 @@ import {
     MenuItem,
     Typography,
     Box,
-    Chip
+    Chip,
+    TextField
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import VideoCallIcon from '@mui/icons-material/VideoCall';
 
-const CallDurationSelector = ({ 
-    open, 
-    onClose, 
-    onCreateCall, 
-    contactName, 
-    loading = false 
+const CallDurationSelector = ({
+    open,
+    onClose,
+    onCreateCall,
+    contactName,
+    loading = false
 }) => {
     const [selectedDuration, setSelectedDuration] = useState(30);
+    const [customDuration, setCustomDuration] = useState('');
 
     const durationOptions = [
         { value: 15, label: '15 minutes', description: 'Quick consultation' },
         { value: 30, label: '30 minutes', description: 'Standard call' },
         { value: 45, label: '45 minutes', description: 'Extended discussion' },
-        { value: 60, label: '60 minutes', description: 'Full consultation' }
+        { value: 60, label: '60 minutes', description: 'Full consultation' },
+        { value: 'custom', label: 'Custom', description: 'Set a specific duration' }
     ];
 
     const handleDurationChange = (event) => {
-        setSelectedDuration(event.target.value);
+        const value = event.target.value;
+        setSelectedDuration(value);
+        if (value !== 'custom') {
+            setCustomDuration('');
+        }
+    };
+
+    const handleCustomDurationChange = (event) => {
+        setCustomDuration(event.target.value);
     };
 
     const handleCreateCall = () => {
-        onCreateCall(selectedDuration);
+        const duration = selectedDuration === 'custom' ? parseInt(customDuration, 10) : selectedDuration;
+        if (duration > 0) {
+            onCreateCall(duration);
+        }
     };
 
     const selectedOption = durationOptions.find(option => option.value === selectedDuration);
@@ -130,6 +144,18 @@ const CallDurationSelector = ({
                             ))}
                         </Select>
                     </FormControl>
+
+                    {selectedDuration === 'custom' && (
+                        <TextField
+                            label="Custom Duration (minutes)"
+                            type="number"
+                            value={customDuration}
+                            onChange={handleCustomDurationChange}
+                            fullWidth
+                            margin="normal"
+                            sx={{ mt: 2 }}
+                        />
+                    )}
                 </Box>
 
                 {selectedOption && (
@@ -145,31 +171,31 @@ const CallDurationSelector = ({
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                             <AccessTimeIcon sx={{ fontSize: 18, color: 'success.main' }} />
                             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'success.dark' }}>
-                                Call Duration: {selectedOption.label}
+                                Call Duration: {selectedDuration === 'custom' ? `${customDuration} minutes` : selectedOption.label}
                             </Typography>
                         </Box>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                             {selectedOption.description}
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            <Chip 
-                                label="Auto-expires after duration" 
-                                size="small" 
-                                color="success" 
+                            <Chip
+                                label="Auto-expires after duration"
+                                size="small"
+                                color="success"
                                 variant="outlined"
                                 sx={{ fontSize: '0.75rem' }}
                             />
-                            <Chip 
-                                label="5-minute warning" 
-                                size="small" 
-                                color="info" 
+                            <Chip
+                                label="5-minute warning"
+                                size="small"
+                                color="info"
                                 variant="outlined"
                                 sx={{ fontSize: '0.75rem' }}
                             />
-                            <Chip 
-                                label="Secure guest link" 
-                                size="small" 
-                                color="primary" 
+                            <Chip
+                                label="Secure guest link"
+                                size="small"
+                                color="primary"
                                 variant="outlined"
                                 sx={{ fontSize: '0.75rem' }}
                             />

@@ -372,7 +372,7 @@ const ContactDetailsPage = () => {
         }));
     };
 
-    const handleShareVideoRoomLink = async (callIdOrUrl) => {
+    const handleShareVideoRoomLink = async (callIdOrUrl, durationMinutes) => {
         // Extract callId from URL if needed
         let callId;
         if (callIdOrUrl) {
@@ -391,12 +391,12 @@ const ContactDetailsPage = () => {
             // Fallback to videoRoomData
             callId = videoRoomData?.callId;
         }
-        
+
         if (!callId) {
             toast.error('No video room available to share.', { duration: 3000 });
             return;
         }
-        
+
         try {
             // Get current user data
             const userProfile = JSON.parse(
@@ -404,9 +404,9 @@ const ContactDetailsPage = () => {
                 sessionStorage.getItem('userProfile') ||
                 '{}'
             );
-            
+
             // Call shareRoomLink with correct parameters: callId, contactName, contactId, userId
-            await shareRoomLink(callId, contact.name, contact.id, userProfile.id);
+            await shareRoomLink(callId, contact.name, contact.id, userProfile.id, durationMinutes);
             console.log('Video room link shared successfully');
         } catch (error) {
             console.error('Failed to share video room link:', error);
@@ -883,6 +883,17 @@ const ContactDetailsPage = () => {
                                                     fontWeight: 500
                                                 }}
                                             />
+                                            <Chip
+                                                label={`${room.durationMinutes} min`}
+                                                size="small"
+                                                color="secondary"
+                                                variant="filled"
+                                                sx={{
+                                                    fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                                                    height: { xs: 20, sm: 22 },
+                                                    fontWeight: 500
+                                                }}
+                                            />
                                         </Box>
                                         <Typography 
                                             variant="body2" 
@@ -934,7 +945,7 @@ const ContactDetailsPage = () => {
                                             variant="outlined"
                                             color="info"
                                             size="small"
-                                            onClick={() => handleShareVideoRoomLink(room.joinUrl)}
+                                            onClick={() => handleShareVideoRoomLink(room.joinUrl, room.durationMinutes || 30)}
                                             disabled={videoRoomLoading}
                                             sx={{ 
                                                 px: { xs: 2, sm: 1.5 }, 

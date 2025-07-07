@@ -13,12 +13,12 @@ import {
 import { toast } from 'sonner';
 
 // Helper function to generate a secure guest URL
-const generateGuestUrl = (callId, contactName) => {
+const generateGuestUrl = (callId, contactName, durationMinutes) => {
     // Generate compressed token with minimal essential data
     const compressedTokenData = {
         c: callId,                                                    // callId (shortened key)
         n: contactName,                                               // contactName (shortened key)
-        e: Date.now() + 24 * 60 * 60 * 1000                         // expiresAt in milliseconds (fixed)
+        e: Date.now() + durationMinutes * 60 * 1000                   // expiresAt in milliseconds
     };
     
     // Create compressed base64 encoded token
@@ -91,7 +91,7 @@ export const useVideoRoom = () => {
             });
 
             // Generate the secure guest URL
-            const guestUrl = generateGuestUrl(callId, contactName);
+            const guestUrl = generateGuestUrl(callId, contactName, durationMinutes);
 
             // Save to backend database for persistence
             const backendResult = await createRoomInSystem({
@@ -134,6 +134,7 @@ export const useVideoRoom = () => {
                 contactId: contactId,
                 contactName: contactName,
                 status: backendRoom.status,
+                durationMinutes: backendRoom.durationMinutes,
                 // Backend provides additional data
                 createdBy: backendRoom.createdBy,
                 createdByName: backendRoom.user?.name,
@@ -376,6 +377,7 @@ export const useVideoRoom = () => {
                 startedAt: room.startedAt,
                 endedAt: room.endedAt,
                 status: room.status,
+                durationMinutes: room.durationMinutes,
                 totalDuration: room.totalDuration || 0,
                 participantCount: room.participantCount || 0,
                 recordingUrl: room.recordingUrl,
@@ -419,12 +421,12 @@ export const useVideoRoom = () => {
     };
 
     // Share call link with compressed secure token
-    const shareRoomLink = async (callId, contactName, contactId, userId) => {
+    const shareRoomLink = async (callId, contactName, contactId, userId, durationMinutes) => {
         try {
             setLoading(true);
             
             // Generate the secure guest URL
-            const guestJoinUrl = generateGuestUrl(callId, contactName);
+            const guestJoinUrl = generateGuestUrl(callId, contactName, durationMinutes);
             
             // Copy to clipboard
             if (navigator.clipboard) {
