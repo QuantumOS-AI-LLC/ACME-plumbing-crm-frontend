@@ -574,6 +574,12 @@ const VideoCallUI = ({
   const controlsHideTimeoutRef = React.useRef(null);
   const videoContainerRef = useRef(null);
 
+  // Auto-close functionality
+  const [isAutoClosing, setIsAutoClosing] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const [showCloseMessage, setShowCloseMessage] = useState(false);
+  const countdownIntervalRef = useRef(null);
+
   // Camera switching state
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
@@ -846,13 +852,119 @@ const VideoCallUI = ({
   };
 
 
-  if (callEndedAt) {
+  // Auto-close countdown effect when call ends
+  useEffect(() => {
+    if (callEndedAt && !isAutoClosing) {
+      setIsAutoClosing(true);
+      setShowCloseMessage(true);
+      setCountdown(5);
+
+      countdownIntervalRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            // Clear interval and attempt to close tab
+            clearInterval(countdownIntervalRef.current);
+            
+            // Try to close the tab/window
+            try {
+              window.close();
+              
+              // If window.close() doesn't work (fallback after 1 second)
+              setTimeout(() => {
+                setShowCloseMessage(false);
+                setIsAutoClosing(false);
+                // Show manual close instruction if auto-close failed
+                alert('Please close this tab manually.');
+              }, 1000);
+            } catch (error) {
+              console.error('Failed to close window:', error);
+              setShowCloseMessage(false);
+              setIsAutoClosing(false);
+              alert('Please close this tab manually.');
+            }
+            
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    // Cleanup interval on unmount
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, [callEndedAt, isAutoClosing]);
+
+  // Enhanced leave function with auto-close
+  const handleLeaveCall = () => {
+    if (!isAutoClosing) {
+      setIsAutoClosing(true);
+      setShowCloseMessage(true);
+      setCountdown(3); // Shorter countdown for manual leave
+
+      countdownIntervalRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownIntervalRef.current);
+            
+            // Call the original onLeave first
+            onLeave();
+            
+            // Then try to close the tab
+            try {
+              window.close();
+              
+              setTimeout(() => {
+                setShowCloseMessage(false);
+                setIsAutoClosing(false);
+                alert('Please close this tab manually.');
+              }, 1000);
+            } catch (error) {
+              console.error('Failed to close window:', error);
+              setShowCloseMessage(false);
+              setIsAutoClosing(false);
+              alert('Please close this tab manually.');
+            }
+            
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+  };
+
+  if (callEndedAt || showCloseMessage) {
     return (
       <div className="call-ended">
-        <h2>Call has ended</h2>
-        <button onClick={onLeave} className="btn-primary">
-          Return to Lobby
-        </button>
+        <div className="call-ended-content">
+          <h2>Call has ended</h2>
+          {isAutoClosing && (
+            <div className="auto-close-countdown">
+              <div className="countdown-circle">
+                <span className="countdown-number">{countdown}</span>
+              </div>
+              <p>Tab will close automatically in {countdown} second{countdown !== 1 ? 's' : ''}...</p>
+              <div className="countdown-progress">
+                <div 
+                  className="progress-bar" 
+                  style={{ 
+                    width: `${(countdown / 5) * 100}%`,
+                    transition: 'width 1s linear'
+                  }}
+                ></div>
+              </div>
+            </div>
+          )}
+          {!isAutoClosing && (
+            <button onClick={onLeave} className="btn-primary">
+              Return to Lobby
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -949,7 +1061,7 @@ const VideoCallUI = ({
             )}
 
             <CustomControlButton
-              onClick={onLeave}
+              onClick={handleLeaveCall}
               className="leave-call-btn"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
