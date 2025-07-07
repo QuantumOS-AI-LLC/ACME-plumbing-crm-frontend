@@ -34,6 +34,7 @@ import PageHeader from "../components/common/PageHeader";
 import { toast } from "sonner";
 import { useWebhook } from "../hooks/webHook";
 import { useVideoRoom } from "../hooks/useVideoRoom";
+import CallDurationSelector from "../components/video/CallDurationSelector";
 
 const ContactDetailsPage = () => {
     const { id } = useParams();
@@ -75,6 +76,7 @@ const ContactDetailsPage = () => {
     });
     const [existingRooms, setExistingRooms] = useState([]);
     const [selectedRoomForUpdate, setSelectedRoomForUpdate] = useState(null);
+    const [openDurationSelector, setOpenDurationSelector] = useState(false);
     
     // Define pipeline stage options
     const pipelineStageOptions = [
@@ -262,15 +264,24 @@ const ContactDetailsPage = () => {
         navigate("/contacts");
     };
 
-    const handleVideoRoom = async () => {
+    const handleVideoRoom = () => {
+        setOpenDurationSelector(true);
+    };
+
+    const handleCreateCallWithDuration = async (durationMinutes) => {
         try {
-            const roomData = await createRoom(id, contact.name);
-            console.log('Video room created:', roomData);
+            setOpenDurationSelector(false);
+            const roomData = await createRoom(id, contact.name, durationMinutes);
+            console.log('Video room created with duration:', durationMinutes, 'minutes:', roomData);
             // Refresh the list of existing rooms after a new one is created
             await loadExistingRooms();
         } catch (error) {
             console.error('Failed to create video room:', error);
         }
+    };
+
+    const handleCloseDurationSelector = () => {
+        setOpenDurationSelector(false);
     };
 
     const handleJoinVideoRoom = () => {
@@ -361,7 +372,7 @@ const ContactDetailsPage = () => {
         }));
     };
 
-    const handleShareVideoRoomLink = async (callIdOrUrl) => {
+    const handleShareVideoRoomLink = async (callIdOrUrl, durationMinutes) => {
         // Extract callId from URL if needed
         let callId;
         if (callIdOrUrl) {
@@ -380,12 +391,12 @@ const ContactDetailsPage = () => {
             // Fallback to videoRoomData
             callId = videoRoomData?.callId;
         }
-        
+
         if (!callId) {
             toast.error('No video room available to share.', { duration: 3000 });
             return;
         }
-        
+
         try {
             // Get current user data
             const userProfile = JSON.parse(
@@ -393,14 +404,49 @@ const ContactDetailsPage = () => {
                 sessionStorage.getItem('userProfile') ||
                 '{}'
             );
-            
+
             // Call shareRoomLink with correct parameters: callId, contactName, contactId, userId
-            await shareRoomLink(callId, contact.name, contact.id, userProfile.id);
+            await shareRoomLink(callId, contact.name, contact.id, userProfile.id, durationMinutes);
             console.log('Video room link shared successfully');
         } catch (error) {
             console.error('Failed to share video room link:', error);
             toast.error('Failed to share video room link. Please try again.', { duration: 3000 });
         }
+    };
+
+    // Helper function to check if a video room has expired
+    const isRoomExpired = (room) => {
+        if (!room.createdAt || !room.durationMinutes) {
+            console.log('Room missing data:', { createdAt: room.createdAt, durationMinutes: room.durationMinutes });
+            return false;
+        }
+        
+        const createdTime = new Date(room.createdAt).getTime();
+        const expirationTime = createdTime + (room.durationMinutes * 60 * 1000);
+        const currentTime = new Date().getTime();
+        
+        const isExpired = currentTime > expirationTime;
+        
+        console.log('Room expiration check:', {
+            roomId: room.id,
+            uniqueName: room.uniqueName,
+            createdAt: room.createdAt,
+            durationMinutes: room.durationMinutes,
+            createdTime: new Date(createdTime).toLocaleString(),
+            expirationTime: new Date(expirationTime).toLocaleString(),
+            currentTime: new Date(currentTime).toLocaleString(),
+            isExpired: isExpired
+        });
+        
+        return isExpired;
+    };
+
+    // Helper function to get room status
+    const getRoomStatus = (room) => {
+        if (isRoomExpired(room)) {
+            return { status: 'expired', label: 'Expired', color: 'error' };
+        }
+        return { status: 'active', label: 'Active', color: 'success' };
     };
 
     if (loading) {
@@ -872,6 +918,28 @@ const ContactDetailsPage = () => {
                                                     fontWeight: 500
                                                 }}
                                             />
+                                            <Chip
+                                                label={`${room.durationMinutes} min`}
+                                                size="small"
+                                                color="secondary"
+                                                variant="filled"
+                                                sx={{
+                                                    fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                                                    height: { xs: 20, sm: 22 },
+                                                    fontWeight: 500
+                                                }}
+                                            />
+                                            <Chip
+                                                label={getRoomStatus(room).label}
+                                                size="small"
+                                                color={getRoomStatus(room).color}
+                                                variant={isRoomExpired(room) ? "filled" : "outlined"}
+                                                sx={{
+                                                    fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                                                    height: { xs: 20, sm: 22 },
+                                                    fontWeight: 500
+                                                }}
+                                            />
                                         </Box>
                                         <Typography 
                                             variant="body2" 
@@ -901,77 +969,85 @@ const ContactDetailsPage = () => {
                                         flexDirection: { xs: "column", sm: "row" },
                                         width: { xs: "100%", sm: "auto" }
                                     }}>
-                                        <Button
-                                            variant="contained"
-                                            color="primary"
-                                            size="small"
-                                            onClick={() => joinRoom(room.callId || room.joinUrl)}
-                                            startIcon={<VideoCallIcon />}
-                                            sx={{ 
-                                                px: { xs: 2, sm: 2 }, 
-                                                py: 0.75,
-                                                fontSize: { xs: "0.8rem", sm: "0.8rem" },
-                                                fontWeight: 600,
-                                                borderRadius: 1.5,
-                                                boxShadow: "0 2px 8px rgba(25, 118, 210, 0.3)",
-                                                width: { xs: "100%", sm: "auto" }
-                                            }}
-                                        >
-                                            Join
-                                        </Button>
-                                        <Button
-                                            variant="outlined"
-                                            color="info"
-                                            size="small"
-                                            onClick={() => handleShareVideoRoomLink(room.joinUrl)}
-                                            disabled={videoRoomLoading}
-                                            sx={{ 
-                                                px: { xs: 2, sm: 1.5 }, 
-                                                py: 0.75,
-                                                fontSize: { xs: "0.8rem", sm: "0.8rem" },
-                                                fontWeight: 500,
-                                                borderRadius: 1.5,
-                                                width: { xs: "100%", sm: "auto" }
-                                            }}
-                                        >
-                                            Share
-                                        </Button>
-                                        <Button
-                                            variant="outlined"
-                                            color="primary"
-                                            size="small"
-                                            onClick={() => handleOpenVideoRoomSettings(room)}
-                                            startIcon={<SettingsIcon />}
-                                            disabled={videoRoomLoading}
-                                            sx={{ 
-                                                px: { xs: 2, sm: 1.5 }, 
-                                                py: 0.75,
-                                                fontSize: { xs: "0.8rem", sm: "0.8rem" },
-                                                fontWeight: 500,
-                                                borderRadius: 1.5,
-                                                width: { xs: "100%", sm: "auto" }
-                                            }}
-                                        >
-                                            Settings
-                                        </Button>
-                                        <Button
-                                            variant="outlined"
-                                            color="error"
-                                            size="small"
-                                            onClick={() => handleDeleteVideoRoom(room.id)}
-                                            startIcon={<DeleteIcon />}
-                                            disabled={videoRoomLoading}
-                                            sx={{ 
-                                                px: { xs: 2, sm: 1.5 }, 
-                                                py: 0.75,
-                                                fontSize: { xs: "0.8rem", sm: "0.8rem" },
-                                                fontWeight: 500,
-                                                borderRadius: 1.5,
-                                                width: { xs: "100%", sm: "auto" }
-                                            }}
-                                        >
-                                            Delete
-                                        </Button>
+                                        {!isRoomExpired(room) && (
+                                            <Button
+                                                variant="contained"
+                                                color="primary"
+                                                size="small"
+                                                onClick={() => joinRoom(room.callId || room.joinUrl)}
+                                                startIcon={<VideoCallIcon />}
+                                                sx={{ 
+                                                    px: { xs: 2, sm: 2 }, 
+                                                    py: 0.75,
+                                                    fontSize: { xs: "0.8rem", sm: "0.8rem" },
+                                                    fontWeight: 600,
+                                                    borderRadius: 1.5,
+                                                    boxShadow: "0 2px 8px rgba(25, 118, 210, 0.3)",
+                                                    width: { xs: "100%", sm: "auto" }
+                                                }}
+                                            >
+                                                Join
+                                            </Button>
+                                        )}
+                                        {!isRoomExpired(room) && (
+                                            <Button
+                                                variant="outlined"
+                                                color="info"
+                                                size="small"
+                                                onClick={() => handleShareVideoRoomLink(room.joinUrl, room.durationMinutes || 30)}
+                                                disabled={videoRoomLoading}
+                                                sx={{ 
+                                                    px: { xs: 2, sm: 1.5 }, 
+                                                    py: 0.75,
+                                                    fontSize: { xs: "0.8rem", sm: "0.8rem" },
+                                                    fontWeight: 500,
+                                                    borderRadius: 1.5,
+                                                    width: { xs: "100%", sm: "auto" }
+                                                }}
+                                            >
+                                                Share
+                                            </Button>
+                                        )}
+                                        {!isRoomExpired(room) && (
+                                            <Button
+                                                variant="outlined"
+                                                color="primary"
+                                                size="small"
+                                                onClick={() => handleOpenVideoRoomSettings(room)}
+                                                startIcon={<SettingsIcon />}
+                                                disabled={videoRoomLoading}
+                                                sx={{ 
+                                                    px: { xs: 2, sm: 1.5 }, 
+                                                    py: 0.75,
+                                                    fontSize: { xs: "0.8rem", sm: "0.8rem" },
+                                                    fontWeight: 500,
+                                                    borderRadius: 1.5,
+                                                    width: { xs: "100%", sm: "auto" }
+                                                }}
+                                            >
+                                                Settings
+                                            </Button>
+                                        )}
+                                        {isRoomExpired(room) && (
+                                            <Button
+                                                variant="outlined"
+                                                color="error"
+                                                size="small"
+                                                onClick={() => handleDeleteVideoRoom(room.id)}
+                                                startIcon={<DeleteIcon />}
+                                                disabled={videoRoomLoading}
+                                                sx={{ 
+                                                    px: { xs: 2, sm: 1.5 }, 
+                                                    py: 0.75,
+                                                    fontSize: { xs: "0.8rem", sm: "0.8rem" },
+                                                    fontWeight: 500,
+                                                    borderRadius: 1.5,
+                                                    width: { xs: "100%", sm: "auto" }
+                                                }}
+                                            >
+                                                Delete
+                                            </Button>
+                                        )}
                                     </Box>
                                 </Box>
                             </Paper>
@@ -1338,6 +1414,15 @@ const ContactDetailsPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Call Duration Selector Dialog */}
+            <CallDurationSelector
+                open={openDurationSelector}
+                onClose={handleCloseDurationSelector}
+                onCreateCall={handleCreateCallWithDuration}
+                contactName={contact?.name}
+                loading={videoRoomLoading}
+            />
         </Box>
     );
 };

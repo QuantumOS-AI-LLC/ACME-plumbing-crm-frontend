@@ -13,12 +13,12 @@ import {
 import { toast } from 'sonner';
 
 // Helper function to generate a secure guest URL
-const generateGuestUrl = (callId, contactName) => {
+const generateGuestUrl = (callId, contactName, durationMinutes) => {
     // Generate compressed token with minimal essential data
     const compressedTokenData = {
         c: callId,                                                    // callId (shortened key)
         n: contactName,                                               // contactName (shortened key)
-        e: Date.now() + 24 * 60 * 60 * 1000                         // expiresAt in milliseconds (fixed)
+        e: Date.now() + durationMinutes * 60 * 1000                   // expiresAt in milliseconds
     };
     
     // Create compressed base64 encoded token
@@ -40,7 +40,7 @@ export const useVideoRoom = () => {
     const { client } = useVideoClient();
 
     // Create a GetStream video call with backend persistence
-    const createRoom = async (contactId, contactName) => {
+    const createRoom = async (contactId, contactName, durationMinutes = 30) => {
         try {
             setLoading(true);
             
@@ -62,6 +62,10 @@ export const useVideoRoom = () => {
             // Generate unique call ID
             const callId = `contact_${contactId}_${Date.now()}`;
             
+            // Calculate expiration time
+            const durationSeconds = durationMinutes * 60;
+            const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
+            
             // Create GetStream call
             const call = client.call('default', callId);
             
@@ -69,17 +73,25 @@ export const useVideoRoom = () => {
                 data: {
                     created_by_id: userProfile.id,
                     members: [{ user_id: userProfile.id }],
+                    settings_override: {
+                        limits: {
+                            max_duration_seconds: durationSeconds
+                        }
+                    },
                     custom: {
                         contact_id: contactId,
                         contact_name: contactName,
                         call_type: 'customer_support',
-                        created_at: new Date().toISOString()
+                        created_at: new Date().toISOString(),
+                        expires_at: expiresAt.toISOString(),
+                        duration_minutes: durationMinutes,
+                        max_duration_seconds: durationSeconds
                     }
                 },
             });
 
             // Generate the secure guest URL
-            const guestUrl = generateGuestUrl(callId, contactName);
+            const guestUrl = generateGuestUrl(callId, contactName, durationMinutes);
 
             // Save to backend database for persistence
             const backendResult = await createRoomInSystem({
@@ -98,7 +110,10 @@ export const useVideoRoom = () => {
                 },
                 createdFor: contactId,
                 joinUrl: `${window.location.origin}/video-call?callId=${callId}`,
-                guestUrl: guestUrl
+                guestUrl: guestUrl,
+                expiresAt: expiresAt.toISOString(),
+                durationMinutes: durationMinutes,
+                maxDurationSeconds: durationSeconds
             });
 
             if (!backendResult.success) {
@@ -119,6 +134,7 @@ export const useVideoRoom = () => {
                 contactId: contactId,
                 contactName: contactName,
                 status: backendRoom.status,
+                durationMinutes: backendRoom.durationMinutes,
                 // Backend provides additional data
                 createdBy: backendRoom.createdBy,
                 createdByName: backendRoom.user?.name,
@@ -361,6 +377,7 @@ export const useVideoRoom = () => {
                 startedAt: room.startedAt,
                 endedAt: room.endedAt,
                 status: room.status,
+                durationMinutes: room.durationMinutes,
                 totalDuration: room.totalDuration || 0,
                 participantCount: room.participantCount || 0,
                 recordingUrl: room.recordingUrl,
@@ -404,12 +421,12 @@ export const useVideoRoom = () => {
     };
 
     // Share call link with compressed secure token
-    const shareRoomLink = async (callId, contactName, contactId, userId) => {
+    const shareRoomLink = async (callId, contactName, contactId, userId, durationMinutes) => {
         try {
             setLoading(true);
             
             // Generate the secure guest URL
-            const guestJoinUrl = generateGuestUrl(callId, contactName);
+            const guestJoinUrl = generateGuestUrl(callId, contactName, durationMinutes);
             
             // Copy to clipboard
             if (navigator.clipboard) {
