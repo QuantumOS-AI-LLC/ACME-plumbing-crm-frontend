@@ -855,15 +855,20 @@ const VideoCallUI = ({
   // Auto-close countdown effect when call ends
   useEffect(() => {
     if (callEndedAt && !isAutoClosing) {
+      console.log('Call ended, starting auto-close countdown');
       setIsAutoClosing(true);
       setShowCloseMessage(true);
       setCountdown(5);
 
       countdownIntervalRef.current = setInterval(() => {
         setCountdown((prev) => {
+          console.log('Countdown tick:', prev);
           if (prev <= 1) {
             // Clear interval and attempt to close tab
             clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+            
+            console.log('Countdown finished, attempting to close tab');
             
             // Try to close the tab/window
             try {
@@ -871,6 +876,7 @@ const VideoCallUI = ({
               
               // If window.close() doesn't work (fallback after 1 second)
               setTimeout(() => {
+                console.log('Window.close() may have failed, showing manual instruction');
                 setShowCloseMessage(false);
                 setIsAutoClosing(false);
                 // Show manual close instruction if auto-close failed
@@ -894,6 +900,7 @@ const VideoCallUI = ({
     return () => {
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
       }
     };
   }, [callEndedAt, isAutoClosing]);
@@ -901,14 +908,19 @@ const VideoCallUI = ({
   // Enhanced leave function with auto-close
   const handleLeaveCall = () => {
     if (!isAutoClosing) {
+      console.log('User left call, starting auto-close countdown');
       setIsAutoClosing(true);
       setShowCloseMessage(true);
       setCountdown(3); // Shorter countdown for manual leave
 
       countdownIntervalRef.current = setInterval(() => {
         setCountdown((prev) => {
+          console.log('Leave countdown tick:', prev);
           if (prev <= 1) {
             clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+            
+            console.log('Leave countdown finished, calling onLeave and closing tab');
             
             // Call the original onLeave first
             onLeave();
@@ -918,12 +930,13 @@ const VideoCallUI = ({
               window.close();
               
               setTimeout(() => {
+                console.log('Window.close() may have failed after leave, showing manual instruction');
                 setShowCloseMessage(false);
                 setIsAutoClosing(false);
                 alert('Please close this tab manually.');
               }, 1000);
             } catch (error) {
-              console.error('Failed to close window:', error);
+              console.error('Failed to close window after leave:', error);
               setShowCloseMessage(false);
               setIsAutoClosing(false);
               alert('Please close this tab manually.');
@@ -952,7 +965,7 @@ const VideoCallUI = ({
                 <div 
                   className="progress-bar" 
                   style={{ 
-                    width: `${(countdown / 5) * 100}%`,
+                    width: `${((5 - countdown) / 4) * 100}%`,
                     transition: 'width 1s linear'
                   }}
                 ></div>
