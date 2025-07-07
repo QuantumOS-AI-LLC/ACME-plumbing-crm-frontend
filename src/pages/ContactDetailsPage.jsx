@@ -432,10 +432,6 @@ const ContactDetailsPage = () => {
         
         const isExpired = currentTime > expirationTime;
         
-        // TEMPORARY TEST: Force first room to be expired for testing
-        const isFirstRoom = room.id && existingRooms.length > 0 && room.id === existingRooms[0].id;
-        const forceExpired = isFirstRoom; // Set to true to test expired state
-        
         console.log('Room expiration check:', {
             roomId: room.id,
             uniqueName: room.uniqueName,
@@ -444,13 +440,10 @@ const ContactDetailsPage = () => {
             createdTime: new Date(createdTime).toLocaleString(),
             expirationTime: new Date(expirationTime).toLocaleString(),
             currentTime: new Date(currentTime).toLocaleString(),
-            calculatedExpired: isExpired,
-            isFirstRoom: isFirstRoom,
-            forceExpired: forceExpired,
-            finalResult: forceExpired || isExpired
+            isExpired: isExpired
         });
         
-        return forceExpired || isExpired;
+        return isExpired;
     };
 
     // Helper function to get room status
@@ -1040,26 +1033,24 @@ const ContactDetailsPage = () => {
                                                 Settings
                                             </Button>
                                         )}
-                                        {isRoomExpired(room) && (
-                                            <Button
-                                                variant="outlined"
-                                                color="error"
-                                                size="small"
-                                                onClick={() => handleDeleteVideoRoom(room.id)}
-                                                startIcon={<DeleteIcon />}
-                                                disabled={videoRoomLoading}
-                                                sx={{ 
-                                                    px: { xs: 2, sm: 1.5 }, 
-                                                    py: 0.75,
-                                                    fontSize: { xs: "0.8rem", sm: "0.8rem" },
-                                                    fontWeight: 500,
-                                                    borderRadius: 1.5,
-                                                    width: { xs: "100%", sm: "auto" }
-                                                }}
-                                            >
-                                                Delete
-                                            </Button>
-                                        )}
+                                        <Button
+                                            variant="outlined"
+                                            color="error"
+                                            size="small"
+                                            onClick={() => handleDeleteVideoRoom(room.id)}
+                                            startIcon={<DeleteIcon />}
+                                            disabled={videoRoomLoading}
+                                            sx={{ 
+                                                px: { xs: 2, sm: 1.5 }, 
+                                                py: 0.75,
+                                                fontSize: { xs: "0.8rem", sm: "0.8rem" },
+                                                fontWeight: 500,
+                                                borderRadius: 1.5,
+                                                width: { xs: "100%", sm: "auto" }
+                                            }}
+                                        >
+                                            Delete
+                                        </Button>
                                     </Box>
                                 </Box>
                             </Paper>

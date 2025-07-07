@@ -577,6 +577,8 @@ const VideoCallUI = ({
   // Auto-close functionality
   const [isAutoClosing, setIsAutoClosing] = useState(false);
   const [countdown, setCountdown] = useState(5);
+  const [initialCountdownValue, setInitialCountdownValue] = useState(5);
+  const [countdownType, setCountdownType] = useState(null); // 'auto' or 'manual'
   const [showCloseMessage, setShowCloseMessage] = useState(false);
   const countdownIntervalRef = useRef(null);
   const countdownValueRef = useRef(5);
@@ -854,113 +856,155 @@ const VideoCallUI = ({
   };
 
 
-  // Auto-close countdown effect when call ends
+  // Auto-close countdown effect when call ends (auto-end scenario)
   useEffect(() => {
+    console.log('Auto-close effect triggered:', { callEndedAt, hasStarted: hasStartedCountdownRef.current });
+    
     if (callEndedAt && !hasStartedCountdownRef.current) {
-      console.log('Call ended, starting auto-close countdown');
+      console.log('Call ended automatically, starting 5-second countdown');
       hasStartedCountdownRef.current = true;
-      setIsAutoClosing(true);
-      setShowCloseMessage(true);
+      setCountdownType('auto');
+      setInitialCountdownValue(5);
       setCountdown(5);
       countdownValueRef.current = 5;
+      setIsAutoClosing(true);
+      setShowCloseMessage(true);
 
-      const startCountdown = () => {
-        countdownIntervalRef.current = setInterval(() => {
-          countdownValueRef.current -= 1;
-          console.log('Countdown tick:', countdownValueRef.current);
-          setCountdown(countdownValueRef.current);
+      // Start countdown immediately without nested function
+      countdownIntervalRef.current = setInterval(() => {
+        countdownValueRef.current -= 1;
+        console.log('Auto-end countdown tick:', countdownValueRef.current);
+        setCountdown(countdownValueRef.current);
+        
+        if (countdownValueRef.current <= 0) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
           
-          if (countdownValueRef.current <= 0) {
-            // Clear interval and attempt to close tab
-            clearInterval(countdownIntervalRef.current);
-            countdownIntervalRef.current = null;
-            
-            console.log('Countdown finished, attempting to close tab');
-            
-            // Try to close the tab/window
-            try {
+          console.log('Auto-end countdown finished, attempting to close tab');
+          
+          // Try multiple methods to close the tab
+          const attemptClose = () => {
+            // Method 1: Standard window.close()
+            if (window.opener || window.history.length === 1) {
               window.close();
-              
-              // If window.close() doesn't work (fallback after 1 second)
-              setTimeout(() => {
-                console.log('Window.close() may have failed, showing manual instruction');
-                setShowCloseMessage(false);
-                setIsAutoClosing(false);
-                hasStartedCountdownRef.current = false;
-                // Show manual close instruction if auto-close failed
-                alert('Please close this tab manually.');
-              }, 1000);
-            } catch (error) {
-              console.error('Failed to close window:', error);
+              return true;
+            }
+            
+            // Method 2: Try to go back if possible
+            if (window.history.length > 1) {
+              window.history.back();
+              return true;
+            }
+            
+            return false;
+          };
+          
+          const closed = attemptClose();
+          
+          if (!closed) {
+            setTimeout(() => {
+              console.log('Auto-close failed, showing manual instruction');
               setShowCloseMessage(false);
               setIsAutoClosing(false);
               hasStartedCountdownRef.current = false;
-              alert('Please close this tab manually.');
-            }
+              
+              // Show a more user-friendly message
+              const userAgent = navigator.userAgent.toLowerCase();
+              let message = 'Please close this tab manually.';
+              
+              if (userAgent.includes('chrome')) {
+                message = 'Please close this tab manually by clicking the X button or pressing Ctrl+W.';
+              } else if (userAgent.includes('firefox')) {
+                message = 'Please close this tab manually by clicking the X button or pressing Ctrl+W.';
+              } else if (userAgent.includes('safari')) {
+                message = 'Please close this tab manually by clicking the X button or pressing Cmd+W.';
+              }
+              
+              alert(message);
+            }, 500);
           }
-        }, 1000);
-      };
-
-      startCountdown();
+        }
+      }, 1000);
     }
 
-    // Cleanup interval on unmount
     return () => {
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
         countdownIntervalRef.current = null;
       }
     };
-  }, [callEndedAt]); // Removed isAutoClosing from dependencies
+  }, [callEndedAt]);
 
-  // Enhanced leave function with auto-close
+  // Enhanced leave function with auto-close (manual-end scenario)
   const handleLeaveCall = () => {
     if (!isAutoClosing && !hasStartedCountdownRef.current) {
-      console.log('User left call, starting auto-close countdown');
+      console.log('User left call manually, starting 3-second countdown');
       hasStartedCountdownRef.current = true;
+      setCountdownType('manual');
+      setInitialCountdownValue(3);
+      setCountdown(3);
+      countdownValueRef.current = 3;
       setIsAutoClosing(true);
       setShowCloseMessage(true);
-      setCountdown(3); // Shorter countdown for manual leave
-      countdownValueRef.current = 3;
 
-      const startLeaveCountdown = () => {
-        countdownIntervalRef.current = setInterval(() => {
-          countdownValueRef.current -= 1;
-          console.log('Leave countdown tick:', countdownValueRef.current);
-          setCountdown(countdownValueRef.current);
+      // Start countdown immediately without nested function
+      countdownIntervalRef.current = setInterval(() => {
+        countdownValueRef.current -= 1;
+        console.log('Manual-end countdown tick:', countdownValueRef.current);
+        setCountdown(countdownValueRef.current);
+        
+        if (countdownValueRef.current <= 0) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
           
-          if (countdownValueRef.current <= 0) {
-            clearInterval(countdownIntervalRef.current);
-            countdownIntervalRef.current = null;
-            
-            console.log('Leave countdown finished, calling onLeave and closing tab');
-            
-            // Call the original onLeave first
-            onLeave();
-            
-            // Then try to close the tab
-            try {
+          console.log('Manual-end countdown finished, calling onLeave and closing tab');
+          
+          // Call the original onLeave first
+          onLeave();
+          
+          // Try multiple methods to close the tab
+          const attemptClose = () => {
+            // Method 1: Standard window.close()
+            if (window.opener || window.history.length === 1) {
               window.close();
-              
-              setTimeout(() => {
-                console.log('Window.close() may have failed after leave, showing manual instruction');
-                setShowCloseMessage(false);
-                setIsAutoClosing(false);
-                hasStartedCountdownRef.current = false;
-                alert('Please close this tab manually.');
-              }, 1000);
-            } catch (error) {
-              console.error('Failed to close window after leave:', error);
+              return true;
+            }
+            
+            // Method 2: Try to go back if possible
+            if (window.history.length > 1) {
+              window.history.back();
+              return true;
+            }
+            
+            return false;
+          };
+          
+          const closed = attemptClose();
+          
+          if (!closed) {
+            setTimeout(() => {
+              console.log('Manual-close failed, showing manual instruction');
               setShowCloseMessage(false);
               setIsAutoClosing(false);
               hasStartedCountdownRef.current = false;
-              alert('Please close this tab manually.');
-            }
+              
+              // Show a more user-friendly message
+              const userAgent = navigator.userAgent.toLowerCase();
+              let message = 'Please close this tab manually.';
+              
+              if (userAgent.includes('chrome')) {
+                message = 'Please close this tab manually by clicking the X button or pressing Ctrl+W.';
+              } else if (userAgent.includes('firefox')) {
+                message = 'Please close this tab manually by clicking the X button or pressing Ctrl+W.';
+              } else if (userAgent.includes('safari')) {
+                message = 'Please close this tab manually by clicking the X button or pressing Cmd+W.';
+              }
+              
+              alert(message);
+            }, 500);
           }
-        }, 1000);
-      };
-
-      startLeaveCountdown();
+        }
+      }, 1000);
     }
   };
 
@@ -979,7 +1023,7 @@ const VideoCallUI = ({
                 <div 
                   className="progress-bar" 
                   style={{ 
-                    width: `${(1 - countdown / 5) * 100}%`,
+                    width: `${(1 - countdown / initialCountdownValue) * 100}%`,
                     transition: 'width 1s linear'
                   }}
                 ></div>

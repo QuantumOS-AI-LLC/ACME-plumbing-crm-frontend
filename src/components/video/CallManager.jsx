@@ -281,6 +281,7 @@ const CallManager = () => {
     );
   }
 
+
   // Video call interface
   if (isInCall && currentCallId) {
     return (
@@ -413,5 +414,6 @@ const GuestLoginForm = ({ onGuestJoin }) => {
     </div>
   );
 };
+
 
 export default CallManager;
