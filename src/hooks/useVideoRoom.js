@@ -68,30 +68,6 @@ export const useVideoRoom = () => {
                 Date.now() + durationMinutes * 60 * 1000
             );
 
-            // Create GetStream call
-            const call = client.call("default", callId);
-
-            await call.getOrCreate({
-                data: {
-                    created_by_id: userProfile.id,
-                    members: [{ user_id: userProfile.id }],
-                    settings_override: {
-                        limits: {
-                            max_duration_seconds: durationSeconds,
-                        },
-                    },
-                    custom: {
-                        contact_id: contactId,
-                        contact_name: contactName,
-                        call_type: "customer_support",
-                        created_at: new Date().toISOString(),
-                        expires_at: expiresAt.toISOString(),
-                        duration_minutes: durationMinutes,
-                        max_duration_seconds: durationSeconds,
-                    },
-                },
-            });
-
             // Generate the secure guest URL
             const guestUrl = generateGuestUrl(
                 callId,
@@ -99,9 +75,9 @@ export const useVideoRoom = () => {
                 durationMinutes
             );
 
-            // Save to backend database for persistence
+            // Save to backend database for persistence first
             const backendResult = await createRoomInSystem({
-                streamCallId: callId,
+                streamCallId: callId, // Use the generated callId for streamCallId
                 uniqueName: `Call with ${contactName} - ${new Date().toLocaleString()}`,
                 callType: "default",
                 maxParticipants: 10,
@@ -124,11 +100,48 @@ export const useVideoRoom = () => {
 
             if (!backendResult.success) {
                 throw new Error(
-                    backendResult.message || "Failed to save call to backend"
+                    backendResult.message || "Failed to create call in backend"
                 );
             }
 
             const backendRoom = backendResult.data.room;
+            const backendRoomId = backendRoom.id; // Store backend room ID for potential rollback
+
+            try {
+                // Create GetStream call only if backend creation was successful
+                const call = client.call("default", callId);
+
+                await call.getOrCreate({
+                    data: {
+                        created_by_id: userProfile.id,
+                        members: [{ user_id: userProfile.id }],
+                        settings_override: {
+                            limits: {
+                                max_duration_seconds: durationSeconds,
+                            },
+                        },
+                        custom: {
+                            contact_id: contactId,
+                            contact_name: contactName,
+                            call_type: "customer_support",
+                            created_at: new Date().toISOString(),
+                            expires_at: expiresAt.toISOString(),
+                            duration_minutes: durationMinutes,
+                            max_duration_seconds: durationSeconds,
+                        },
+                    },
+                });
+            } catch (getStreamError) {
+                console.error(
+                    "Error creating GetStream call, attempting to delete backend record:",
+                    getStreamError
+                );
+                // Rollback: Delete the room from the backend if GetStream creation fails
+                await deleteRoomFromSystem(backendRoomId);
+                throw new Error(
+                    "Failed to create video call in GetStream. Backend record rolled back."
+                );
+            }
 
             // Create room data object with backend data
             const roomData = {
