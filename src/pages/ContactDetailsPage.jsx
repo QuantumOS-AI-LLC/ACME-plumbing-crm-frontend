@@ -27,7 +27,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import VideoCallIcon from "@mui/icons-material/VideoCall";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SettingsIcon from "@mui/icons-material/Settings";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { fetchContact, updateContact } from "../services/api";
 import PageHeader from "../components/common/PageHeader";
@@ -54,30 +54,32 @@ const ContactDetailsPage = () => {
     const [updating, setUpdating] = useState(false);
     const handleAIAssistant = () => {
         const conversationId = uuidv4();
-        navigate(`/ai-assistant?contactId=${id}&contactName=${contact.name}&conversationId=${conversationId}`);
+        navigate(
+            `/ai-assistant?contactId=${id}&contactName=${contact.name}&conversationId=${conversationId}`
+        );
     };
     const { sendWebhook } = useWebhook();
-    const { 
-        loading: videoRoomLoading, 
-        videoRoomData, 
+    const {
+        loading: videoRoomLoading,
+        videoRoomData,
         roomsList,
-        createRoom, 
-        updateRoom, 
-        deleteRoom, 
+        createRoom,
+        updateRoom,
+        deleteRoom,
         getRoomsForContact,
-        joinRoom, 
-        shareRoomLink, 
-        clearRoomData 
+        joinRoom,
+        shareRoomLink,
+        clearRoomData,
     } = useVideoRoom();
     const [openVideoRoomDialog, setOpenVideoRoomDialog] = useState(false);
     const [videoRoomSettings, setVideoRoomSettings] = useState({
         maxParticipants: 10,
-        enableRecording: false
+        enableRecording: false,
     });
     const [existingRooms, setExistingRooms] = useState([]);
     const [selectedRoomForUpdate, setSelectedRoomForUpdate] = useState(null);
     const [openDurationSelector, setOpenDurationSelector] = useState(false);
-    
+
     // Define pipeline stage options
     const pipelineStageOptions = [
         { value: "new_lead", label: "New Lead" },
@@ -92,13 +94,12 @@ const ContactDetailsPage = () => {
         try {
             const rooms = await getRoomsForContact(id);
             setExistingRooms(rooms);
-            console.log('Existing rooms for contact:', rooms);
+            console.log("Existing rooms for contact:", rooms);
         } catch (error) {
-            console.error('Error loading existing rooms:', error);
+            console.error("Error loading existing rooms:", error);
             // Don't show error toast for this, as it's not critical
         }
     }, [id, getRoomsForContact]); // Add dependencies
-
 
     useEffect(() => {
         const loadContactDetails = async () => {
@@ -131,6 +132,45 @@ const ContactDetailsPage = () => {
         loadContactDetails();
         loadExistingRooms();
     }, [id, loadExistingRooms]); // Add loadExistingRooms as a dependency
+
+    // Auto-refresh effect to check for expired rooms every minute
+    useEffect(() => {
+        const checkForExpiredRooms = () => {
+            // Force re-render by updating existing rooms
+            setExistingRooms((prevRooms) => [...prevRooms]);
+            console.log("Checking for expired rooms...");
+        };
+
+        // Check every 30 seconds for expired rooms
+        const intervalId = setInterval(checkForExpiredRooms, 30000);
+
+        // Cleanup interval on component unmount
+        return () => {
+            clearInterval(intervalId);
+        };
+    }, []);
+
+    // Auto-reload rooms when any room expires
+    useEffect(() => {
+        const checkAndReloadExpiredRooms = async () => {
+            if (existingRooms.length > 0) {
+                const hasExpiredRooms = existingRooms.some((room) =>
+                    isRoomExpired(room)
+                );
+                if (hasExpiredRooms) {
+                    console.log("Found expired rooms, reloading...");
+                    await loadExistingRooms();
+                }
+            }
+        };
+
+        // Check every minute for expired rooms and reload if needed
+        const reloadIntervalId = setInterval(checkAndReloadExpiredRooms, 60000);
+
+        return () => {
+            clearInterval(reloadIntervalId);
+        };
+    }, [existingRooms, loadExistingRooms]);
 
     const getInitials = (name) => {
         if (!name) return "?";
@@ -271,12 +311,21 @@ const ContactDetailsPage = () => {
     const handleCreateCallWithDuration = async (durationMinutes) => {
         try {
             setOpenDurationSelector(false);
-            const roomData = await createRoom(id, contact.name, durationMinutes);
-            console.log('Video room created with duration:', durationMinutes, 'minutes:', roomData);
+            const roomData = await createRoom(
+                id,
+                contact.name,
+                durationMinutes
+            );
+            console.log(
+                "Video room created with duration:",
+                durationMinutes,
+                "minutes:",
+                roomData
+            );
             // Refresh the list of existing rooms after a new one is created
             await loadExistingRooms();
         } catch (error) {
-            console.error('Failed to create video room:', error);
+            console.error("Failed to create video room:", error);
         }
     };
 
@@ -295,46 +344,46 @@ const ContactDetailsPage = () => {
         const targetRoomId = roomIdToDelete || videoRoomData?.id;
 
         if (!targetRoomId) {
-            console.error('Missing required room ID for deletion');
+            console.error("Missing required room ID for deletion");
             return;
         }
-        
+
         try {
             await deleteRoom(targetRoomId, contact.name);
-            console.log('Video room deleted successfully');
+            console.log("Video room deleted successfully");
             // Reload existing rooms after deletion
             await loadExistingRooms(); // Call the helper function
         } catch (error) {
-            console.error('Failed to delete video room:', error);
+            console.error("Failed to delete video room:", error);
         }
     };
 
     const handleUpdateVideoRoom = async () => {
         // Handle both newly created rooms and existing rooms
         const roomToUpdate = selectedRoomForUpdate || videoRoomData;
-        
+
         // Use the room ID for backend updates
         const roomId = roomToUpdate?.id;
-        
+
         if (!roomId) {
-            console.error('Missing required room ID for update');
+            console.error("Missing required room ID for update");
             return;
         }
-        
+
         try {
             const updateData = {
                 maxParticipants: videoRoomSettings.maxParticipants,
-                enableRecording: videoRoomSettings.enableRecording
+                enableRecording: videoRoomSettings.enableRecording,
             };
-            
+
             await updateRoom(roomId, updateData, contact.name);
             setOpenVideoRoomDialog(false);
             setSelectedRoomForUpdate(null);
-            
+
             // Reload existing rooms to show updated data
             await loadExistingRooms();
         } catch (error) {
-            console.error('Failed to update video room:', error);
+            console.error("Failed to update video room:", error);
         }
     };
 
@@ -344,17 +393,17 @@ const ContactDetailsPage = () => {
             setSelectedRoomForUpdate(room);
             setVideoRoomSettings({
                 maxParticipants: room.maxParticipants || 2,
-                enableRecording: room.enableRecording || false
+                enableRecording: room.enableRecording || false,
             });
         } else if (videoRoomData) {
             // Opening settings for newly created room
             setSelectedRoomForUpdate(null);
             setVideoRoomSettings({
                 maxParticipants: videoRoomData.maxParticipants || 2,
-                enableRecording: videoRoomData.enableRecording || false
+                enableRecording: videoRoomData.enableRecording || false,
             });
         } else {
-            console.error('No room data available for settings');
+            console.error("No room data available for settings");
             return;
         }
         setOpenVideoRoomDialog(true);
@@ -366,9 +415,9 @@ const ContactDetailsPage = () => {
 
     const handleVideoRoomSettingsChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setVideoRoomSettings(prev => ({
+        setVideoRoomSettings((prev) => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value
+            [name]: type === "checkbox" ? checked : value,
         }));
     };
 
@@ -376,12 +425,12 @@ const ContactDetailsPage = () => {
         // Extract callId from URL if needed
         let callId;
         if (callIdOrUrl) {
-            if (callIdOrUrl.includes('http')) {
+            if (callIdOrUrl.includes("http")) {
                 try {
                     const url = new URL(callIdOrUrl);
-                    callId = url.searchParams.get('callId');
+                    callId = url.searchParams.get("callId");
                 } catch (error) {
-                    console.error('Error parsing URL:', error);
+                    console.error("Error parsing URL:", error);
                     callId = callIdOrUrl;
                 }
             } else {
@@ -393,46 +442,57 @@ const ContactDetailsPage = () => {
         }
 
         if (!callId) {
-            toast.error('No video room available to share.', { duration: 3000 });
+            toast.error("No video room available to share.", {
+                duration: 3000,
+            });
             return;
         }
 
         try {
             // Get current user data
             const userProfile = JSON.parse(
-                localStorage.getItem('userProfile') ||
-                sessionStorage.getItem('userProfile') ||
-                '{}'
+                localStorage.getItem("userProfile") ||
+                    sessionStorage.getItem("userProfile") ||
+                    "{}"
             );
 
             // Call shareRoomLink with correct parameters: callId, contactName, contactId, userId
-            await shareRoomLink(callId, contact.name, contact.id, userProfile.id, durationMinutes);
-            console.log('Video room link shared successfully');
+            await shareRoomLink(
+                callId,
+                contact.name,
+                contact.id,
+                userProfile.id,
+                durationMinutes
+            );
+            console.log("Video room link shared successfully");
         } catch (error) {
-            console.error('Failed to share video room link:', error);
-            toast.error('Failed to share video room link. Please try again.', { duration: 3000 });
+            console.error("Failed to share video room link:", error);
+            toast.error("Failed to share video room link. Please try again.", {
+                duration: 3000,
+            });
         }
     };
 
     // Helper function to check if a video room has expired
     const isRoomExpired = (room) => {
         if (!room.createdAt || !room.durationMinutes) {
-            console.log('Room missing data:', { 
+            console.log("Room missing data:", {
                 roomId: room.id,
-                createdAt: room.createdAt, 
+                createdAt: room.createdAt,
                 durationMinutes: room.durationMinutes,
-                roomObject: room 
+                roomObject: room,
             });
-            return false;
+            // If missing data, assume expired for safety
+            return true;
         }
-        
+
         const createdTime = new Date(room.createdAt).getTime();
-        const expirationTime = createdTime + (room.durationMinutes * 60 * 1000);
+        const expirationTime = createdTime + room.durationMinutes * 60 * 1000;
         const currentTime = new Date().getTime();
-        
+
         const isExpired = currentTime > expirationTime;
-        
-        console.log('Room expiration check:', {
+
+        console.log("Room expiration check:", {
             roomId: room.id,
             uniqueName: room.uniqueName,
             createdAt: room.createdAt,
@@ -440,18 +500,18 @@ const ContactDetailsPage = () => {
             createdTime: new Date(createdTime).toLocaleString(),
             expirationTime: new Date(expirationTime).toLocaleString(),
             currentTime: new Date(currentTime).toLocaleString(),
-            isExpired: isExpired
+            isExpired: isExpired,
         });
-        
+
         return isExpired;
     };
 
     // Helper function to get room status
     const getRoomStatus = (room) => {
         if (isRoomExpired(room)) {
-            return { status: 'expired', label: 'Expired', color: 'error' };
+            return { status: "expired", label: "Expired", color: "error" };
         }
-        return { status: 'active', label: 'Active', color: 'success' };
+        return { status: "active", label: "Active", color: "success" };
     };
 
     if (loading) {
@@ -502,33 +562,35 @@ const ContactDetailsPage = () => {
                         mb: 3,
                     }}
                 >
-                    <Box sx={{ 
-                        display: "flex", 
-                        flexDirection: { xs: "row", sm: "row" },
-                        alignItems: { xs: "flex-start", sm: "flex-start" },
-                        textAlign: { xs: "left", sm: "left" },
-                        width: { xs: "100%", sm: "auto" },
-                        gap: { xs: 2, sm: 2 }
-                    }}>
+                    <Box
+                        sx={{
+                            display: "flex",
+                            flexDirection: { xs: "row", sm: "row" },
+                            alignItems: { xs: "flex-start", sm: "flex-start" },
+                            textAlign: { xs: "left", sm: "left" },
+                            width: { xs: "100%", sm: "auto" },
+                            gap: { xs: 2, sm: 2 },
+                        }}
+                    >
                         <Avatar
                             sx={{
                                 bgcolor: "primary.main",
                                 width: { xs: 56, sm: 52 },
                                 height: { xs: 56, sm: 52 },
                                 fontSize: { xs: "1.4rem", sm: "1.25rem" },
-                                flexShrink: 0
+                                flexShrink: 0,
                             }}
                         >
                             {getInitials(contact.name)}
                         </Avatar>
                         <Box sx={{ width: "100%", minWidth: 0 }}>
-                            <Typography 
-                                variant="h5" 
-                                sx={{ 
+                            <Typography
+                                variant="h5"
+                                sx={{
                                     fontSize: { xs: "1.4rem", sm: "2rem" },
                                     mb: { xs: 0.5, sm: 0 },
                                     fontWeight: 600,
-                                    lineHeight: 1.2
+                                    lineHeight: 1.2,
                                 }}
                             >
                                 {contact.name}
@@ -536,19 +598,19 @@ const ContactDetailsPage = () => {
                             <Typography
                                 variant="subtitle1"
                                 color="text.secondary"
-                                sx={{ 
+                                sx={{
                                     fontSize: { xs: "0.875rem", sm: "1rem" },
                                     mb: { xs: 1.5, sm: 0 },
-                                    fontWeight: 500
+                                    fontWeight: 500,
                                 }}
                             >
                                 {contact.status === "client"
                                     ? "Client"
                                     : contact.status === "lead"
-                                        ? "Lead"
-                                        : contact.status === "former_client"
-                                            ? "Former Client"
-                                            : "Contact"}
+                                    ? "Lead"
+                                    : contact.status === "former_client"
+                                    ? "Former Client"
+                                    : "Contact"}
                             </Typography>
                             {contact.tags && contact.tags.length > 0 && (
                                 <Box
@@ -557,7 +619,10 @@ const ContactDetailsPage = () => {
                                         flexWrap: "wrap",
                                         gap: 0.5,
                                         mt: { xs: 0, sm: 1 },
-                                        justifyContent: { xs: "flex-start", sm: "flex-start" }
+                                        justifyContent: {
+                                            xs: "flex-start",
+                                            sm: "flex-start",
+                                        },
                                     }}
                                 >
                                     {contact.tags.map((tag, index) => (
@@ -566,33 +631,43 @@ const ContactDetailsPage = () => {
                                             label={tag}
                                             size="small"
                                             color="primary"
-                                            sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                                            sx={{
+                                                fontSize: {
+                                                    xs: "0.7rem",
+                                                    sm: "0.75rem",
+                                                },
+                                            }}
                                         />
                                     ))}
                                 </Box>
                             )}
                         </Box>
                     </Box>
-                    <Box sx={{
-                        display: "flex",
-                        flexDirection: { xs: "row", sm: "row" },
-                        flexWrap: { xs: "wrap", sm: "nowrap" },
-                        gap: { xs: 1, sm: 1 },
-                        width: { xs: "100%", sm: "auto" },
-                        mt: { xs: 1, sm: 0 },
-                        "& > *": {
-                            flex: { xs: "1 1 calc(50% - 4px)", sm: "0 0 auto" }
-                        }
-                    }}>
+                    <Box
+                        sx={{
+                            display: "flex",
+                            flexDirection: { xs: "row", sm: "row" },
+                            flexWrap: { xs: "wrap", sm: "nowrap" },
+                            gap: { xs: 1, sm: 1 },
+                            width: { xs: "100%", sm: "auto" },
+                            mt: { xs: 1, sm: 0 },
+                            "& > *": {
+                                flex: {
+                                    xs: "1 1 calc(50% - 4px)",
+                                    sm: "0 0 auto",
+                                },
+                            },
+                        }}
+                    >
                         <Button
                             variant="outlined"
                             color="primary"
                             onClick={handleAIAssistant}
                             size="medium"
-                            sx={{ 
+                            sx={{
                                 minWidth: { sm: "auto" },
                                 fontSize: { xs: "0.875rem", sm: "0.875rem" },
-                                width: { xs: "100%", sm: "auto" }
+                                width: { xs: "100%", sm: "auto" },
                             }}
                         >
                             Text
@@ -603,10 +678,10 @@ const ContactDetailsPage = () => {
                             startIcon={<EditIcon />}
                             onClick={handleEdit}
                             size="medium"
-                            sx={{ 
+                            sx={{
                                 minWidth: { sm: "auto" },
                                 fontSize: { xs: "0.875rem", sm: "0.875rem" },
-                                width: { xs: "100%", sm: "auto" }
+                                width: { xs: "100%", sm: "auto" },
                             }}
                         >
                             Edit
@@ -618,10 +693,10 @@ const ContactDetailsPage = () => {
                             onClick={handleCall}
                             disabled={!contact.phoneNumber}
                             size="medium"
-                            sx={{ 
+                            sx={{
                                 minWidth: { sm: "auto" },
                                 fontSize: { xs: "0.875rem", sm: "0.875rem" },
-                                width: { xs: "100%", sm: "auto" }
+                                width: { xs: "100%", sm: "auto" },
                             }}
                         >
                             Call
@@ -633,10 +708,10 @@ const ContactDetailsPage = () => {
                             onClick={handleVideoRoom}
                             disabled={videoRoomLoading}
                             size="medium"
-                            sx={{ 
+                            sx={{
                                 minWidth: { sm: "auto" },
                                 fontSize: { xs: "0.875rem", sm: "0.875rem" },
-                                width: { xs: "100%", sm: "auto" }
+                                width: { xs: "100%", sm: "auto" },
                             }}
                         >
                             {videoRoomLoading ? "Creating..." : "Video Room"}
@@ -648,10 +723,10 @@ const ContactDetailsPage = () => {
                             onClick={handleEmail}
                             disabled={!contact.email}
                             size="medium"
-                            sx={{ 
+                            sx={{
                                 minWidth: { sm: "auto" },
                                 fontSize: { xs: "0.875rem", sm: "0.875rem" },
-                                width: { xs: "100%", sm: "auto" }
+                                width: { xs: "100%", sm: "auto" },
                             }}
                         >
                             Email
@@ -668,10 +743,17 @@ const ContactDetailsPage = () => {
                             backgroundColor: "success.50",
                             borderRadius: 2,
                             border: "1px solid",
-                            borderColor: "success.main"
+                            borderColor: "success.main",
                         }}
                     >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                mb: 1.5,
+                            }}
+                        >
                             <Box
                                 sx={{
                                     p: 0.5,
@@ -682,64 +764,76 @@ const ContactDetailsPage = () => {
                                     alignItems: "center",
                                     justifyContent: "center",
                                     width: 28,
-                                    height: 28
+                                    height: 28,
                                 }}
                             >
                                 <VideoCallIcon sx={{ fontSize: 16 }} />
                             </Box>
-                            <Typography 
-                                variant="subtitle1" 
-                                sx={{ 
+                            <Typography
+                                variant="subtitle1"
+                                sx={{
                                     color: "success.dark",
-                                    fontWeight: 600
+                                    fontWeight: 600,
                                 }}
                             >
                                 Video Room Created Successfully!
                             </Typography>
                         </Box>
 
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                            <Typography 
-                                variant="body1" 
-                                sx={{ 
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                mb: 1,
+                            }}
+                        >
+                            <Typography
+                                variant="body1"
+                                sx={{
                                     fontWeight: 600,
-                                    color: "text.primary"
+                                    color: "text.primary",
                                 }}
                             >
                                 {videoRoomData.uniqueName}
                             </Typography>
-                            <Chip 
-                                label={`${videoRoomData.maxParticipants || 10} max`} 
-                                size="small" 
-                                color="success" 
+                            <Chip
+                                label={`${
+                                    videoRoomData.maxParticipants || 10
+                                } max`}
+                                size="small"
+                                color="success"
                                 variant="filled"
                                 sx={{ fontSize: "0.7rem", height: 20 }}
                             />
-                            <Chip 
-                                label="New" 
-                                size="small" 
-                                color="primary" 
+                            <Chip
+                                label="New"
+                                size="small"
+                                color="primary"
                                 variant="outlined"
                                 sx={{ fontSize: "0.7rem", height: 20 }}
                             />
                         </Box>
-                        
-                        <Typography 
-                            variant="body2" 
+
+                        <Typography
+                            variant="body2"
                             color="text.secondary"
                             sx={{ mb: 1.5, fontSize: "0.875rem" }}
                         >
-                            Ready for {contact.name}. Join now or share the link.
+                            Ready for {contact.name}. Join now or share the
+                            link.
                         </Typography>
 
-                        <Box sx={{ 
-                            display: "flex", 
-                            gap: { xs: 0.5, sm: 1 }, 
-                            alignItems: "center", 
-                            flexWrap: "wrap",
-                            flexDirection: { xs: "column", sm: "row" },
-                            width: { xs: "100%", sm: "auto" }
-                        }}>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                gap: { xs: 0.5, sm: 1 },
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                                flexDirection: { xs: "column", sm: "row" },
+                                width: { xs: "100%", sm: "auto" },
+                            }}
+                        >
                             <Button
                                 variant="contained"
                                 color="success"
@@ -751,7 +845,7 @@ const ContactDetailsPage = () => {
                                     px: { xs: 2, sm: 2 },
                                     borderRadius: 1.5,
                                     fontSize: { xs: "0.8rem", sm: "0.75rem" },
-                                    width: { xs: "100%", sm: "auto" }
+                                    width: { xs: "100%", sm: "auto" },
                                 }}
                             >
                                 Join Now
@@ -760,14 +854,18 @@ const ContactDetailsPage = () => {
                                 variant="contained"
                                 color="info"
                                 size="small"
-                                onClick={() => handleShareVideoRoomLink(videoRoomData.joinUrl)}
+                                onClick={() =>
+                                    handleShareVideoRoomLink(
+                                        videoRoomData.joinUrl
+                                    )
+                                }
                                 disabled={videoRoomLoading}
                                 sx={{
                                     fontWeight: 500,
                                     px: { xs: 2, sm: 1.5 },
                                     borderRadius: 1.5,
                                     fontSize: { xs: "0.8rem", sm: "0.75rem" },
-                                    width: { xs: "100%", sm: "auto" }
+                                    width: { xs: "100%", sm: "auto" },
                                 }}
                             >
                                 Share
@@ -784,7 +882,7 @@ const ContactDetailsPage = () => {
                                     px: { xs: 2, sm: 1.5 },
                                     borderRadius: 1.5,
                                     fontSize: { xs: "0.8rem", sm: "0.75rem" },
-                                    width: { xs: "100%", sm: "auto" }
+                                    width: { xs: "100%", sm: "auto" },
                                 }}
                             >
                                 Settings
@@ -793,7 +891,9 @@ const ContactDetailsPage = () => {
                                 variant="outlined"
                                 color="error"
                                 size="small"
-                                onClick={() => handleDeleteVideoRoom(videoRoomData.id)}
+                                onClick={() =>
+                                    handleDeleteVideoRoom(videoRoomData.id)
+                                }
                                 startIcon={<DeleteIcon />}
                                 disabled={videoRoomLoading}
                                 sx={{
@@ -801,7 +901,7 @@ const ContactDetailsPage = () => {
                                     px: { xs: 2, sm: 1.5 },
                                     borderRadius: 1.5,
                                     fontSize: { xs: "0.8rem", sm: "0.75rem" },
-                                    width: { xs: "100%", sm: "auto" }
+                                    width: { xs: "100%", sm: "auto" },
                                 }}
                             >
                                 Delete
@@ -816,7 +916,7 @@ const ContactDetailsPage = () => {
                                     px: { xs: 2, sm: 1.5 },
                                     borderRadius: 1.5,
                                     fontSize: { xs: "0.8rem", sm: "0.75rem" },
-                                    width: { xs: "100%", sm: "auto" }
+                                    width: { xs: "100%", sm: "auto" },
                                 }}
                             >
                                 Dismiss
@@ -834,32 +934,38 @@ const ContactDetailsPage = () => {
                             backgroundColor: "grey.50",
                             borderRadius: 2,
                             border: "1px solid",
-                            borderColor: "grey.200"
+                            borderColor: "grey.200",
                         }}
                     >
-                        <Typography 
-                            variant="h6" 
-                            sx={{ 
-                                mb: 2, 
+                        <Typography
+                            variant="h6"
+                            sx={{
+                                mb: 2,
                                 color: "text.primary",
                                 fontWeight: 600,
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 1,
-                                fontSize: "1.1rem"
+                                fontSize: "1.1rem",
                             }}
                         >
-                            <VideoCallIcon color="primary" sx={{ fontSize: 22 }} />
+                            <VideoCallIcon
+                                color="primary"
+                                sx={{ fontSize: 22 }}
+                            />
                             Video Rooms ({existingRooms.length})
                         </Typography>
-                        
+
                         {existingRooms.map((room, index) => (
                             <Paper
                                 key={room.id}
                                 elevation={1}
                                 sx={{
                                     p: 2,
-                                    mb: index < existingRooms.length - 1 ? 1.5 : 0,
+                                    mb:
+                                        index < existingRooms.length - 1
+                                            ? 1.5
+                                            : 0,
                                     borderRadius: 2,
                                     border: "1px solid",
                                     borderColor: "grey.200",
@@ -868,59 +974,78 @@ const ContactDetailsPage = () => {
                                     "&:hover": {
                                         elevation: 2,
                                         borderColor: "primary.light",
-                                        transform: "translateY(-1px)"
-                                    }
+                                        transform: "translateY(-1px)",
+                                    },
                                 }}
                             >
-                                <Box sx={{ 
-                                    display: "flex", 
-                                    flexDirection: { xs: "column", sm: "row" },
-                                    justifyContent: "space-between", 
-                                    alignItems: { xs: "stretch", sm: "flex-start" },
-                                    gap: { xs: 2, sm: 0 }
-                                }}>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: {
+                                            xs: "column",
+                                            sm: "row",
+                                        },
+                                        justifyContent: "space-between",
+                                        alignItems: {
+                                            xs: "stretch",
+                                            sm: "flex-start",
+                                        },
+                                        gap: { xs: 2, sm: 0 },
+                                    }}
+                                >
                                     <Box sx={{ flex: 1, mr: { xs: 0, sm: 2 } }}>
-                                        <Box sx={{ 
-                                            display: "flex", 
-                                            alignItems: "center", 
-                                            gap: { xs: 1, sm: 1.5 }, 
-                                            mb: 1,
-                                            flexWrap: "wrap"
-                                        }}>
+                                        <Box
+                                            sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: { xs: 1, sm: 1.5 },
+                                                mb: 1,
+                                                flexWrap: "wrap",
+                                            }}
+                                        >
                                             <Box
                                                 sx={{
                                                     p: 0.5,
                                                     borderRadius: "50%",
-                                                    backgroundColor: "primary.main",
+                                                    backgroundColor:
+                                                        "primary.main",
                                                     color: "white",
                                                     display: "flex",
                                                     alignItems: "center",
                                                     justifyContent: "center",
                                                     width: 24,
-                                                    height: 24
+                                                    height: 24,
                                                 }}
                                             >
-                                                <VideoCallIcon sx={{ fontSize: 14 }} />
+                                                <VideoCallIcon
+                                                    sx={{ fontSize: 14 }}
+                                                />
                                             </Box>
-                                            <Typography 
-                                                variant="subtitle1" 
-                                                sx={{ 
+                                            <Typography
+                                                variant="subtitle1"
+                                                sx={{
                                                     fontWeight: 600,
                                                     color: "text.primary",
-                                                    fontSize: { xs: "1rem", sm: "1.1rem" }
+                                                    fontSize: {
+                                                        xs: "1rem",
+                                                        sm: "1.1rem",
+                                                    },
                                                 }}
                                             >
                                                 {room.uniqueName}
                                             </Typography>
-                                            <Chip 
-                                                label={`${room.maxParticipants} participants`} 
-                                                size="small" 
-                                                color="primary" 
+                                            <Chip
+                                                label={`${room.maxParticipants} participants`}
+                                                size="small"
+                                                color="primary"
                                                 variant="filled"
-                                                sx={{ 
-                                                    fontSize: { xs: "0.7rem", sm: "0.75rem" }, 
+                                                sx={{
+                                                    fontSize: {
+                                                        xs: "0.7rem",
+                                                        sm: "0.75rem",
+                                                    },
                                                     height: { xs: 20, sm: 22 },
-                                                    fontWeight: 500
+                                                    fontWeight: 500,
                                                 }}
                                             />
                                             <Chip
@@ -929,66 +1054,107 @@ const ContactDetailsPage = () => {
                                                 color="secondary"
                                                 variant="filled"
                                                 sx={{
-                                                    fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                                                    fontSize: {
+                                                        xs: "0.7rem",
+                                                        sm: "0.75rem",
+                                                    },
                                                     height: { xs: 20, sm: 22 },
-                                                    fontWeight: 500
+                                                    fontWeight: 500,
                                                 }}
                                             />
                                             <Chip
-                                                label={getRoomStatus(room).label}
+                                                label={
+                                                    getRoomStatus(room).label
+                                                }
                                                 size="small"
-                                                color={getRoomStatus(room).color}
-                                                variant={isRoomExpired(room) ? "filled" : "outlined"}
+                                                color={
+                                                    getRoomStatus(room).color
+                                                }
+                                                variant={
+                                                    isRoomExpired(room)
+                                                        ? "filled"
+                                                        : "outlined"
+                                                }
                                                 sx={{
-                                                    fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                                                    fontSize: {
+                                                        xs: "0.7rem",
+                                                        sm: "0.75rem",
+                                                    },
                                                     height: { xs: 20, sm: 22 },
-                                                    fontWeight: 500
+                                                    fontWeight: 500,
                                                 }}
                                             />
                                         </Box>
-                                        <Typography 
-                                            variant="body2" 
+                                        <Typography
+                                            variant="body2"
                                             color="text.secondary"
-                                            sx={{ 
-                                                fontSize: { xs: "0.8rem", sm: "0.875rem" },
+                                            sx={{
+                                                fontSize: {
+                                                    xs: "0.8rem",
+                                                    sm: "0.875rem",
+                                                },
                                                 fontWeight: 500,
-                                                ml: { xs: 0, sm: 4 }
+                                                ml: { xs: 0, sm: 4 },
                                             }}
                                         >
-                                            Created {new Date(room.createdAt).toLocaleDateString('en-US', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                year: 'numeric'
-                                            })} at {new Date(room.createdAt).toLocaleTimeString('en-US', {
-                                                hour: '2-digit',
-                                                minute: '2-digit'
+                                            Created{" "}
+                                            {new Date(
+                                                room.createdAt
+                                            ).toLocaleDateString("en-US", {
+                                                month: "short",
+                                                day: "numeric",
+                                                year: "numeric",
+                                            })}{" "}
+                                            at{" "}
+                                            {new Date(
+                                                room.createdAt
+                                            ).toLocaleTimeString("en-US", {
+                                                hour: "2-digit",
+                                                minute: "2-digit",
                                             })}
                                         </Typography>
                                     </Box>
-                                    
-                                    <Box sx={{ 
-                                        display: "flex", 
-                                        gap: { xs: 0.5, sm: 1 }, 
-                                        alignItems: "center",
-                                        flexWrap: "wrap",
-                                        flexDirection: { xs: "column", sm: "row" },
-                                        width: { xs: "100%", sm: "auto" }
-                                    }}>
+
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            gap: { xs: 0.5, sm: 1 },
+                                            alignItems: "center",
+                                            flexWrap: "wrap",
+                                            flexDirection: {
+                                                xs: "column",
+                                                sm: "row",
+                                            },
+                                            width: { xs: "100%", sm: "auto" },
+                                        }}
+                                    >
                                         {!isRoomExpired(room) && (
                                             <Button
                                                 variant="contained"
                                                 color="primary"
                                                 size="small"
-                                                onClick={() => joinRoom(room.callId || room.joinUrl)}
+                                                onClick={() =>
+                                                    joinRoom(
+                                                        room.callId ||
+                                                            room.joinUrl
+                                                    )
+                                                }
                                                 startIcon={<VideoCallIcon />}
-                                                sx={{ 
-                                                    px: { xs: 2, sm: 2 }, 
+                                                sx={{
+                                                    px: { xs: 2, sm: 2 },
                                                     py: 0.75,
-                                                    fontSize: { xs: "0.8rem", sm: "0.8rem" },
+                                                    fontSize: {
+                                                        xs: "0.8rem",
+                                                        sm: "0.8rem",
+                                                    },
                                                     fontWeight: 600,
                                                     borderRadius: 1.5,
-                                                    boxShadow: "0 2px 8px rgba(25, 118, 210, 0.3)",
-                                                    width: { xs: "100%", sm: "auto" }
+                                                    boxShadow:
+                                                        "0 2px 8px rgba(25, 118, 210, 0.3)",
+                                                    width: {
+                                                        xs: "100%",
+                                                        sm: "auto",
+                                                    },
                                                 }}
                                             >
                                                 Join
@@ -999,15 +1165,27 @@ const ContactDetailsPage = () => {
                                                 variant="outlined"
                                                 color="info"
                                                 size="small"
-                                                onClick={() => handleShareVideoRoomLink(room.joinUrl, room.durationMinutes || 30)}
+                                                onClick={() =>
+                                                    handleShareVideoRoomLink(
+                                                        room.joinUrl,
+                                                        room.durationMinutes ||
+                                                            30
+                                                    )
+                                                }
                                                 disabled={videoRoomLoading}
-                                                sx={{ 
-                                                    px: { xs: 2, sm: 1.5 }, 
+                                                sx={{
+                                                    px: { xs: 2, sm: 1.5 },
                                                     py: 0.75,
-                                                    fontSize: { xs: "0.8rem", sm: "0.8rem" },
+                                                    fontSize: {
+                                                        xs: "0.8rem",
+                                                        sm: "0.8rem",
+                                                    },
                                                     fontWeight: 500,
                                                     borderRadius: 1.5,
-                                                    width: { xs: "100%", sm: "auto" }
+                                                    width: {
+                                                        xs: "100%",
+                                                        sm: "auto",
+                                                    },
                                                 }}
                                             >
                                                 Share
@@ -1018,16 +1196,26 @@ const ContactDetailsPage = () => {
                                                 variant="outlined"
                                                 color="primary"
                                                 size="small"
-                                                onClick={() => handleOpenVideoRoomSettings(room)}
+                                                onClick={() =>
+                                                    handleOpenVideoRoomSettings(
+                                                        room
+                                                    )
+                                                }
                                                 startIcon={<SettingsIcon />}
                                                 disabled={videoRoomLoading}
-                                                sx={{ 
-                                                    px: { xs: 2, sm: 1.5 }, 
+                                                sx={{
+                                                    px: { xs: 2, sm: 1.5 },
                                                     py: 0.75,
-                                                    fontSize: { xs: "0.8rem", sm: "0.8rem" },
+                                                    fontSize: {
+                                                        xs: "0.8rem",
+                                                        sm: "0.8rem",
+                                                    },
                                                     fontWeight: 500,
                                                     borderRadius: 1.5,
-                                                    width: { xs: "100%", sm: "auto" }
+                                                    width: {
+                                                        xs: "100%",
+                                                        sm: "auto",
+                                                    },
                                                 }}
                                             >
                                                 Settings
@@ -1037,16 +1225,24 @@ const ContactDetailsPage = () => {
                                             variant="outlined"
                                             color="error"
                                             size="small"
-                                            onClick={() => handleDeleteVideoRoom(room.id)}
+                                            onClick={() =>
+                                                handleDeleteVideoRoom(room.id)
+                                            }
                                             startIcon={<DeleteIcon />}
                                             disabled={videoRoomLoading}
-                                            sx={{ 
-                                                px: { xs: 2, sm: 1.5 }, 
+                                            sx={{
+                                                px: { xs: 2, sm: 1.5 },
                                                 py: 0.75,
-                                                fontSize: { xs: "0.8rem", sm: "0.8rem" },
+                                                fontSize: {
+                                                    xs: "0.8rem",
+                                                    sm: "0.8rem",
+                                                },
                                                 fontWeight: 500,
                                                 borderRadius: 1.5,
-                                                width: { xs: "100%", sm: "auto" }
+                                                width: {
+                                                    xs: "100%",
+                                                    sm: "auto",
+                                                },
                                             }}
                                         >
                                             Delete
@@ -1136,14 +1332,14 @@ const ContactDetailsPage = () => {
                                         borderRadius: 2,
                                         backgroundColor: "white",
                                         "&:hover .MuiOutlinedInput-notchedOutline":
-                                        {
-                                            borderColor: "primary.dark",
-                                        },
+                                            {
+                                                borderColor: "primary.dark",
+                                            },
                                         "&.Mui-focused .MuiOutlinedInput-notchedOutline":
-                                        {
-                                            borderColor: "primary.main",
-                                            borderWidth: 3,
-                                        },
+                                            {
+                                                borderColor: "primary.main",
+                                                borderWidth: 3,
+                                            },
                                         "&.Mui-disabled": {
                                             backgroundColor: "grey.200",
                                         },
@@ -1174,16 +1370,18 @@ const ContactDetailsPage = () => {
                                             <ListItem sx={{ px: 0 }}>
                                                 <ListItemText
                                                     primary={job.name}
-                                                    secondary={`Status: ${job.status
-                                                        } • Amount: $${job.amount?.toLocaleString() ||
+                                                    secondary={`Status: ${
+                                                        job.status
+                                                    } • Amount: $${
+                                                        job.amount?.toLocaleString() ||
                                                         "N/A"
-                                                        }`}
+                                                    }`}
                                                 />
                                             </ListItem>
                                             {index <
                                                 contact.jobs.length - 1 && (
-                                                    <Divider />
-                                                )}
+                                                <Divider />
+                                            )}
                                         </React.Fragment>
                                     ))}
                                 </List>
@@ -1384,14 +1582,20 @@ const ContactDetailsPage = () => {
                             />
                         </Grid>
                         <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    mt: 2,
+                                }}
+                            >
                                 <input
                                     type="checkbox"
                                     id="enableRecording"
                                     name="enableRecording"
                                     checked={videoRoomSettings.enableRecording}
                                     onChange={handleVideoRoomSettingsChange}
-                                    style={{ marginRight: '8px' }}
+                                    style={{ marginRight: "8px" }}
                                 />
                                 <label htmlFor="enableRecording">
                                     <Typography variant="body1">
@@ -1399,7 +1603,11 @@ const ContactDetailsPage = () => {
                                     </Typography>
                                 </label>
                             </Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 1 }}
+                            >
                                 Allow recording of the video room session
                             </Typography>
                         </Grid>
