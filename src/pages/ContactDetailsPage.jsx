@@ -797,15 +797,7 @@ const ContactDetailsPage = () => {
                             >
                                 {videoRoomData.uniqueName}
                             </Typography>
-                            <Chip
-                                label={`${
-                                    videoRoomData.maxParticipants || 10
-                                } max`}
-                                size="small"
-                                color="success"
-                                variant="filled"
-                                sx={{ fontSize: "0.7rem", height: 20 }}
-                            />
+
                             <Chip
                                 label="New"
                                 size="small"
@@ -835,78 +827,6 @@ const ContactDetailsPage = () => {
                             }}
                         >
                             <Button
-                                variant="contained"
-                                color="success"
-                                size="small"
-                                onClick={handleJoinVideoRoom}
-                                startIcon={<VideoCallIcon />}
-                                sx={{
-                                    fontWeight: 600,
-                                    px: { xs: 2, sm: 2 },
-                                    borderRadius: 1.5,
-                                    fontSize: { xs: "0.8rem", sm: "0.75rem" },
-                                    width: { xs: "100%", sm: "auto" },
-                                }}
-                            >
-                                Join Now
-                            </Button>
-                            <Button
-                                variant="contained"
-                                color="info"
-                                size="small"
-                                onClick={() =>
-                                    handleShareVideoRoomLink(
-                                        videoRoomData.joinUrl
-                                    )
-                                }
-                                disabled={videoRoomLoading}
-                                sx={{
-                                    fontWeight: 500,
-                                    px: { xs: 2, sm: 1.5 },
-                                    borderRadius: 1.5,
-                                    fontSize: { xs: "0.8rem", sm: "0.75rem" },
-                                    width: { xs: "100%", sm: "auto" },
-                                }}
-                            >
-                                Share
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                color="primary"
-                                size="small"
-                                onClick={() => handleOpenVideoRoomSettings()}
-                                startIcon={<SettingsIcon />}
-                                disabled={videoRoomLoading}
-                                sx={{
-                                    fontWeight: 500,
-                                    px: { xs: 2, sm: 1.5 },
-                                    borderRadius: 1.5,
-                                    fontSize: { xs: "0.8rem", sm: "0.75rem" },
-                                    width: { xs: "100%", sm: "auto" },
-                                }}
-                            >
-                                Settings
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                color="error"
-                                size="small"
-                                onClick={() =>
-                                    handleDeleteVideoRoom(videoRoomData.id)
-                                }
-                                startIcon={<DeleteIcon />}
-                                disabled={videoRoomLoading}
-                                sx={{
-                                    fontWeight: 500,
-                                    px: { xs: 2, sm: 1.5 },
-                                    borderRadius: 1.5,
-                                    fontSize: { xs: "0.8rem", sm: "0.75rem" },
-                                    width: { xs: "100%", sm: "auto" },
-                                }}
-                            >
-                                Delete
-                            </Button>
-                            <Button
                                 variant="text"
                                 color="success"
                                 size="small"
@@ -917,6 +837,7 @@ const ContactDetailsPage = () => {
                                     borderRadius: 1.5,
                                     fontSize: { xs: "0.8rem", sm: "0.75rem" },
                                     width: { xs: "100%", sm: "auto" },
+                                    border: "1px solid",
                                 }}
                             >
                                 Dismiss
@@ -1034,20 +955,7 @@ const ContactDetailsPage = () => {
                                             >
                                                 {room.uniqueName}
                                             </Typography>
-                                            <Chip
-                                                label={`${room.maxParticipants} participants`}
-                                                size="small"
-                                                color="primary"
-                                                variant="filled"
-                                                sx={{
-                                                    fontSize: {
-                                                        xs: "0.7rem",
-                                                        sm: "0.75rem",
-                                                    },
-                                                    height: { xs: 20, sm: 22 },
-                                                    fontWeight: 500,
-                                                }}
-                                            />
+
                                             <Chip
                                                 label={`${room.durationMinutes} min`}
                                                 size="small"
@@ -1191,36 +1099,7 @@ const ContactDetailsPage = () => {
                                                 Share
                                             </Button>
                                         )}
-                                        {!isRoomExpired(room) && (
-                                            <Button
-                                                variant="outlined"
-                                                color="primary"
-                                                size="small"
-                                                onClick={() =>
-                                                    handleOpenVideoRoomSettings(
-                                                        room
-                                                    )
-                                                }
-                                                startIcon={<SettingsIcon />}
-                                                disabled={videoRoomLoading}
-                                                sx={{
-                                                    px: { xs: 2, sm: 1.5 },
-                                                    py: 0.75,
-                                                    fontSize: {
-                                                        xs: "0.8rem",
-                                                        sm: "0.8rem",
-                                                    },
-                                                    fontWeight: 500,
-                                                    borderRadius: 1.5,
-                                                    width: {
-                                                        xs: "100%",
-                                                        sm: "auto",
-                                                    },
-                                                }}
-                                            >
-                                                Settings
-                                            </Button>
-                                        )}
+
                                         <Button
                                             variant="outlined"
                                             color="error"
