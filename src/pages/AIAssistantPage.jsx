@@ -413,7 +413,7 @@ const AIAssistantPage = () => {
                     }}
                     id="conversation-list-scrollable-div" // ID for InfiniteScroll
                 >
-                    <Box sx={{ p: 2 }}>
+                    <Box sx={{ p: 2, flexShrink: 0 }}> {/* Fixed header */}
                         <Typography variant="h6" gutterBottom>
                             Conversations
                         </Typography>
@@ -430,76 +430,78 @@ const AIAssistantPage = () => {
                     </Box>
                     <Divider />
 
-                    <InfiniteScroll
-                        dataLength={conversations.length}
-                        next={fetchMoreConversations}
-                        hasMore={hasMoreConversations}
-                        loader={
-                            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                                <CircularProgress size={24} />
-                            </Box>
-                        }
-                        endMessage={
-                            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                                {totalConversations > 0 ? "You have seen all conversations" : "No conversations found."}
-                            </Typography>
-                        }
-                        scrollableTarget="conversation-list-scrollable-div"
-                    >
-                        <List sx={{ flexGrow: 1 }}> {/* Removed overflow from here as parent handles it */}
-                            {isInitialLoading ? ( // Use isInitialLoading for the full-list skeleton
-                                Array.from({ length: 3 }).map((_, index) => (
-                                    <ListItem
-                                        key={`skeleton-${index}`}
-                                        disablePadding
-                                    >
-                                        <ListItemButton>
-                                            <Skeleton
-                                                variant="text"
-                                                width="100%"
-                                                height={40}
-                                            />
-                                        </ListItemButton>
-                                    </ListItem>
-                                ))
-                            ) : (
-                                conversations.map((conversation) => (
-                                    <ListItem
-                                        key={conversation.contactId}
-                                        disablePadding
-                                    >
-                                        <ListItemButton
-                                            selected={
-                                                activeConversation?.contactId ===
-                                                conversation.contactId
-                                            }
-                                            onClick={() =>
-                                                selectConversation(
-                                                    conversation.contactId
-                                                )
-                                            }
+                    <Box id="conversation-list-scrollable-div-inner" sx={{ flexGrow: 1, overflowY: "auto" }}> {/* Inner scrollable container */}
+                        <InfiniteScroll
+                            dataLength={conversations.length}
+                            next={fetchMoreConversations}
+                            hasMore={hasMoreConversations}
+                            loader={
+                                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                                    <CircularProgress size={24} />
+                                </Box>
+                            }
+                            endMessage={
+                                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                                    {totalConversations > 0 ? "You have seen all conversations" : "No conversations found."}
+                                </Typography>
+                            }
+                            scrollableTarget="conversation-list-scrollable-div-inner" // Target the inner scrollable div
+                        >
+                            <List sx={{ flexGrow: 1 }}>
+                                {isInitialLoading ? (
+                                    Array.from({ length: 3 }).map((_, index) => (
+                                        <ListItem
+                                            key={`skeleton-${index}`}
+                                            disablePadding
                                         >
-                                            <ListItemText
-                                                primary={
-                                                    conversation.contactName ||
-                                                    "Unnamed Contact"
-                                                }
-                                            />
-                                            <Badge
-                                                badgeContent={
-                                                    unreadCounts[
-                                                        conversation.contactId
-                                                    ] || 0
-                                                }
-                                                color="primary"
-                                                sx={{ ml: 1 }}
+                                            <ListItemButton>
+                                                <Skeleton
+                                                    variant="text"
+                                                    width="100%"
+                                                    height={40}
                                                 />
-                                        </ListItemButton>
-                                    </ListItem>
-                                ))
-                            )}
-                        </List>
-                    </InfiniteScroll>
+                                            </ListItemButton>
+                                        </ListItem>
+                                    ))
+                                ) : (
+                                    conversations.map((conversation) => (
+                                        <ListItem
+                                            key={conversation.contactId}
+                                            disablePadding
+                                        >
+                                            <ListItemButton
+                                                selected={
+                                                    activeConversation?.contactId ===
+                                                    conversation.contactId
+                                                }
+                                                onClick={() =>
+                                                    selectConversation(
+                                                        conversation.contactId
+                                                    )
+                                                }
+                                            >
+                                                <ListItemText
+                                                    primary={
+                                                        conversation.contactName ||
+                                                        "Unnamed Contact"
+                                                    }
+                                                />
+                                                <Badge
+                                                    badgeContent={
+                                                        unreadCounts[
+                                                            conversation.contactId
+                                                        ] || 0
+                                                    }
+                                                    color="primary"
+                                                    sx={{ ml: 1 }}
+                                                    />
+                                            </ListItemButton>
+                                        </ListItem>
+                                    ))
+                                )}
+                            </List>
+                        </InfiniteScroll>
+                    </Box>
                 </Box>
 
                 {/* Chat Area - Using Socket.IO AIChat Component */}
