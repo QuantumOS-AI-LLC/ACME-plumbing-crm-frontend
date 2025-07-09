@@ -381,16 +381,16 @@ const AIAssistantPage = () => {
     }
 
     return (
-        <Box>
+        <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
             <PageHeader title="AI Assistant" />
             <Box
                 sx={{
                     display: "flex",
                     flexDirection: { xs: "column", sm: "row" },
-                    minHeight: "calc(100vh - 100px)", // Adjusted to prevent outer scrollbar
+                    flexGrow: 1, // This will make it take all remaining vertical space
                     borderRadius: 2,
                     boxShadow: 1,
-                    flexGrow: 1,
+                    overflow: "hidden", // To contain children's scrollbars if any
                 }}
             >
                 {/* Sidebar */}
@@ -399,7 +399,7 @@ const AIAssistantPage = () => {
                         width: { sm: 240 },
                         minWidth: { sm: 240 },
                         maxWidth: { sm: 240 },
-                        height: "calc(100vh - 100px)", // Adjusted to match the main container's height
+                        height: "100%", // This will be 100% of the flex-grown parent
                         bgcolor: "background.paper",
                         borderRight: 1,
                         borderColor: "divider",
@@ -512,7 +512,7 @@ const AIAssistantPage = () => {
                             sm: "flex",
                         },
                         flexDirection: "column",
-                        height: "100%",
+                        height: "100%", // Ensure chat area takes full height of its parent
                     }}
                 >
                     {activeConversation ? (
@@ -544,7 +544,7 @@ const AIAssistantPage = () => {
                             </Box>
 
                             {/* Socket.IO Chat Component */}
-                            <Box sx={{ flexGrow: 1, p: 2 }}>
+                            <Box sx={{ flexGrow: 1, p: 2, overflowY: "auto" }}> {/* Added overflowY to chat messages */}
                                 <AIChat
                                     contactId={activeConversation.contactId}
                                     estimateId={activeConversation.estimateId}
