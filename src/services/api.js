@@ -749,9 +749,11 @@ export const deleteNotification = async (id) => {
     }
 };
 
-export const getConversations = async () => {
+export const getConversations = async (page = 1, limit = 10) => {
     try {
-        const response = await api.get("/ai/conversations");
+        const response = await api.get("/ai/conversations", {
+            params: { page, limit },
+        });
         return response.data;
     } catch (error) {
         console.error("Error fetching AI conversations:", error);

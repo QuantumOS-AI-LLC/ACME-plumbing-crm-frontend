@@ -25,6 +25,7 @@ import {
 import { useSocket } from "../contexts/SocketContext";
 import { useAuth } from "../hooks/useAuth"; // Corrected import path for useAuth
 import { useSearchParams } from "react-router-dom";
+import InfiniteScroll from "react-infinite-scroll-component"; // Import InfiniteScroll
 
 // BOT_CONTACT_ID will now come from AuthContext
 
@@ -40,7 +41,13 @@ const AIAssistantPage = () => {
     const [isConversationListVisible, setConversationListVisible] =
         useState(false);
     const { isConnected } = useSocket();
-    const [conversationsLoading, setConversationsLoading] = useState(false);
+    const [conversationsLoading, setConversationsLoading] = useState(false); // Used for the InfiniteScroll loader
+    const [isInitialLoading, setIsInitialLoading] = useState(true); // New state for initial full-list loading
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMoreConversations, setHasMoreConversations] = useState(true);
+    const [totalConversations, setTotalConversations] = useState(0);
+    const CONVERSATIONS_PER_PAGE = 10; // Define a constant for items per page
+
     // const [newConversationLoading, setNewConversationLoading] = useState(false); // Commented out - not needed when create functionality is disabled
 
     useEffect(() => {
@@ -77,65 +84,63 @@ const AIAssistantPage = () => {
         hideConversationList();
     }, [activeConversation]);
 
-    useEffect(() => {
-        const getBotContactIdFromUser = () => {
-            if (user) {
-                if (user.botContactId) {
-                    // Path if user object is directly the user details
-                    return user.botContactId;
-                } else if (
-                    user.data &&
-                    user.data.user &&
-                    user.data.user.botContactId
-                ) {
-                    // Path if user object is the full API response from localStorage
-                    return user.data.user.botContactId;
-                }
-            }
-            return null; // Return null if not found
-        };
-
-        const fetchAllConversations = async (currentBotContactId) => {
+    const fetchAllConversations = useCallback(
+        async (currentBotContactId, pageToFetch = 1, limitToFetch = CONVERSATIONS_PER_PAGE) => {
             if (!currentBotContactId) {
                 console.warn(
                     "Bot Contact ID not available yet. Skipping conversation load."
                 );
-                // Optionally, set conversations to empty or show a specific state
-                setConversations([]);
-                setActiveConversation(null);
+                if (pageToFetch === 1) {
+                    setConversations([]);
+                    setActiveConversation(null);
+                    setHasMoreConversations(false);
+                    setTotalConversations(0);
+                }
                 return;
             }
 
-            setConversationsLoading(true);
-            let finalConvos = [];
+            if (pageToFetch === 1) {
+                setIsInitialLoading(true);
+            }
+            setConversationsLoading(true); // This will be for the bottom loader
             try {
-                const res = await getConversations();
-                const apiConvos = res?.data || [];
+                const res = await getConversations(pageToFetch, limitToFetch);
+                const apiConvos = res?.data?.conversations || [];
+                const pagination = res?.data?.pagination;
 
-                const alliFromApi = apiConvos.find(
-                    (convo) => convo.contactId === currentBotContactId
-                );
+                let fetchedConvos = apiConvos;
 
-                if (alliFromApi) {
-                    alliFromApi.contactName = "Alli";
-                    finalConvos = [
-                        alliFromApi,
-                        ...apiConvos.filter(
-                            (convo) => convo.contactId !== currentBotContactId
-                        ),
-                    ];
-                } else {
-                    const localAlliConversation = {
-                        contactId: currentBotContactId,
-                        contactName: "Alli",
-                        lastMessage: null,
-                        estimateId: null,
-                    };
-                    finalConvos = [localAlliConversation, ...apiConvos];
+                // If fetching the first page, ensure Alli is at the top if she exists
+                if (pageToFetch === 1) {
+                    const alliFromApi = apiConvos.find(
+                        (convo) => convo.contactId === currentBotContactId
+                    );
+
+                    if (alliFromApi) {
+                        alliFromApi.contactName = "Alli";
+                        fetchedConvos = [
+                            alliFromApi,
+                            ...apiConvos.filter(
+                                (convo) => convo.contactId !== currentBotContactId
+                            ),
+                        ];
+                    } else {
+                        const localAlliConversation = {
+                            contactId: currentBotContactId,
+                            contactName: "Alli",
+                            lastMessage: null,
+                            estimateId: null,
+                        };
+                        fetchedConvos = [localAlliConversation, ...apiConvos];
+                    }
                 }
 
-                // Set conversations, ensuring the URL-driven new conversation is at the top if it exists
                 setConversations((prev) => {
+                    // If it's the first page, replace existing conversations
+                    // Otherwise, append new conversations
+                    const newConvos = pageToFetch === 1 ? fetchedConvos : [...prev, ...fetchedConvos];
+
+                    // Handle URL-driven new conversation, ensuring it's at the top if it exists
                     const newConvoFromURL =
                         contactId && conversationId
                             ? {
@@ -147,91 +152,132 @@ const AIAssistantPage = () => {
                               }
                             : null;
 
-                    let updatedConvos = finalConvos;
-
                     if (newConvoFromURL) {
-                        const existsInFetched = finalConvos.some(
+                        const existsInFetched = newConvos.some(
                             (convo) => convo.id === newConvoFromURL.id
                         );
                         if (!existsInFetched) {
                             // Add the new conversation from URL to the top if it's not already in the fetched list
-                            updatedConvos = [newConvoFromURL, ...finalConvos];
+                            return [newConvoFromURL, ...newConvos];
                         }
                     }
-                    return updatedConvos;
+                    return newConvos;
                 });
 
+                setHasMoreConversations(pagination?.hasNextPage || false);
+                setTotalConversations(pagination?.totalItems || 0);
+                setCurrentPage(pageToFetch);
+
                 // Determine active conversation after all conversations are set
-                if (contactId && conversationId) {
-                    const newConvoFromURL = {
-                        contactId: contactId,
-                        contactName: contactName,
-                        id: conversationId,
-                        lastMessage: null,
-                        estimateId: null,
-                    };
+                if (pageToFetch === 1) {
+                    if (contactId && conversationId) {
+                        const newConvoFromURL = {
+                            contactId: contactId,
+                            contactName: contactName,
+                            id: conversationId,
+                            lastMessage: null,
+                            estimateId: null,
+                        };
 
-                    // Prioritize the conversation from URL parameters
-                    const targetConversation = finalConvos.find(
-                        (convo) =>
-                            convo.contactId === contactId &&
-                            convo.id === conversationId
-                    );
+                        const targetConversation = fetchedConvos.find(
+                            (convo) =>
+                                convo.contactId === contactId &&
+                                convo.id === conversationId
+                        );
 
-                    if (!targetConversation) {
-                        finalConvos.unshift(newConvoFromURL); // Add to the beginning
+                        if (!targetConversation) {
+                            fetchedConvos.unshift(newConvoFromURL);
+                        }
+
+                        const targetConversationFinal = fetchedConvos.find(
+                            (convo) =>
+                                convo.contactId === contactId &&
+                                convo.id === conversationId
+                        );
+
+                        if (targetConversationFinal) {
+                            setActiveConversation(targetConversationFinal);
+                        } else if (fetchedConvos.length > 0) {
+                            setActiveConversation(fetchedConvos[0]);
+                        }
+                    } else if (fetchedConvos.length > 0) {
+                        setActiveConversation(fetchedConvos[0]);
                     }
-
-                    const targetConversationFinal = finalConvos.find(
-                        (convo) =>
-                            convo.contactId === contactId &&
-                            convo.id === conversationId
-                    );
-
-                    if (targetConversationFinal) {
-                        setActiveConversation(targetConversationFinal);
-                    } else if (finalConvos.length > 0) {
-                        setActiveConversation(finalConvos[0]);
-                    }
-                } else if (finalConvos.length > 0) {
-                    // If no specific conversation in URL, default to the first one
-                    setActiveConversation(finalConvos[0]);
                 }
             } catch (error) {
                 console.error("Error loading conversations:", error);
-                const localAlliConversation = {
-                    contactId: currentBotContactId, // Use currentBotContactId even in error
-                    contactName: "Alli",
-                    lastMessage: null,
-                    estimateId: null,
-                };
-                finalConvos = [localAlliConversation];
-                setConversations(finalConvos);
-                setActiveConversation(localAlliConversation);
+                if (pageToFetch === 1) {
+                    const localAlliConversation = {
+                        contactId: currentBotContactId,
+                        contactName: "Alli",
+                        lastMessage: null,
+                        estimateId: null,
+                    };
+                    setConversations([localAlliConversation]);
+                    setActiveConversation(localAlliConversation);
+                    setHasMoreConversations(false);
+                    setTotalConversations(1);
+                }
             } finally {
                 setConversationsLoading(false);
+                if (pageToFetch === 1) {
+                    setIsInitialLoading(false);
+                }
             }
-        };
+        },
+        [contactId, contactName, conversationId]
+    );
 
+    useEffect(() => {
         if (!authLoading) {
+            const getBotContactIdFromUser = () => {
+                if (user) {
+                    if (user.botContactId) {
+                        return user.botContactId;
+                    } else if (
+                        user.data &&
+                        user.data.user &&
+                        user.data.user.botContactId
+                    ) {
+                        return user.data.user.botContactId;
+                    }
+                }
+                return null;
+            };
             const botId = getBotContactIdFromUser();
             if (botId) {
-                fetchAllConversations(botId);
+                fetchAllConversations(botId, 1, CONVERSATIONS_PER_PAGE);
             } else {
-                // Handle case where botId is still not available after auth loading
                 console.warn(
                     "Bot Contact ID could not be determined from user profile."
                 );
-                // Fallback or show error, for now, we'll load an empty state or a default Alli.
-                // This part depends on desired behavior if botContactId is missing from user profile.
-                // For now, let's ensure Alli is still created with a placeholder if needed,
-                // or rely on the error handling within fetchAllConversations if it's passed null.
-                // To be safe, we can call fetchAllConversations with a null/undefined botId
-                // and let its internal logic handle the fallback if currentBotContactId is null.
-                fetchAllConversations(null); // Or handle this state more explicitly
+                fetchAllConversations(null, 1, CONVERSATIONS_PER_PAGE);
             }
         }
-    }, [authLoading, user]); // Rerun when authLoading or user changes
+    }, [authLoading, user, fetchAllConversations]);
+
+    const fetchMoreConversations = () => {
+        if (hasMoreConversations && !conversationsLoading) {
+            const getBotContactIdFromUser = () => {
+                if (user) {
+                    if (user.botContactId) {
+                        return user.botContactId;
+                    } else if (
+                        user.data &&
+                        user.data.user &&
+                        user.data.user.botContactId
+                    ) {
+                        return user.data.user.botContactId;
+                    }
+                }
+                return null;
+            };
+            const botId = getBotContactIdFromUser();
+            if (botId) {
+                fetchAllConversations(botId, currentPage + 1, CONVERSATIONS_PER_PAGE);
+            }
+        }
+    };
 
     const handleConversationSaved = useCallback(
         (savedContactId, newConversationId) => {
@@ -353,6 +399,7 @@ const AIAssistantPage = () => {
                         minWidth: { sm: 240 },
                         maxWidth: { sm: 240 },
                         height: "100%",
+                        maxHeight: "calc(100vh - 300px)", // Added explicit max height
                         bgcolor: "background.paper",
                         borderRight: 1,
                         borderColor: "divider",
@@ -362,7 +409,9 @@ const AIAssistantPage = () => {
                             sm: "flex",
                         },
                         flexDirection: "column",
+                        overflow: "auto", // Ensure this box is scrollable
                     }}
+                    id="conversation-list-scrollable-div" // ID for InfiniteScroll
                 >
                     <Box sx={{ p: 2 }}>
                         <Typography variant="h6" gutterBottom>
@@ -381,58 +430,76 @@ const AIAssistantPage = () => {
                     </Box>
                     <Divider />
 
-                    <List sx={{ flexGrow: 1, overflow: "auto" }}>
-                        {conversationsLoading
-                            ? // Loading skeleton for conversations
-                              Array.from({ length: 3 }).map((_, index) => (
-                                  <ListItem
-                                      key={`skeleton-${index}`}
-                                      disablePadding
-                                  >
-                                      <ListItemButton>
-                                          <Skeleton
-                                              variant="text"
-                                              width="100%"
-                                              height={40}
-                                          />
-                                      </ListItemButton>
-                                  </ListItem>
-                              ))
-                            : conversations.map((conversation) => (
-                                  <ListItem
-                                      key={conversation.contactId}
-                                      disablePadding
-                                  >
-                                      <ListItemButton
-                                          selected={
-                                              activeConversation?.contactId ===
-                                              conversation.contactId
-                                          }
-                                          onClick={() =>
-                                              selectConversation(
-                                                  conversation.contactId
-                                              )
-                                          }
-                                      >
-                                          <ListItemText
-                                              primary={
-                                                  conversation.contactName ||
-                                                  "Unnamed Contact"
-                                              }
-                                          />
-                                          <Badge
-                                              badgeContent={
-                                                  unreadCounts[
-                                                      conversation.contactId
-                                                  ] || 0
-                                              }
-                                              color="primary"
-                                              sx={{ ml: 1 }}
-                                          />
-                                      </ListItemButton>
-                                  </ListItem>
-                              ))}
-                    </List>
+                    <InfiniteScroll
+                        dataLength={conversations.length}
+                        next={fetchMoreConversations}
+                        hasMore={hasMoreConversations}
+                        loader={
+                            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                                <CircularProgress size={24} />
+                            </Box>
+                        }
+                        endMessage={
+                            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                                {totalConversations > 0 ? "You have seen all conversations" : "No conversations found."}
+                            </Typography>
+                        }
+                        scrollableTarget="conversation-list-scrollable-div"
+                    >
+                        <List sx={{ flexGrow: 1 }}> {/* Removed overflow from here as parent handles it */}
+                            {isInitialLoading ? ( // Use isInitialLoading for the full-list skeleton
+                                Array.from({ length: 3 }).map((_, index) => (
+                                    <ListItem
+                                        key={`skeleton-${index}`}
+                                        disablePadding
+                                    >
+                                        <ListItemButton>
+                                            <Skeleton
+                                                variant="text"
+                                                width="100%"
+                                                height={40}
+                                            />
+                                        </ListItemButton>
+                                    </ListItem>
+                                ))
+                            ) : (
+                                conversations.map((conversation) => (
+                                    <ListItem
+                                        key={conversation.contactId}
+                                        disablePadding
+                                    >
+                                        <ListItemButton
+                                            selected={
+                                                activeConversation?.contactId ===
+                                                conversation.contactId
+                                            }
+                                            onClick={() =>
+                                                selectConversation(
+                                                    conversation.contactId
+                                                )
+                                            }
+                                        >
+                                            <ListItemText
+                                                primary={
+                                                    conversation.contactName ||
+                                                    "Unnamed Contact"
+                                                }
+                                            />
+                                            <Badge
+                                                badgeContent={
+                                                    unreadCounts[
+                                                        conversation.contactId
+                                                    ] || 0
+                                                }
+                                                color="primary"
+                                                sx={{ ml: 1 }}
+                                                />
+                                        </ListItemButton>
+                                    </ListItem>
+                                ))
+                            )}
+                        </List>
+                    </InfiniteScroll>
                 </Box>
 
                 {/* Chat Area - Using Socket.IO AIChat Component */}
