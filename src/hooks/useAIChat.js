@@ -16,10 +16,13 @@ export const useAIChat = (contactId, estimateId = null, initialConversationId = 
     socket.on('ai_message', (messageData) => {
       console.log('AI message received:', messageData);
       
+      // Extract the actual message from the nested structure
+      const actualMessage = messageData.message;
+      
       // Only add if it's for the current conversation
-      if (messageData.contactId === contactId && 
-          messageData.estimateId === estimateId) {
-        setMessages(prev => [...prev, messageData]);
+      if (actualMessage.contactId === contactId && 
+          actualMessage.estimateId === estimateId) {
+        setMessages(prev => [...prev, actualMessage]);
       }
     });
 
