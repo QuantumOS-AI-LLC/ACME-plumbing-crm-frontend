@@ -387,7 +387,7 @@ const AIAssistantPage = () => {
                 sx={{
                     display: "flex",
                     flexDirection: { xs: "column", sm: "row" },
-                    minHeight: "calc(100vh - 180px)",
+                    minHeight: "calc(100vh - 100px)", // Adjusted to prevent outer scrollbar
                     borderRadius: 2,
                     boxShadow: 1,
                     flexGrow: 1,
@@ -399,7 +399,7 @@ const AIAssistantPage = () => {
                         width: { sm: 240 },
                         minWidth: { sm: 240 },
                         maxWidth: { sm: 240 },
-                        height: "calc(100vh - 180px)", // Set height to fill available space
+                        height: "calc(100vh - 100px)", // Adjusted to match the main container's height
                         bgcolor: "background.paper",
                         borderRight: 1,
                         borderColor: "divider",
