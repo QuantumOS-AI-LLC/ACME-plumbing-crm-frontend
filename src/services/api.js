@@ -761,9 +761,18 @@ export const getConversations = async (page = 1, limit = 10) => {
     }
 };
 
-export const getConversationMessages = async (contactId) => {
+export const getConversationMessages = async (
+    contactId,
+    page = 1,
+    limit = 15
+) => {
     try {
-        const response = await api.get(`/ai/conversation/contact/${contactId}`);
+        const response = await api.get(
+            `/ai/conversation/contact/${contactId}`,
+            {
+                params: { page, limit },
+            }
+        );
         return response.data;
     } catch (error) {
         console.error(
@@ -935,30 +944,36 @@ export const disconnectGoogleCalendar = async () => {
 // GetStream Video APIs (replacing Telnyx)
 export const generateVideoToken = async (userId, userName) => {
     try {
-        const response = await api.post('/video/generate-token', {
+        const response = await api.post("/video/generate-token", {
             userId,
-            userName
+            userName,
         });
         return response.data;
     } catch (error) {
-        console.error('Error generating video token:', error);
+        console.error("Error generating video token:", error);
         throw error;
     }
 };
 
-export const logCallSession = async (callId, participantId, participantName, userType, action) => {
+export const logCallSession = async (
+    callId,
+    participantId,
+    participantName,
+    userType,
+    action
+) => {
     try {
-        const response = await api.post('/video/call-session', {
+        const response = await api.post("/video/call-session", {
             callId,
             participantId,
             participantName,
             userType,
             action,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
         });
         return response.data;
     } catch (error) {
-        console.error('Error logging call session:', error);
+        console.error("Error logging call session:", error);
         // Don't throw error for logging failures
         return { success: false, error: error.message };
     }
@@ -1054,6 +1069,5 @@ export const deleteRoomFromSystem = async (id) => {
         throw error;
     }
 };
-
 
 export default api;
