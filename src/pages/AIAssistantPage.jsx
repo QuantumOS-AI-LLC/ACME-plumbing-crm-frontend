@@ -46,7 +46,7 @@ const AIAssistantPage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMoreConversations, setHasMoreConversations] = useState(true);
     const [totalConversations, setTotalConversations] = useState(0);
-    const CONVERSATIONS_PER_PAGE = 10; // Define a constant for items per page
+    const CONVERSATIONS_PER_PAGE = 20; // Define a constant for items per page
 
     // const [newConversationLoading, setNewConversationLoading] = useState(false); // Commented out - not needed when create functionality is disabled
 
@@ -390,6 +390,7 @@ const AIAssistantPage = () => {
                     minHeight: "calc(100vh - 180px)",
                     borderRadius: 2,
                     boxShadow: 1,
+                    flexGrow: 1,
                 }}
             >
                 {/* Sidebar */}
@@ -398,18 +399,17 @@ const AIAssistantPage = () => {
                         width: { sm: 240 },
                         minWidth: { sm: 240 },
                         maxWidth: { sm: 240 },
-                        height: "100%",
-                        maxHeight: "calc(100vh - 300px)", // Added explicit max height
+                        height: "calc(100vh - 180px)", // Set height to fill available space
                         bgcolor: "background.paper",
                         borderRight: 1,
                         borderColor: "divider",
-                        flexGrow: 1,
                         display: {
                             xs: isConversationListVisible ? "flex" : "none",
                             sm: "flex",
                         },
                         flexDirection: "column",
-                        overflow: "auto", // Ensure this box is scrollable
+                        overflowY: "auto", // Ensure this box is scrollable vertically
+                        overflowX: "hidden", // Hide horizontal scrollbar
                     }}
                     id="conversation-list-scrollable-div" // ID for InfiniteScroll
                 >
