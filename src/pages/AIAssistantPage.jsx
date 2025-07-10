@@ -605,7 +605,6 @@ const AIAssistantPage = () => {
                                             bgcolor: "action.hover", // Default hover background
                                         },
                                         borderRadius: 1,
-                                        p: 0.5,
                                     }}
                                 >
                                     <Typography
