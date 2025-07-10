@@ -85,7 +85,11 @@ const AIAssistantPage = () => {
     }, [activeConversation]);
 
     const fetchAllConversations = useCallback(
-        async (currentBotContactId, pageToFetch = 1, limitToFetch = CONVERSATIONS_PER_PAGE) => {
+        async (
+            currentBotContactId,
+            pageToFetch = 1,
+            limitToFetch = CONVERSATIONS_PER_PAGE
+        ) => {
             if (!currentBotContactId) {
                 console.warn(
                     "Bot Contact ID not available yet. Skipping conversation load."
@@ -121,7 +125,8 @@ const AIAssistantPage = () => {
                         fetchedConvos = [
                             alliFromApi,
                             ...apiConvos.filter(
-                                (convo) => convo.contactId !== currentBotContactId
+                                (convo) =>
+                                    convo.contactId !== currentBotContactId
                             ),
                         ];
                     } else {
@@ -138,7 +143,10 @@ const AIAssistantPage = () => {
                 setConversations((prev) => {
                     // If it's the first page, replace existing conversations
                     // Otherwise, append new conversations
-                    const newConvos = pageToFetch === 1 ? fetchedConvos : [...prev, ...fetchedConvos];
+                    const newConvos =
+                        pageToFetch === 1
+                            ? fetchedConvos
+                            : [...prev, ...fetchedConvos];
 
                     // Handle URL-driven new conversation, ensuring it's at the top if it exists
                     const newConvoFromURL =
@@ -274,7 +282,11 @@ const AIAssistantPage = () => {
             };
             const botId = getBotContactIdFromUser();
             if (botId) {
-                fetchAllConversations(botId, currentPage + 1, CONVERSATIONS_PER_PAGE);
+                fetchAllConversations(
+                    botId,
+                    currentPage + 1,
+                    CONVERSATIONS_PER_PAGE
+                );
             }
         }
     };
@@ -413,7 +425,9 @@ const AIAssistantPage = () => {
                     }}
                     id="conversation-list-scrollable-div" // ID for InfiniteScroll
                 >
-                    <Box sx={{ p: 2, flexShrink: 0 }}> {/* Fixed header */}
+                    <Box sx={{ p: 2, flexShrink: 0 }}>
+                        {" "}
+                        {/* Fixed header */}
                         <Typography variant="h6" gutterBottom>
                             Conversations
                         </Typography>
@@ -430,75 +444,93 @@ const AIAssistantPage = () => {
                     </Box>
                     <Divider />
 
-                    <Box id="conversation-list-scrollable-div-inner" sx={{ flexGrow: 1, overflowY: "auto" }}> {/* Inner scrollable container */}
+                    <Box
+                        id="conversation-list-scrollable-div-inner"
+                        sx={{ flexGrow: 1, overflowY: "auto" }}
+                    >
+                        {" "}
+                        {/* Inner scrollable container */}
                         <InfiniteScroll
                             dataLength={conversations.length}
                             next={fetchMoreConversations}
                             hasMore={hasMoreConversations}
                             loader={
-                                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        p: 2,
+                                    }}
+                                >
                                     <CircularProgress size={24} />
                                 </Box>
                             }
                             endMessage={
-                                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                                    {totalConversations > 0 ? "You have seen all conversations" : "No conversations found."}
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ textAlign: "center", py: 2 }}
+                                >
+                                    {totalConversations > 0
+                                        ? "You have seen all conversations"
+                                        : "No conversations found."}
                                 </Typography>
                             }
                             scrollableTarget="conversation-list-scrollable-div-inner" // Target the inner scrollable div
                         >
                             <List sx={{ flexGrow: 1 }}>
-                                {isInitialLoading ? (
-                                    Array.from({ length: 3 }).map((_, index) => (
-                                        <ListItem
-                                            key={`skeleton-${index}`}
-                                            disablePadding
-                                        >
-                                            <ListItemButton>
-                                                <Skeleton
-                                                    variant="text"
-                                                    width="100%"
-                                                    height={40}
-                                                />
-                                            </ListItemButton>
-                                        </ListItem>
-                                    ))
-                                ) : (
-                                    conversations.map((conversation) => (
-                                        <ListItem
-                                            key={conversation.contactId}
-                                            disablePadding
-                                        >
-                                            <ListItemButton
-                                                selected={
-                                                    activeConversation?.contactId ===
-                                                    conversation.contactId
-                                                }
-                                                onClick={() =>
-                                                    selectConversation(
-                                                        conversation.contactId
-                                                    )
-                                                }
-                                            >
-                                                <ListItemText
-                                                    primary={
-                                                        conversation.contactName ||
-                                                        "Unnamed Contact"
-                                                    }
-                                                />
-                                                <Badge
-                                                    badgeContent={
-                                                        unreadCounts[
-                                                            conversation.contactId
-                                                        ] || 0
-                                                    }
-                                                    color="primary"
-                                                    sx={{ ml: 1 }}
-                                                    />
-                                            </ListItemButton>
-                                        </ListItem>
-                                    ))
-                                )}
+                                {isInitialLoading
+                                    ? Array.from({ length: 3 }).map(
+                                          (_, index) => (
+                                              <ListItem
+                                                  key={`skeleton-${index}`}
+                                                  disablePadding
+                                              >
+                                                  <ListItemButton>
+                                                      <Skeleton
+                                                          variant="text"
+                                                          width="100%"
+                                                          height={40}
+                                                      />
+                                                  </ListItemButton>
+                                              </ListItem>
+                                          )
+                                      )
+                                    : conversations.map((conversation) => (
+                                          <ListItem
+                                              key={conversation.contactId}
+                                              disablePadding
+                                          >
+                                              <ListItemButton
+                                                  selected={
+                                                      activeConversation?.contactId ===
+                                                      conversation.contactId
+                                                  }
+                                                  onClick={() =>
+                                                      selectConversation(
+                                                          conversation.contactId
+                                                      )
+                                                  }
+                                              >
+                                                  <ListItemText
+                                                      primary={
+                                                          conversation.contactName ||
+                                                          "Unnamed Contact"
+                                                      }
+                                                  />
+                                                  <Badge
+                                                      badgeContent={
+                                                          unreadCounts[
+                                                              conversation
+                                                                  .contactId
+                                                          ] || 0
+                                                      }
+                                                      color="primary"
+                                                      sx={{ ml: 1 }}
+                                                  />
+                                              </ListItemButton>
+                                          </ListItem>
+                                      ))}
                             </List>
                         </InfiniteScroll>
                     </Box>
@@ -546,7 +578,9 @@ const AIAssistantPage = () => {
                             </Box>
 
                             {/* Socket.IO Chat Component */}
-                            <Box sx={{ flexGrow: 1, p: 2, overflowY: "auto" }}> {/* Added overflowY to chat messages */}
+                            <Box sx={{ flexGrow: 1, p: 2, overflowY: "auto" }}>
+                                {" "}
+                                {/* Added overflowY to chat messages */}
                                 <AIChat
                                     contactId={activeConversation.contactId}
                                     estimateId={activeConversation.estimateId}

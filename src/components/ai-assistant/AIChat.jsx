@@ -181,16 +181,6 @@ const AIChat = ({
                         const messageElements =
                             container.querySelectorAll("[data-message-id]");
 
-                        console.log("=== SCROLL RESTORATION DEBUG ===");
-                        console.log("New messages count:", newMessagesCount);
-                        console.log("Batch size:", batchSize);
-                        console.log("Total messages:", messages.length);
-                        console.log("Last message count:", lastMessageCount);
-                        console.log(
-                            "Message elements found:",
-                            messageElements.length
-                        );
-
                         if (
                             messageElements.length >= newMessagesCount &&
                             newMessagesCount > 0
@@ -537,11 +527,6 @@ const AIChat = ({
                                     mb: 1,
                                     position: "sticky",
                                     top: 0,
-                                    backgroundColor: "rgba(248, 249, 250, 0.9)",
-                                    backdropFilter: "blur(4px)",
-                                    borderRadius: "4px",
-                                    mx: 1,
-                                    zIndex: 1,
                                 }}
                             >
                                 <CircularProgress size={16} />
@@ -580,11 +565,6 @@ const AIChat = ({
                                 >
                                     <Box
                                         sx={{
-                                            maxWidth: {
-                                                xs: "90%",
-                                                sm: "80%",
-                                                md: "70%",
-                                            },
                                             minWidth: 0,
                                             display: "flex",
                                             flexDirection: "column",
