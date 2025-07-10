@@ -39,7 +39,6 @@ import { useWebhook } from "../hooks/webHook";
 import { useVideoRoom } from "../hooks/useVideoRoom";
 import CallDurationSelector from "../components/video/CallDurationSelector";
 import SimpleJobList from "../components/jobs/SimpleJobList";
-import { generateFakeJobsForContact } from "../utils/fakeJobData";
 
 const ContactDetailsPage = () => {
     const { id } = useParams();
@@ -1474,9 +1473,7 @@ const ContactDetailsPage = () => {
                         mb: 3,
                     }}
                 >
-                    <Typography variant="h6">
-                        Job History ({allJobCounts.total})
-                    </Typography>
+                    <Typography variant="h6">Job History</Typography>
                 </Box>
 
                 {/* Job Status Tabs */}
@@ -1488,22 +1485,10 @@ const ContactDetailsPage = () => {
                         variant="scrollable"
                         scrollButtons="auto"
                     >
-                        <Tab
-                            label={`Open Jobs (${allJobCounts.open})`}
-                            value="open"
-                        />
-                        <Tab
-                            label={`In Progress (${allJobCounts.in_progress})`}
-                            value="in_progress"
-                        />
-                        <Tab
-                            label={`Completed (${allJobCounts.completed})`}
-                            value="completed"
-                        />
-                        <Tab
-                            label={`Cancelled (${allJobCounts.cancelled})`}
-                            value="cancelled"
-                        />
+                        <Tab label="Open Jobs" value="open" />
+                        <Tab label="In Progress" value="in_progress" />
+                        <Tab label="Completed" value="completed" />
+                        <Tab label="Cancelled" value="cancelled" />
                     </Tabs>
                 </Box>
 
@@ -1562,7 +1547,7 @@ const ContactDetailsPage = () => {
                                 py: 1.2,
                             }}
                         >
-                            View All {filteredJobs.length} Jobs
+                            View All
                         </Button>
                     </Box>
                 )}

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Box, Typography, Chip, Button } from "@mui/material";
-import JobDetailsModal from "./JobDetailsModal";
+import { useNavigate } from "react-router-dom";
 
 const formatCurrency = (amount) => {
     if (!amount && amount !== 0) return "N/A";
@@ -42,18 +42,7 @@ const getStatusColor = (status) => {
 };
 
 const SimpleJobList = ({ jobs = [] }) => {
-    const [selectedJob, setSelectedJob] = useState(null);
-    const [modalOpen, setModalOpen] = useState(false);
-
-    const handleViewDetails = (job) => {
-        setSelectedJob(job);
-        setModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
-        setModalOpen(false);
-        setSelectedJob(null);
-    };
+    const navigate = useNavigate();
 
     if (jobs.length === 0) {
         return (
@@ -165,6 +154,7 @@ const SimpleJobList = ({ jobs = [] }) => {
                             color: "primary.main",
                             textAlign: "right",
                             minWidth: 80,
+                            flex: 1,
                         }}
                     >
                         {formatCurrency(job.price || job.bidAmount)}
@@ -175,7 +165,7 @@ const SimpleJobList = ({ jobs = [] }) => {
                         size="small"
                         onClick={(e) => {
                             e.stopPropagation();
-                            handleViewDetails(job);
+                            navigate(`/jobs/contact/${job.id}`);
                         }}
                         sx={{
                             ml: 2,
@@ -196,15 +186,6 @@ const SimpleJobList = ({ jobs = [] }) => {
                     </Button>
                 </Box>
             ))}
-
-            {/* Job Details Modal */}
-            {selectedJob && (
-                <JobDetailsModal
-                    open={modalOpen}
-                    handleClose={handleCloseModal}
-                    job={selectedJob}
-                />
-            )}
         </Box>
     );
 };
