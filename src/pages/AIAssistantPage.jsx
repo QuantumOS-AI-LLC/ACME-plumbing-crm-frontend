@@ -462,16 +462,18 @@ const AIAssistantPage = () => {
                                         selectConversation(botContactConversation.contactId)
                                     }
                                 >
-                                    <ListItemText
-                                        primary={botContactConversation.contactName || "Alli"}
-                                    />
-                                    <Badge
-                                        badgeContent={
-                                            unreadCounts[botContactConversation.contactId] || 0
-                                        }
-                                        color="primary"
-                                        sx={{ ml: 1 }}
-                                    />
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography variant="body1" sx={{ fontSize: '1.2rem', color: 'primary.main' }}>
+                                            🤖 {botContactConversation.contactName || "Alli"}
+                                        </Typography>
+                                        <Badge
+                                            badgeContent={
+                                                unreadCounts[botContactConversation.contactId] || 0
+                                            }
+                                            color="primary"
+                                            sx={{ ml: 1 }}
+                                        />
+                                    </Box>
                                 </ListItemButton>
                             </ListItem>
                         </List>
