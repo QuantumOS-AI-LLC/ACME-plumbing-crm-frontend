@@ -1450,20 +1450,20 @@ const ContactDetailsPage = () => {
             </Paper>
 
             {/* Enhanced Job History Section */}
-            <Paper sx={{ p: 3, mb: 3 }}>
+            <Paper sx={{ p: 2, mb: 3 }}>
                 <Box
                     sx={{
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
-                        mb: 3,
+                        mb: 0,
                     }}
                 >
                     <Typography variant="h6">Recent Jobs</Typography>
                 </Box>
 
                 {/* Job Status Tabs */}
-                <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+                <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 0 }}>
                     <Tabs
                         value={activeJobTab}
                         onChange={handleJobTabChange}

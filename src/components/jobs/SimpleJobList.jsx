@@ -611,7 +611,7 @@ const SimpleJobList = ({ jobs = [] }) => {
         <Box
             sx={{
                 width: "100%",
-                borderRadius: 2,
+                borderRadius: 0,
                 bgcolor: "background.paper",
                 boxShadow: 1,
                 overflow: "hidden",
@@ -628,7 +628,7 @@ const SimpleJobList = ({ jobs = [] }) => {
                     sx={{
                         display: "flex",
                         alignItems: "center",
-                        py: 2,
+                        py: 1,
                         px: 3,
                         borderBottom: "2px solid",
                         borderColor: "divider",
@@ -727,7 +727,7 @@ const SimpleJobList = ({ jobs = [] }) => {
                         sx={{
                             display: "flex",
                             alignItems: "center",
-                            py: 2,
+                            py: 1,
                             px: 3,
                             borderBottom:
                                 index < jobs.length - 1 ? "1px solid" : "none",
