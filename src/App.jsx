@@ -32,6 +32,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import NotificationSettingsPage from "./pages/NotificationSettingsPage";
 import MyServicesPage from "./pages/MyServicesPage";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
+import ContactJobsPage from "./pages/ContactJobsPage";
 import CallManager from "./components/video/CallManager";
 
 // Protected route wrapper
@@ -105,6 +106,17 @@ const App = () => {
                                                         <ProtectedRoute>
                                                             <Layout>
                                                                 <JobsPage />
+                                                            </Layout>
+                                                        </ProtectedRoute>
+                                                    }
+                                                />
+
+                                                <Route
+                                                    path="/jobs/contact/:contactId"
+                                                    element={
+                                                        <ProtectedRoute>
+                                                            <Layout>
+                                                                <ContactJobsPage />
                                                             </Layout>
                                                         </ProtectedRoute>
                                                     }
