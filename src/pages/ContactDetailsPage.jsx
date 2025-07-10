@@ -150,7 +150,7 @@ const ContactDetailsPage = () => {
     };
 
     const handleViewAllJobs = () => {
-        navigate(`/contacts/${id}/jobs`);
+        navigate(`/jobs/contact/${id}`);
     };
 
     // Load all job counts for tabs
@@ -238,13 +238,6 @@ const ContactDetailsPage = () => {
                     params.status = status;
                 }
 
-                console.log(
-                    "Loading jobs for contact:",
-                    id,
-                    "with params:",
-                    params
-                );
-
                 try {
                     const response = await fetchJobsByContact(id, params);
 
@@ -324,10 +317,6 @@ const ContactDetailsPage = () => {
                 setLoading(true);
                 const response = await fetchContact(id);
                 if (response && response.data) {
-                    console.log(
-                        "ContactDetailsPage: Loaded contact",
-                        response.data
-                    );
                     setContact(response.data);
                     setEditFormData({
                         name: response.data.name || "",
@@ -461,10 +450,7 @@ const ContactDetailsPage = () => {
                 status: editFormData.status || "client",
                 tags: editFormData.tags,
             };
-            console.log(
-                "ContactDetailsPage: Submitting contact data",
-                contactDataToSubmit
-            );
+
             const response = await updateContact(id, contactDataToSubmit);
             const webHookData = {
                 webhookEvent: "ContactUpdated",
@@ -1473,7 +1459,7 @@ const ContactDetailsPage = () => {
                         mb: 3,
                     }}
                 >
-                    <Typography variant="h6">Job History</Typography>
+                    <Typography variant="h6">Recent Jobs</Typography>
                 </Box>
 
                 {/* Job Status Tabs */}
@@ -1484,11 +1470,77 @@ const ContactDetailsPage = () => {
                         aria-label="job status tabs"
                         variant="scrollable"
                         scrollButtons="auto"
+                        sx={{
+                            "& .MuiTabs-flexContainer": {
+                                gap: { xs: 0, sm: 1 },
+                            },
+                            "& .MuiTab-root": {
+                                minWidth: { xs: "auto", sm: 120 },
+                                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                                fontWeight: 600,
+                                textTransform: "none",
+                                px: { xs: 1, sm: 2 },
+                                py: { xs: 1.5, sm: 2 },
+                                "&.Mui-selected": {
+                                    color: "primary.main",
+                                    fontWeight: 700,
+                                },
+                            },
+                            "& .MuiTabs-indicator": {
+                                height: 3,
+                                borderRadius: "3px 3px 0 0",
+                            },
+                            "& .MuiTabs-scrollButtons": {
+                                "&.Mui-disabled": {
+                                    opacity: 0.3,
+                                },
+                            },
+                        }}
                     >
-                        <Tab label="Open Jobs" value="open" />
-                        <Tab label="In Progress" value="in_progress" />
-                        <Tab label="Completed" value="completed" />
-                        <Tab label="Cancelled" value="cancelled" />
+                        <Tab
+                            label="Open Jobs"
+                            value="open"
+                            sx={{
+                                "& .MuiTab-wrapper": {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                },
+                            }}
+                        />
+                        <Tab
+                            label="In Progress"
+                            value="in_progress"
+                            sx={{
+                                "& .MuiTab-wrapper": {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                },
+                            }}
+                        />
+                        <Tab
+                            label="Completed"
+                            value="completed"
+                            sx={{
+                                "& .MuiTab-wrapper": {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                },
+                            }}
+                        />
+                        <Tab
+                            label="Cancelled"
+                            value="cancelled"
+                            sx={{
+                                "& .MuiTab-wrapper": {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                },
+                            }}
+                        />
                     </Tabs>
                 </Box>
 
@@ -1544,7 +1596,8 @@ const ContactDetailsPage = () => {
                                 textTransform: "none",
                                 fontWeight: 400,
                                 px: 2,
-                                py: 1.2,
+                                py: 1,
+                                width: "100%",
                             }}
                         >
                             View All
