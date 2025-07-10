@@ -29,6 +29,7 @@ import { updateEstimate } from "../../services/api";
 import CreateEstimateForm from "./CreateEstimateForm";
 import { useNotifications } from "../../contexts/NotificationContext"; // Add this import
 import { toast } from "sonner";
+import { useWebhook } from "../../hooks/webHook";
 
 const ESTIMATE_STATUS = {
     PENDING: "pending",
@@ -67,6 +68,7 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
     const [openEdit, setOpenEdit] = useState(false);
     const [loading, setLoading] = useState(false);
     const { addNotification } = useNotifications(); // Add this line
+    const { sendWebhook } = useWebhook(); // Import the webhook hook
 
     console.log("EstimateCard estimate:", estimate);
 
@@ -144,6 +146,14 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                     relatedId: transformedEstimate.id,
                 };
 
+                const webHookData = {
+                    ...result.data,
+                };
+
+                await sendWebhook({
+                    payload: webHookData,
+                });
+
                 // Add notification to context (this will trigger toast)
                 addNotification(acceptedNotification);
             }
@@ -195,7 +205,9 @@ const EstimateCard = ({ estimate, onClick, onViewClick, onUpdate }) => {
                 }}
                 onClick={handleCardClick}
             >
-                <CardContent sx={{ padding: 3, paddingTop: 2, paddingBottom:2 }}>
+                <CardContent
+                    sx={{ padding: 3, paddingTop: 2, paddingBottom: 2 }}
+                >
                     <Box
                         sx={{
                             display: "flex",

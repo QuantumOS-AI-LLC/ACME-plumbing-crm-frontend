@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 import {
     Box,
     TextField,
@@ -9,37 +10,52 @@ import {
     Chip,
     Modal,
     IconButton,
+    ButtonBase, // Import ButtonBase for clickable Typography
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import DownloadIcon from "@mui/icons-material/Download";
 import CloseIcon from "@mui/icons-material/Close";
 import { useAIChat } from "../../hooks/useAIChat";
-import AttachmentInput from "./AttachmentInput"; // Import the new component
+import AttachmentInput from "./AttachmentInput";
 
 const AIChat = ({
     contactId,
+    contactName, // Accept contactName as a prop
     estimateId = null,
     initialConversationId = null,
     onConversationSaved = () => {},
 }) => {
+    const navigate = useNavigate(); // Initialize useNavigate
     const [inputMessage, setInputMessage] = useState("");
-    const [selectedFilesToUpload, setSelectedFilesToUpload] = useState([]); // New state for files selected but not yet uploaded
-    const [uploadedAttachments, setUploadedAttachments] = useState([]); // State for attachments that have been uploaded
-    const [isUploadingAttachments, setIsUploadingAttachments] = useState(false); // New state for upload progress
-    const [attachmentInputKey, setAttachmentInputKey] = useState(0); // Key to force remount of AttachmentInput
+    const [selectedFilesToUpload, setSelectedFilesToUpload] = useState([]);
+    const [uploadedAttachments, setUploadedAttachments] = useState([]);
+    const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
+    const [attachmentInputKey, setAttachmentInputKey] = useState(0);
     const [imageModalOpen, setImageModalOpen] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
+    const [lastMessageCount, setLastMessageCount] = useState(0);
+    const [isInitialScrolling, setIsInitialScrolling] = useState(false);
+    const [scrollHeightBeforeLoad, setScrollHeightBeforeLoad] = useState(0);
+    const [scrollTopBeforeLoad, setScrollTopBeforeLoad] = useState(0);
     const messagesEndRef = useRef(null);
+    const messagesContainerRef = useRef(null);
     const inputRef = useRef(null);
+    const hasInitialLoadRef = useRef(false); // Track initial load
 
     const {
         messages,
         isTyping,
         isSending,
-        isLoadingHistory, // Added this
+        isLoadingHistory,
         sendMessage,
         startTyping,
         stopTyping,
+        loadMoreMessages,
+        hasMoreMessages,
+        isLoadingMore,
+        currentPage,
+        totalMessages,
+        pagination,
     } = useAIChat(
         contactId,
         estimateId,
@@ -47,15 +63,216 @@ const AIChat = ({
         onConversationSaved
     );
 
-    // Auto-scroll to bottom when new messages arrive
+    // Scroll event handler for infinite scroll
+    const handleScroll = useCallback(
+        (e) => {
+            const container = e.target;
+            const scrollTop = container.scrollTop;
+            const scrollThreshold = 100;
+
+            if (
+                scrollTop <= scrollThreshold &&
+                hasMoreMessages &&
+                !isLoadingMore &&
+                !isLoadingHistory &&
+                !isInitialScrolling
+            ) {
+                console.log(
+                    "Scroll threshold reached, loading more messages..."
+                );
+                loadMoreMessages();
+            }
+        },
+        [
+            hasMoreMessages,
+            isLoadingMore,
+            isLoadingHistory,
+            isInitialScrolling,
+            loadMoreMessages,
+        ]
+    );
+
+    // Auto-scroll to bottom for new messages (not pagination)
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+        if (
+            !isLoadingMore &&
+            !isLoadingHistory &&
+            messages.length > lastMessageCount
+        ) {
+            const container = messagesContainerRef.current;
+            if (container) {
+                const isNearBottom =
+                    container.scrollTop + container.clientHeight >=
+                    container.scrollHeight - 100;
+                if (isNearBottom) {
+                    messagesEndRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                    });
+                    console.log("Scrolled to bottom on new message");
+                }
+            }
+            setLastMessageCount(messages.length);
+        }
+    }, [messages.length, isLoadingMore, isLoadingHistory, lastMessageCount]);
+
+    // Scroll to last message on initial load (only once)
+    useEffect(() => {
+        if (
+            !isLoadingHistory &&
+            messages.length > 0 &&
+            !hasInitialLoadRef.current
+        ) {
+            setLastMessageCount(messages.length);
+            setIsInitialScrolling(true);
+
+            setTimeout(() => {
+                const container = messagesContainerRef.current;
+                if (container && messages.length > 0) {
+                    const messageElements =
+                        container.querySelectorAll("[data-message-id]");
+                    if (messageElements.length > 0) {
+                        const lastMessageElement =
+                            messageElements[messageElements.length - 1];
+                        lastMessageElement.scrollIntoView({
+                            behavior: "instant",
+                            block: "end",
+                        });
+                        console.log("Scrolled to last message on initial load");
+                    } else {
+                        container.scrollTop = container.scrollHeight;
+                    }
+                }
+
+                setTimeout(() => {
+                    setIsInitialScrolling(false);
+                    hasInitialLoadRef.current = true;
+                }, 500);
+            }, 100);
+        }
+    }, [isLoadingHistory, messages.length]);
+
+    // Store scroll position before loading more messages
+    useEffect(() => {
+        if (isLoadingMore && messages.length > 0) {
+            const container = messagesContainerRef.current;
+            if (container) {
+                setScrollTopBeforeLoad(container.scrollTop);
+                setScrollHeightBeforeLoad(container.scrollHeight);
+                console.log(
+                    "Stored scroll position before load:",
+                    container.scrollTop,
+                    "height:",
+                    container.scrollHeight
+                );
+            }
+        }
+    }, [isLoadingMore, messages.length]);
+
+    // Restore scroll position after loading more messages
+    useEffect(() => {
+        if (
+            !isLoadingMore &&
+            scrollHeightBeforeLoad > 0 &&
+            messages.length > lastMessageCount
+        ) {
+            const container = messagesContainerRef.current;
+            if (container) {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        const newMessagesCount =
+                            messages.length - lastMessageCount;
+                        const batchSize = pagination?.perPage || 15; // Dynamic batch size
+                        const messageElements =
+                            container.querySelectorAll("[data-message-id]");
+
+                        if (
+                            messageElements.length >= newMessagesCount &&
+                            newMessagesCount > 0
+                        ) {
+                            // Calculate total height of the first batchSize messages
+                            let totalHeight = 0;
+                            for (
+                                let i = 0;
+                                i < Math.min(batchSize, messageElements.length);
+                                i++
+                            ) {
+                                totalHeight +=
+                                    messageElements[i].getBoundingClientRect()
+                                        .height;
+                            }
+
+                            console.log(
+                                "Total height of first",
+                                batchSize,
+                                "messages:",
+                                totalHeight
+                            );
+
+                            // Get the last message of the previous batch (now at index batchSize - 1)
+                            const lastPreviousMessageElement =
+                                messageElements[batchSize - 1];
+
+                            if (lastPreviousMessageElement) {
+                                // Scroll so the bottom of the last previous message is at the bottom of the viewport
+                                const viewportHeight = container.clientHeight;
+                                const messageRect =
+                                    lastPreviousMessageElement.getBoundingClientRect();
+                                const messageBottomRelativeToContainer =
+                                    messageRect.top +
+                                    messageRect.height -
+                                    container.getBoundingClientRect().top;
+
+                                // Set scrollTop to position the message's bottom at the viewport bottom
+                                container.scrollTop =
+                                    messageBottomRelativeToContainer -
+                                    viewportHeight;
+
+                                console.log(
+                                    "Scrolled to bottom of last previous message (index",
+                                    batchSize - 1,
+                                    ")"
+                                );
+                            } else {
+                                console.log(
+                                    "⚠️ Last previous message element not found, using fallback"
+                                );
+                                const heightDifference =
+                                    container.scrollHeight -
+                                    scrollHeightBeforeLoad;
+                                container.scrollTop =
+                                    scrollTopBeforeLoad + heightDifference;
+                            }
+                        } else {
+                            console.log(
+                                "⚠️ Insufficient message elements, using fallback"
+                            );
+                            const heightDifference =
+                                container.scrollHeight - scrollHeightBeforeLoad;
+                            container.scrollTop =
+                                scrollTopBeforeLoad + heightDifference;
+                        }
+
+                        setScrollHeightBeforeLoad(0);
+                        setScrollTopBeforeLoad(0);
+                        setLastMessageCount(messages.length);
+                        console.log("=== END DEBUG ===");
+                    });
+                });
+            }
+        }
+    }, [
+        isLoadingMore,
+        scrollHeightBeforeLoad,
+        scrollTopBeforeLoad,
+        messages.length,
+        lastMessageCount,
+        pagination,
+    ]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!inputMessage.trim() && selectedFilesToUpload.length === 0) {
-            return; // Don't send if no message and no files
+            return;
         }
 
         setIsUploadingAttachments(true);
@@ -65,13 +282,10 @@ const AIChat = ({
             const formData = new FormData();
             formData.append("file", file);
 
-            // Determine if this is a non-media file (PDF, documents, etc.)
             const isImage = file.type.startsWith("image");
             const isVideo = file.type.startsWith("video");
 
-            // For PDF and other document files, use different upload approach
             if (file.type === "application/pdf" || (!isImage && !isVideo)) {
-                // Use unsigned upload without preset for raw files
                 formData.append("upload_preset", "ml_default");
                 formData.append("resource_type", "raw");
                 console.log(
@@ -79,19 +293,13 @@ const AIChat = ({
                     file.name,
                     file.type
                 );
-
-                // Alternative: Try without preset if the above fails
-                // Just keep the file and resource_type
             } else {
-                // For images and videos, use the regular preset
                 formData.append("upload_preset", "ml_default");
             }
 
             try {
                 let uploadUrl =
                     "https://api.cloudinary.com/v1_1/dvemjyp3n/upload";
-
-                // For raw files, use the raw upload endpoint
                 if (file.type === "application/pdf" || (!isImage && !isVideo)) {
                     uploadUrl =
                         "https://api.cloudinary.com/v1_1/dvemjyp3n/raw/upload";
@@ -130,7 +338,6 @@ const AIChat = ({
             } catch (error) {
                 console.error("Upload error:", error);
                 alert(`Failed to upload ${file.name}: ${error.message}`);
-                // Continue with other files even if one fails
             }
         }
 
@@ -138,22 +345,18 @@ const AIChat = ({
             ...uploadedAttachments,
             ...newUploadedAttachments,
         ];
+        sendMessage(inputMessage, finalAttachments);
 
-        sendMessage(inputMessage, finalAttachments); // Send message with all attachments
-
-        // Clear all attachment-related states after sending
         setSelectedFilesToUpload([]);
         setUploadedAttachments([]);
         setIsUploadingAttachments(false);
-        setAttachmentInputKey((prevKey) => prevKey + 1); // Increment key to force remount of AttachmentInput
-
+        setAttachmentInputKey((prevKey) => prevKey + 1);
         setInputMessage("");
         stopTyping();
     };
 
     const handleInputChange = (e) => {
         setInputMessage(e.target.value);
-
         if (e.target.value.trim()) {
             startTyping();
         } else {
@@ -185,8 +388,6 @@ const AIChat = ({
 
             if (url.includes("cloudinary.com")) {
                 const cloudName = "dvemjyp3n";
-
-                // Extract the file details from URL
                 const urlParts = url.split("/");
                 const fileWithExtension = urlParts[urlParts.length - 1];
                 const versionPart = urlParts.find((part) =>
@@ -200,15 +401,10 @@ const AIChat = ({
                     versionPart
                 );
 
-                // For PDFs uploaded to /image/upload/, try different approaches
                 const testUrls = [
-                    // Try as raw upload (preferred)
                     `https://res.cloudinary.com/${cloudName}/raw/upload/${fileWithExtension}`,
-                    // Try with fl_attachment in image upload
                     url.replace("/upload/", "/upload/fl_attachment/"),
-                    // Try direct browser download header
                     url.replace("/upload/", "/upload/fl_attachment:inline/"),
-                    // Original URL as last resort
                     url,
                 ];
 
@@ -216,29 +412,23 @@ const AIChat = ({
                     try {
                         console.log("Trying URL:", testUrl);
                         const response = await fetch(testUrl, {
-                            method: "HEAD", // Just check if it exists
+                            method: "HEAD",
                         });
-
                         if (response.ok) {
                             console.log("Success with URL:", testUrl);
-
-                            // Now download with this working URL
                             const downloadResponse = await fetch(testUrl);
                             if (downloadResponse.ok) {
                                 const blob = await downloadResponse.blob();
                                 const objectUrl = URL.createObjectURL(blob);
-
                                 const link = document.createElement("a");
                                 link.href = objectUrl;
                                 link.download = filename || fileWithExtension;
                                 link.style.display = "none";
-
                                 document.body.appendChild(link);
                                 link.click();
                                 document.body.removeChild(link);
-
                                 URL.revokeObjectURL(objectUrl);
-                                return; // Success, exit function
+                                return;
                             }
                         }
                     } catch (testError) {
@@ -247,19 +437,16 @@ const AIChat = ({
                             testUrl,
                             testError.message
                         );
-                        continue; // Try next URL
+                        continue;
                     }
                 }
 
                 throw new Error("All download URLs failed");
             }
 
-            // If not a Cloudinary URL, just open it
             window.open(url, "_blank");
         } catch (error) {
             console.error("All download methods failed:", error);
-
-            // Last resort: try to open in new tab
             try {
                 window.open(url, "_blank");
                 console.log("Opened in new tab as fallback");
@@ -293,17 +480,19 @@ const AIChat = ({
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
             {/* Messages Container */}
             <Paper
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
                 sx={{
                     flexGrow: 1,
-                    p: { xs: 1, sm: 2 }, // Less padding on mobile
+                    p: { xs: 1, sm: 2 },
                     mb: 2,
                     maxHeight: {
-                        xs: "400px", // Smaller height on mobile
-                        sm: "500px", // Default height on larger screens
+                        xs: "400px",
+                        sm: "500px",
                     },
                     overflowY: "auto",
                     backgroundColor: "#f8f9fa",
-                    position: "relative", // Added for loader positioning
+                    position: "relative",
                 }}
             >
                 {isLoadingHistory ? (
@@ -332,6 +521,29 @@ const AIChat = ({
                     </Box>
                 ) : (
                     <>
+                        {isLoadingMore && hasMoreMessages && (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    py: 1,
+                                    mb: 1,
+                                    position: "sticky",
+                                    top: 0,
+                                }}
+                            >
+                                <CircularProgress size={16} />
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ ml: 1 }}
+                                >
+                                    Loading...
+                                </Typography>
+                            </Box>
+                        )}
+
                         {messages.map((message, index) => {
                             const hasText =
                                 message.message &&
@@ -343,6 +555,9 @@ const AIChat = ({
                             return (
                                 <Box
                                     key={message.id || index}
+                                    data-message-id={
+                                        message.id || `msg-${index}`
+                                    }
                                     sx={{
                                         mb: 2,
                                         display: "flex",
@@ -354,22 +569,16 @@ const AIChat = ({
                                 >
                                     <Box
                                         sx={{
-                                            maxWidth: {
-                                                xs: "90%", // Wider on mobile for better readability
-                                                sm: "80%", // Medium screens
-                                                md: "70%", // Desktop
-                                            },
-                                            minWidth: 0, // Allow shrinking
+                                            minWidth: 0,
                                             display: "flex",
                                             flexDirection: "column",
                                             alignItems:
                                                 message.senderType === "USER"
                                                     ? "flex-end"
                                                     : "flex-start",
-                                            overflow: "hidden", // Prevent container overflow
+                                            overflow: "hidden",
                                         }}
                                     >
-                                        {/* Render text in Paper wrapper if exists */}
                                         {hasText && (
                                             <Paper
                                                 sx={{
@@ -386,19 +595,19 @@ const AIChat = ({
                                                             ? "primary.contrastText"
                                                             : "text.primary",
                                                     maxWidth: "100%",
-                                                    minWidth: 0, // Allow shrinking
-                                                    overflow: "hidden", // Prevent overflow
+                                                    minWidth: 0,
+                                                    overflow: "hidden",
                                                 }}
                                             >
                                                 <Typography
                                                     variant="body1"
                                                     sx={{
-                                                        wordBreak: "break-word", // Break long words
+                                                        wordBreak: "break-word",
                                                         overflowWrap:
-                                                            "anywhere", // Break anywhere if needed
-                                                        whiteSpace: "pre-wrap", // Preserve whitespace and wrap
+                                                            "anywhere",
+                                                        whiteSpace: "pre-wrap",
                                                         maxWidth: "100%",
-                                                        hyphens: "auto", // Add hyphens where appropriate
+                                                        hyphens: "auto",
                                                     }}
                                                 >
                                                     {message.message}
@@ -406,7 +615,6 @@ const AIChat = ({
                                             </Paper>
                                         )}
 
-                                        {/* Render media without background */}
                                         {hasMedia && (
                                             <Box
                                                 sx={{
@@ -429,12 +637,12 @@ const AIChat = ({
                                                                     sx={{
                                                                         mb: 0.5,
                                                                         width: {
-                                                                            xs: "100%", // Full width on mobile
-                                                                            sm: "200px", // Fixed width on larger screens
+                                                                            xs: "100%",
+                                                                            sm: "200px",
                                                                         },
                                                                         height: {
-                                                                            xs: "150px", // Smaller height on mobile
-                                                                            sm: "200px", // Fixed height on larger screens
+                                                                            xs: "150px",
+                                                                            sm: "200px",
                                                                         },
                                                                         maxWidth:
                                                                             "100%",
@@ -484,12 +692,12 @@ const AIChat = ({
                                                                     sx={{
                                                                         mb: 0.5,
                                                                         width: {
-                                                                            xs: "100%", // Full width on mobile
-                                                                            sm: "200px", // Fixed width on larger screens
+                                                                            xs: "100%",
+                                                                            sm: "200px",
                                                                         },
                                                                         height: {
-                                                                            xs: "150px", // Smaller height on mobile
-                                                                            sm: "200px", // Fixed height on larger screens
+                                                                            xs: "150px",
+                                                                            sm: "200px",
                                                                         },
                                                                         maxWidth:
                                                                             "100%",
@@ -534,18 +742,18 @@ const AIChat = ({
                                                                     sx={{
                                                                         mb: 0.5,
                                                                         width: {
-                                                                            xs: "100%", // Full width on mobile
-                                                                            sm: "300px", // Fixed width on larger screens
+                                                                            xs: "100%",
+                                                                            sm: "300px",
                                                                         },
                                                                         maxWidth:
                                                                             "100%",
                                                                         minWidth:
                                                                             {
-                                                                                xs: "250px", // Minimum width on mobile
+                                                                                xs: "250px",
                                                                                 sm: "300px",
                                                                             },
                                                                         height: {
-                                                                            xs: "50px", // Smaller height on mobile
+                                                                            xs: "50px",
                                                                             sm: "60px",
                                                                         },
                                                                         display:
@@ -697,7 +905,6 @@ const AIChat = ({
                                             </Box>
                                         )}
 
-                                        {/* Timestamp */}
                                         <Typography
                                             variant="caption"
                                             sx={{
@@ -715,7 +922,6 @@ const AIChat = ({
                             );
                         })}
 
-                        {/* Typing Indicator */}
                         {isTyping && (
                             <Box
                                 sx={{
@@ -777,6 +983,12 @@ const AIChat = ({
                                     overflowWrap: "anywhere",
                                 },
                             }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSubmit(e);
+                                }
+                            }}
                         />
                         <Button
                             type="submit"
@@ -799,14 +1011,12 @@ const AIChat = ({
                     </Box>
                 </form>
 
-                {/* Attachment Input */}
                 <AttachmentInput
                     key={attachmentInputKey}
                     onFilesSelected={handleFilesSelected}
                     onFileRemoved={handleRemoveSelectedFile}
                 />
 
-                {/* Display selected files to upload as chips */}
                 {selectedFilesToUpload.length > 0 && (
                     <Box
                         sx={{
@@ -849,7 +1059,6 @@ const AIChat = ({
                     </Box>
                 )}
 
-                {/* Display already uploaded attachments as chips */}
                 {uploadedAttachments.length > 0 && (
                     <Box
                         sx={{
@@ -891,34 +1100,8 @@ const AIChat = ({
                         ))}
                     </Box>
                 )}
-
-                {/* Connection Status */}
-                <Box
-                    sx={{
-                        mt: 1,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                    }}
-                >
-                    <Chip
-                        label={
-                            isSending || isUploadingAttachments
-                                ? "Sending..."
-                                : "Ready"
-                        }
-                        size="small"
-                        color={
-                            isSending || isUploadingAttachments
-                                ? "warning"
-                                : "success"
-                        }
-                        variant="outlined"
-                    />
-                </Box>
             </Paper>
 
-            {/* Simple Image Modal */}
             <Modal
                 open={imageModalOpen}
                 onClose={handleCloseImageModal}
@@ -942,7 +1125,6 @@ const AIChat = ({
                         flexDirection: "column",
                     }}
                 >
-                    {/* Close Button */}
                     <IconButton
                         onClick={handleCloseImageModal}
                         sx={{
@@ -952,15 +1134,12 @@ const AIChat = ({
                             bgcolor: "rgba(0, 0, 0, 0.5)",
                             color: "white",
                             zIndex: 1,
-                            "&:hover": {
-                                bgcolor: "rgba(0, 0, 0, 0.7)",
-                            },
+                            "&:hover": { bgcolor: "rgba(0, 0, 0, 0.7)" },
                         }}
                     >
                         <CloseIcon />
                     </IconButton>
 
-                    {/* Large Image */}
                     {selectedImage && (
                         <img
                             src={selectedImage}
