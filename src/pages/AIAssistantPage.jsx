@@ -542,12 +542,14 @@ const AIAssistantPage = () => {
                                     <ArrowBackIcon />
                                 </IconButton>
                                 <ButtonBase
-                                    onClick={() =>
-                                        activeConversation?.contactId &&
-                                        navigate(
-                                            `/contacts/${activeConversation.contactId}`
-                                        )
-                                    }
+                                    onClick={() => {
+                                        const botContactId = user?.botContactId || user?.data?.user?.botContactId;
+                                        if (activeConversation?.contactId === botContactId) {
+                                            alert("This is a bot contact. Details cannot be viewed.");
+                                        } else if (activeConversation?.contactId) {
+                                            navigate(`/contacts/${activeConversation.contactId}`);
+                                        }
+                                    }}
                                     sx={{
                                         textAlign: "left",
                                         justifyContent: "flex-start",
