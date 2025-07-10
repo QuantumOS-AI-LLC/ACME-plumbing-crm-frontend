@@ -23,6 +23,7 @@ import EstimatesPage from "./pages/EstimatesPage";
 import CalendarPage from "./pages/CalendarPage";
 import ContactsPage from "./pages/ContactsPage";
 import ContactDetailsPage from "./pages/ContactDetailsPage";
+import ContactJobsPage from "./pages/ContactJobsPage";
 import AIAssistantPage from "./pages/AIAssistantPage";
 import ProfilePage from "./pages/ProfilePage";
 import CompanySettingsPage from "./pages/CompanySettingsPage";
@@ -63,214 +64,227 @@ const App = () => {
                                     <NotificationSettingsProvider>
                                         <NotificationProvider>
                                             <BrowserRouter>
-                                            <Routes>
-                                                <Route
-                                                    path="/login"
-                                                    element={<LoginPage />}
-                                                />
+                                                <Routes>
+                                                    <Route
+                                                        path="/login"
+                                                        element={<LoginPage />}
+                                                    />
 
-                                                {/* Public Guest Video Call Route */}
-                                                <Route
-                                                    path="/join-call"
-                                                    element={<CallManager />}
-                                                />
-
-                                                {/* Google Calendar OAuth Callback - Protected route */}
-                                                <Route
-                                                    path="/auth/google/callback"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <GoogleCalendarCallback />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                {/* Protected routes */}
-                                                <Route
-                                                    path="/"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <DashboardPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/jobs"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <JobsPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/estimates"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <EstimatesPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/calendar"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <CalendarPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/contacts"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <ContactsPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/contacts/:id"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <ContactDetailsPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/ai-assistant"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <AIAssistantPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/my-services"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <MyServicesPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/profile"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <ProfilePage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/company-settings"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <CompanySettingsPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/change-password"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <ChangePasswordPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/set-time-zone"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <SetTimeZonePage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/notifications"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <NotificationsPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                <Route
-                                                    path="/notification-settings"
-                                                    element={
-                                                        <ProtectedRoute>
-                                                            <Layout>
-                                                                <NotificationSettingsPage />
-                                                            </Layout>
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
-
-                                                {/* Video Call Route */}
-                                                <Route
-                                                    path="/video-call"
-                                                    element={
-                                                        <ProtectedRoute>
+                                                    {/* Public Guest Video Call Route */}
+                                                    <Route
+                                                        path="/join-call"
+                                                        element={
                                                             <CallManager />
-                                                        </ProtectedRoute>
-                                                    }
-                                                />
+                                                        }
+                                                    />
 
-                                                {/* Redirect any unknown routes to dashboard */}
-                                                <Route
-                                                    path="*"
-                                                    element={
-                                                        <Navigate
-                                                            to="/"
-                                                            replace
-                                                        />
-                                                    }
-                                                />
-                                            </Routes>
-                                        </BrowserRouter>
-                                    </NotificationProvider>
-                                </NotificationSettingsProvider>
-                            </SocketProvider>
-                        </EventsProvider>
-                    </EstimatesProvider>
-                </JobsProvider>
-            </DashboardStatsProvider>
+                                                    {/* Google Calendar OAuth Callback - Protected route */}
+                                                    <Route
+                                                        path="/auth/google/callback"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <GoogleCalendarCallback />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    {/* Protected routes */}
+                                                    <Route
+                                                        path="/"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <DashboardPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/jobs"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <JobsPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/estimates"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <EstimatesPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/calendar"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <CalendarPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/contacts"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <ContactsPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/contacts/:id"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <ContactDetailsPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/contacts/:contactId/jobs"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <ContactJobsPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/ai-assistant"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <AIAssistantPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/my-services"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <MyServicesPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/profile"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <ProfilePage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/company-settings"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <CompanySettingsPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/change-password"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <ChangePasswordPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/set-time-zone"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <SetTimeZonePage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/notifications"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <NotificationsPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    <Route
+                                                        path="/notification-settings"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <Layout>
+                                                                    <NotificationSettingsPage />
+                                                                </Layout>
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    {/* Video Call Route */}
+                                                    <Route
+                                                        path="/video-call"
+                                                        element={
+                                                            <ProtectedRoute>
+                                                                <CallManager />
+                                                            </ProtectedRoute>
+                                                        }
+                                                    />
+
+                                                    {/* Redirect any unknown routes to dashboard */}
+                                                    <Route
+                                                        path="*"
+                                                        element={
+                                                            <Navigate
+                                                                to="/"
+                                                                replace
+                                                            />
+                                                        }
+                                                    />
+                                                </Routes>
+                                            </BrowserRouter>
+                                        </NotificationProvider>
+                                    </NotificationSettingsProvider>
+                                </SocketProvider>
+                            </EventsProvider>
+                        </EstimatesProvider>
+                    </JobsProvider>
+                </DashboardStatsProvider>
             </VideoProvider>
         </ThemeProvider>
     );

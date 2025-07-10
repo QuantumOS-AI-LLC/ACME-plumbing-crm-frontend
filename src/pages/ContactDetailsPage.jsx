@@ -1,5 +1,5 @@
 // ... (Previous imports remain unchanged)
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Box,
     Typography,
@@ -19,6 +19,8 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    Tabs,
+    Tab,
 } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import PhoneIcon from "@mui/icons-material/Phone";
@@ -35,6 +37,13 @@ import { toast } from "sonner";
 import { useWebhook } from "../hooks/webHook";
 import { useVideoRoom } from "../hooks/useVideoRoom";
 import CallDurationSelector from "../components/video/CallDurationSelector";
+import JobCard from "../components/jobs/JobCard";
+import {
+    generateFakeJobsForContact,
+    filterJobsByStatus,
+    getJobCountsByStatus,
+} from "../utils/fakeJobData";
+import SimpleJobList from "../components/jobs/SimpleJobList";
 
 const ContactDetailsPage = () => {
     const { id } = useParams();
@@ -80,6 +89,10 @@ const ContactDetailsPage = () => {
     const [selectedRoomForUpdate, setSelectedRoomForUpdate] = useState(null);
     const [openDurationSelector, setOpenDurationSelector] = useState(false);
 
+    // Job history state
+    const [jobs, setJobs] = useState([]);
+    const [activeJobTab, setActiveJobTab] = useState("open");
+
     // Define pipeline stage options
     const pipelineStageOptions = [
         { value: "new_lead", label: "New Lead" },
@@ -89,6 +102,40 @@ const ContactDetailsPage = () => {
         { value: "job_completed", label: "Job Completed" },
         { value: "won", label: "Won" },
     ];
+
+    // Job-related computed values
+    const filteredJobs = useMemo(() => {
+        return filterJobsByStatus(jobs, activeJobTab);
+    }, [jobs, activeJobTab]);
+
+    const jobCounts = useMemo(() => getJobCountsByStatus(jobs), [jobs]);
+
+    // Show only 5 jobs initially
+    const displayedJobs = filteredJobs.slice(0, 5);
+    const hasMoreJobs = filteredJobs.length > 5;
+
+    // Job handlers
+    const handleJobTabChange = (event, newValue) => {
+        setActiveJobTab(newValue);
+    };
+
+    const handleViewAllJobs = () => {
+        navigate(`/contacts/${id}/jobs`);
+    };
+
+    const handleJobUpdate = (updatedJob) => {
+        setJobs((prevJobs) =>
+            prevJobs.map((job) => (job.id === updatedJob.id ? updatedJob : job))
+        );
+    };
+
+    const handleJobStatusChange = (jobId, newStatus) => {
+        setJobs((prevJobs) =>
+            prevJobs.map((job) =>
+                job.id === jobId ? { ...job, status: newStatus } : job
+            )
+        );
+    };
 
     const loadExistingRooms = useCallback(async () => {
         try {
@@ -120,6 +167,14 @@ const ContactDetailsPage = () => {
                         status: response.data.status || "client",
                         tags: response.data.tags || [],
                     });
+
+                    // Generate fake jobs for this contact
+                    const fakeJobs = generateFakeJobsForContact(
+                        response.data.id,
+                        response.data.name,
+                        response.data.address
+                    );
+                    setJobs(fakeJobs);
                 }
             } catch (error) {
                 console.error(`Error loading contact ${id}:`, error);
@@ -1227,47 +1282,83 @@ const ContactDetailsPage = () => {
                             </TextField>
                         </Box>
                     </Grid>
-
-                    <Grid item xs={12}>
-                        <Typography variant="h6" gutterBottom>
-                            Recent Jobs List
-                        </Typography>
-                        <Box sx={{ mb: 3 }}>
-                            {contact.jobs && contact.jobs.length > 0 ? (
-                                <List disablePadding>
-                                    {contact.jobs.map((job, index) => (
-                                        <React.Fragment key={job.id}>
-                                            <ListItem sx={{ px: 0 }}>
-                                                <ListItemText
-                                                    primary={job.name}
-                                                    secondary={`Status: ${
-                                                        job.status
-                                                    } • Amount: $${
-                                                        job.amount?.toLocaleString() ||
-                                                        "N/A"
-                                                    }`}
-                                                />
-                                            </ListItem>
-                                            {index <
-                                                contact.jobs.length - 1 && (
-                                                <Divider />
-                                            )}
-                                        </React.Fragment>
-                                    ))}
-                                </List>
-                            ) : (
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    No recent jobs found.
-                                </Typography>
-                            )}
-                        </Box>
-                    </Grid>
                 </Grid>
             </Paper>
 
+            {/* Enhanced Job History Section */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 3,
+                    }}
+                >
+                    <Typography variant="h6">
+                        Job History ({jobCounts.total})
+                    </Typography>
+                </Box>
+
+                {/* Job Status Tabs */}
+                <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+                    <Tabs
+                        value={activeJobTab}
+                        onChange={handleJobTabChange}
+                        aria-label="job status tabs"
+                        variant="scrollable"
+                        scrollButtons="auto"
+                    >
+                        <Tab
+                            label={`Open Jobs (${jobCounts.open})`}
+                            value="open"
+                        />
+                        <Tab
+                            label={`In Progress (${jobCounts.in_progress})`}
+                            value="in_progress"
+                        />
+                        <Tab
+                            label={`Completed (${jobCounts.completed})`}
+                            value="completed"
+                        />
+                        <Tab
+                            label={`Cancelled (${jobCounts.cancelled})`}
+                            value="cancelled"
+                        />
+                    </Tabs>
+                </Box>
+
+                {/* Simple Job List */}
+                {displayedJobs.length === 0 ? (
+                    <Box sx={{ textAlign: "center", py: 4 }}>
+                        <Typography variant="body1" color="text.secondary">
+                            No {activeJobTab.replace("_", " ")} jobs found for{" "}
+                            {contact.name}.
+                        </Typography>
+                    </Box>
+                ) : (
+                    <SimpleJobList jobs={displayedJobs} />
+                )}
+
+                {/* View All Button at bottom if there are more jobs */}
+                {hasMoreJobs && (
+                    <Box sx={{ textAlign: "center", mt: 3 }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={handleViewAllJobs}
+                            sx={{
+                                textTransform: "none",
+                                fontWeight: 400,
+                                px: 2,
+                                py: 1.2,
+                            }}
+                        >
+                            View All {filteredJobs.length} Jobs
+                        </Button>
+                    </Box>
+                )}
+            </Paper>
             <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
                     Communication History
