@@ -38,6 +38,7 @@ const AIAssistantPage = () => {
     const conversationId = searchParams.get("conversationId"); // This is the initial, temporary ID
     const { user, loading: authLoading } = useAuth(); // Get user and auth loading state
     const [conversations, setConversations] = useState([]);
+    const [botContactConversation, setBotContactConversation] = useState(null); // New state for bot contact
     const [activeConversation, setActiveConversation] = useState(null);
     const [unreadCounts, setUnreadCounts] = useState({});
     const [isConversationListVisible, setConversationListVisible] =
@@ -112,35 +113,41 @@ const AIAssistantPage = () => {
 
                 let fetchedConvos = apiConvos;
 
-                // If fetching the first page, ensure Alli is at the top if she exists
+                // Separate bot contact from other conversations
+                let botConvo = null;
+                let otherConvos = apiConvos;
+
                 if (pageToFetch === 1) {
-                    const alliFromApi = apiConvos.find(
+                    botConvo = apiConvos.find(
                         (convo) => convo.contactId === currentBotContactId
                     );
+                    // Use the contactName from the fetched botConvo if available, otherwise default to "Alli"
+                    const botContactName = botConvo?.contactName || "Alli";
 
-                    if (alliFromApi) {
-                        alliFromApi.contactName = "Alli";
-                        fetchedConvos = [
-                            alliFromApi,
-                            ...apiConvos.filter(
-                                (convo) => convo.contactId !== currentBotContactId
-                            ),
-                        ];
+                    if (botConvo) {
+                        botConvo.contactName = botContactName;
+                        otherConvos = apiConvos.filter(
+                            (convo) => convo.contactId !== currentBotContactId
+                        );
                     } else {
-                        const localAlliConversation = {
+                        // If bot contact not found in API response, create a local placeholder
+                        botConvo = {
                             contactId: currentBotContactId,
-                            contactName: "Alli",
+                            contactName: botContactName,
                             lastMessage: null,
                             estimateId: null,
                         };
-                        fetchedConvos = [localAlliConversation, ...apiConvos];
                     }
+                    setBotContactConversation(botConvo);
+                } else {
+                    // For subsequent pages, just append to other conversations
+                    setBotContactConversation((prev) => prev); // Keep existing bot contact
                 }
 
                 setConversations((prev) => {
-                    // If it's the first page, replace existing conversations
-                    // Otherwise, append new conversations
-                    const newConvos = pageToFetch === 1 ? fetchedConvos : [...prev, ...fetchedConvos];
+                    // If it's the first page, replace existing conversations with otherConvos
+                    // Otherwise, append new otherConvos
+                    const newConvos = pageToFetch === 1 ? otherConvos : [...prev, ...otherConvos];
 
                     // Handle URL-driven new conversation, ensuring it's at the top if it exists
                     const newConvoFromURL =
@@ -181,17 +188,17 @@ const AIAssistantPage = () => {
                             estimateId: null,
                         };
 
-                        const targetConversation = fetchedConvos.find(
+                        const targetConversation = otherConvos.find(
                             (convo) =>
                                 convo.contactId === contactId &&
                                 convo.id === conversationId
                         );
 
-                        if (!targetConversation) {
-                            fetchedConvos.unshift(newConvoFromURL);
+                        if (!targetConversation && newConvoFromURL.contactId !== currentBotContactId) {
+                            otherConvos.unshift(newConvoFromURL);
                         }
 
-                        const targetConversationFinal = fetchedConvos.find(
+                        const targetConversationFinal = otherConvos.find(
                             (convo) =>
                                 convo.contactId === contactId &&
                                 convo.id === conversationId
@@ -199,11 +206,17 @@ const AIAssistantPage = () => {
 
                         if (targetConversationFinal) {
                             setActiveConversation(targetConversationFinal);
-                        } else if (fetchedConvos.length > 0) {
-                            setActiveConversation(fetchedConvos[0]);
+                        } else if (botConvo && contactId === currentBotContactId) {
+                            setActiveConversation(botConvo);
+                        } else if (otherConvos.length > 0) {
+                            setActiveConversation(otherConvos[0]);
+                        } else if (botConvo) {
+                            setActiveConversation(botConvo);
                         }
-                    } else if (fetchedConvos.length > 0) {
-                        setActiveConversation(fetchedConvos[0]);
+                    } else if (botConvo) {
+                        setActiveConversation(botConvo);
+                    } else if (otherConvos.length > 0) {
+                        setActiveConversation(otherConvos[0]);
                     }
                 }
             } catch (error) {
@@ -211,11 +224,12 @@ const AIAssistantPage = () => {
                 if (pageToFetch === 1) {
                     const localAlliConversation = {
                         contactId: currentBotContactId,
-                        contactName: "Alli",
+                        contactName: "Alli", // Default to "Alli" if not found in API response
                         lastMessage: null,
                         estimateId: null,
                     };
-                    setConversations([localAlliConversation]);
+                    setBotContactConversation(localAlliConversation);
+                    setConversations([]); // No other conversations on error
                     setActiveConversation(localAlliConversation);
                     setHasMoreConversations(false);
                     setTotalConversations(1);
@@ -227,7 +241,7 @@ const AIAssistantPage = () => {
                 }
             }
         },
-        [contactId, contactName, conversationId]
+        [contactId, contactName, conversationId] // Removed user from dependencies as it's not directly used for botContactName
     );
 
     useEffect(() => {
@@ -431,6 +445,33 @@ const AIAssistantPage = () => {
                         </Button> */}
                     </Box>
                     <Divider />
+                    {botContactConversation && (
+                        <List>
+                            <ListItem disablePadding>
+                                <ListItemButton
+                                    selected={
+                                        activeConversation?.contactId ===
+                                        botContactConversation.contactId
+                                    }
+                                    onClick={() =>
+                                        selectConversation(botContactConversation.contactId)
+                                    }
+                                >
+                                    <ListItemText
+                                        primary={botContactConversation.contactName || "Alli"}
+                                    />
+                                    <Badge
+                                        badgeContent={
+                                            unreadCounts[botContactConversation.contactId] || 0
+                                        }
+                                        color="primary"
+                                        sx={{ ml: 1 }}
+                                    />
+                                </ListItemButton>
+                            </ListItem>
+                        </List>
+                    )}
+                    <Divider /> {/* Add another divider after the fixed contact */}
 
                     <Box id="conversation-list-scrollable-div-inner" sx={{ flexGrow: 1, overflowY: "auto" }}> {/* Inner scrollable container */}
                         <InfiniteScroll
@@ -496,7 +537,7 @@ const AIAssistantPage = () => {
                                                     }
                                                     color="primary"
                                                     sx={{ ml: 1 }}
-                                                    />
+                                                />
                                             </ListItemButton>
                                         </ListItem>
                                     ))
