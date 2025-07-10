@@ -431,7 +431,6 @@ export const fetchJobs = async (params = {}) => {
         throw error;
     }
 };
-
 export const fetchJob = async (id) => {
     try {
         const response = await api.get(`/jobs/${id}`);
@@ -598,6 +597,24 @@ export const deleteContact = async (id) => {
         throw error;
     }
 };
+// Fetch jobs for a specific contact with pagination and filtering
+export const fetchJobsByContact = async (contactId, params = {}) => {
+    try {
+        // Normalize status parameter if it's an array
+        const newParams = { ...params };
+        if (newParams.status && Array.isArray(newParams.status)) {
+            newParams.status = newParams.status.join(",");
+        }
+        const response = await api.get(`/jobs/contact/${contactId}`, {
+            params: newParams,
+        });
+        console.log("Jobs by contact response:", response.data);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching jobs for contact ${contactId}:`, error);
+        throw error;
+    }
+};
 
 // Calendar/Events APIs
 export const fetchEvents = async (params = {}) => {
@@ -749,19 +766,74 @@ export const deleteNotification = async (id) => {
     }
 };
 
-export const getConversations = async () => {
+// AI Conversations APIs - FIXED VERSION
+export const getConversations = async (params = {}) => {
     try {
-        const response = await api.get("/ai/conversations");
+        // Log the parameters being sent
+        console.log('📡 getConversations API called with params:', params);
+
+        // Build query parameters properly
+        const queryParams = {};
+        
+        // Always include page and limit
+        if (params.page !== undefined) queryParams.page = params.page;
+        if (params.limit !== undefined) queryParams.limit = params.limit;
+        
+        // Add search parameter only if it exists and is not empty
+        if (params.search !== undefined && params.search !== null && params.search.trim() !== "") {
+            queryParams.search = params.search.trim();
+        }
+
+        console.log('📡 Final query params being sent:', queryParams);
+
+        const response = await api.get("/ai/conversations", {
+            params: queryParams,
+        });
+
+        console.log('📥 getConversations API response:', response.data);
         return response.data;
     } catch (error) {
-        console.error("Error fetching AI conversations:", error);
+        console.error("❌ Error fetching AI conversations:", error);
         throw error;
     }
 };
 
-export const getConversationMessages = async (contactId) => {
+// Alternative version if your React component is calling with individual parameters
+export const getConversationsLegacy = async (page = 1, limit = 10, search = "") => {
     try {
-        const response = await api.get(`/ai/conversation/contact/${contactId}`);
+        console.log('📡 getConversationsLegacy called with:', { page, limit, search });
+
+        const params = { page, limit };
+        
+        // Only add search parameter if it exists and is not empty
+        if (search && search.trim() !== "") {
+            params.search = search.trim();
+        }
+
+        console.log('📡 Final params for legacy call:', params);
+
+        const response = await api.get("/ai/conversations", { params });
+        
+        console.log('📥 getConversationsLegacy response:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error("❌ Error fetching AI conversations (legacy):", error);
+        throw error;
+    }
+};
+
+export const getConversationMessages = async (
+    contactId,
+    page = 1,
+    limit = 15
+) => {
+    try {
+        const response = await api.get(
+            `/ai/conversation/contact/${contactId}`,
+            {
+                params: { page, limit },
+            }
+        );
         return response.data;
     } catch (error) {
         console.error(
@@ -930,317 +1002,41 @@ export const disconnectGoogleCalendar = async () => {
     }
 };
 
-// Telnyx Video Room APIs
-export const createVideoRoom = async (contactId) => {
+// GetStream Video APIs (replacing Telnyx)
+export const generateVideoToken = async (userId, userName) => {
     try {
-        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
-
-        if (!telnyxApiKey) {
-            throw new Error("Telnyx API key not configured");
-        }
-
-        // Create video room using Telnyx API
-        const telnyxResponse = await axios.post(
-            "https://api.telnyx.com/v2/rooms",
-            {
-                unique_name: `room_${contactId}_${Date.now()}`,
-                max_participants: 2,
-                enable_recording: false,
-                webhook_event_url: import.meta.env.VITE_N8N_API_URL,
-                webhook_event_failover_url: null,
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${telnyxApiKey}`,
-                    "Content-Type": "application/json",
-                },
-            }
-        );
-
-        if (!telnyxResponse.data || !telnyxResponse.data.data) {
-            throw new Error("Invalid response from Telnyx API");
-        }
-
-        const roomData = telnyxResponse.data.data;
-
-        // Generate participant token for proper join URL
-        let clientToken = null;
-        let refreshToken = null;
-        let joinUrl = `https://telnyx-meet-demo.vercel.app/rooms/${roomData.id}`;
-
-        try {
-            const tokenResponse = await generateClientToken(roomData.id);
-            if (tokenResponse.success) {
-                clientToken = tokenResponse.data.clientToken;
-                refreshToken = tokenResponse.data.refreshToken;
-                // Use the correct Telnyx Meet demo URL format with tokens
-                joinUrl = `https://telnyx-meet-demo.vercel.app/rooms/${roomData.id}?client_token=${clientToken}&refresh_token=${refreshToken}`;
-            }
-        } catch (tokenError) {
-            console.warn(
-                "Participant token generation failed, using basic room URL:",
-                tokenError.message
-            );
-            // Continue with basic URL without tokens
-        }
-
-        return {
-            success: true,
-            data: {
-                roomId: roomData.id,
-                uniqueName: roomData.unique_name,
-                joinUrl: joinUrl,
-                maxParticipants: roomData.max_participants,
-                enableRecording: roomData.enable_recording,
-                createdAt: roomData.created_at,
-                clientToken: clientToken,
-                refreshToken: refreshToken,
-            },
-        };
-    } catch (error) {
-        console.error("Error creating Telnyx video room:", error);
-        throw error;
-    }
-};
-
-export const updateVideoRoom = async (roomId, updateData) => {
-    try {
-        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
-
-        if (!telnyxApiKey) {
-            throw new Error("Telnyx API key not configured");
-        }
-
-        // Update video room using Telnyx API
-        const telnyxResponse = await axios.patch(
-            `https://api.telnyx.com/v2/rooms/${roomId}`,
-            updateData,
-            {
-                headers: {
-                    Authorization: `Bearer ${telnyxApiKey}`,
-                    "Content-Type": "application/json",
-                },
-            }
-        );
-
-        if (!telnyxResponse.data || !telnyxResponse.data.data) {
-            throw new Error("Invalid response from Telnyx API");
-        }
-
-        const roomData = telnyxResponse.data.data;
-
-        return {
-            success: true,
-            data: {
-                roomId: roomData.id,
-                uniqueName: roomData.unique_name,
-                joinUrl:
-                    roomData.session_url ||
-                    `https://meet.telnyx.com/rooms/${roomData.id}`,
-                maxParticipants: roomData.max_participants,
-                enableRecording: roomData.enable_recording,
-                updatedAt: roomData.updated_at,
-            },
-        };
-    } catch (error) {
-        console.error("Error updating Telnyx video room:", error);
-        throw error;
-    }
-};
-
-export const deleteVideoRoom = async (roomId) => {
-    try {
-        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
-
-        if (!telnyxApiKey) {
-            throw new Error("Telnyx API key not configured");
-        }
-
-        // Delete video room using Telnyx API
-        const telnyxResponse = await axios.delete(
-            `https://api.telnyx.com/v2/rooms/${roomId}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${telnyxApiKey}`,
-                    "Content-Type": "application/json",
-                },
-            }
-        );
-
-        return {
-            success: true,
-            message: "Video room deleted successfully",
-            roomId: roomId,
-        };
-    } catch (error) {
-        console.error("Error deleting Telnyx video room:", error);
-        throw error;
-    }
-};
-
-export const getVideoRoom = async (roomId) => {
-    try {
-        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
-
-        if (!telnyxApiKey) {
-            throw new Error("Telnyx API key not configured");
-        }
-
-        // Get video room details using Telnyx API
-        const telnyxResponse = await axios.get(
-            `https://api.telnyx.com/v2/rooms/${roomId}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${telnyxApiKey}`,
-                    "Content-Type": "application/json",
-                },
-            }
-        );
-
-        if (!telnyxResponse.data || !telnyxResponse.data.data) {
-            throw new Error("Invalid response from Telnyx API");
-        }
-
-        const roomData = telnyxResponse.data.data;
-
-        return {
-            success: true,
-            data: {
-                roomId: roomData.id,
-                uniqueName: roomData.unique_name,
-                joinUrl:
-                    roomData.session_url ||
-                    `https://meet.telnyx.com/rooms/${roomData.id}`,
-                maxParticipants: roomData.max_participants,
-                enableRecording: roomData.enable_recording,
-                createdAt: roomData.created_at,
-                updatedAt: roomData.updated_at,
-                status: roomData.status,
-            },
-        };
-    } catch (error) {
-        console.error("Error fetching Telnyx video room:", error);
-        throw error;
-    }
-};
-
-// Generate participant token for Telnyx video room
-export const generateClientToken = async (roomId) => {
-    try {
-        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
-
-        if (!telnyxApiKey) {
-            throw new Error("Telnyx API key not configured");
-        }
-
-        // Generate participant token using correct Telnyx API endpoint
-        const tokenResponse = await axios.post(
-            `https://api.telnyx.com/v2/rooms/${roomId}/actions/generate_join_client_token`,
-            {
-                token_ttl_secs: 600, // 10 minutes access token
-                refresh_token_ttl_secs: 3600, // 1 hour refresh token
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${telnyxApiKey}`,
-                    "Content-Type": "application/json",
-                },
-            }
-        );
-
-        if (!tokenResponse.data || !tokenResponse.data.data) {
-            throw new Error("Invalid response from Telnyx token API");
-        }
-
-        const tokenData = tokenResponse.data.data;
-
-        return {
-            success: true,
-            data: {
-                clientToken: tokenData.token,
-                refreshToken: tokenData.refresh_token,
-            },
-        };
-    } catch (error) {
-        console.error("Error generating Telnyx participant token:", error);
-        throw error;
-    }
-};
-
-// Refresh participant token for Telnyx video room
-export const refreshClientToken = async (roomId, refreshToken) => {
-    try {
-        const telnyxApiKey = import.meta.env.VITE_TELNYX_API_KEY;
-
-        if (!telnyxApiKey) {
-            throw new Error("Telnyx API key not configured");
-        }
-
-        // Refresh participant token using Telnyx API endpoint
-        const tokenResponse = await axios.post(
-            `https://api.telnyx.com/v2/rooms/${roomId}/actions/refresh_client_token`,
-            {
-                token_ttl_secs: 600, // 10 minutes access token
-                refresh_token: refreshToken,
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${telnyxApiKey}`,
-                    "Content-Type": "application/json",
-                    Accept: "application/json",
-                },
-            }
-        );
-
-        if (!tokenResponse.data || !tokenResponse.data.data) {
-            throw new Error("Invalid response from Telnyx refresh token API");
-        }
-
-        const tokenData = tokenResponse.data.data;
-
-        return {
-            success: true,
-            data: {
-                clientToken: tokenData.token,
-                refreshToken: tokenData.refresh_token,
-            },
-        };
-    } catch (error) {
-        console.error("Error refreshing Telnyx participant token:", error);
-        throw error;
-    }
-};
-
-export const sendVideoRoomWebhook = async (joinLink, contactId, userId) => {
-    try {
-        const webhookUrl = import.meta.env.VITE_N8N_API_URL;
-
-        if (!webhookUrl) {
-            console.warn("N8N webhook URL not configured");
-            return { success: true, message: "Webhook URL not configured" };
-        }
-
-        // Enhanced webhook payload with contact and user information
-        const webhookData = {
-            webhookEvent: "share-room-link",
-            joinLink: joinLink,
-            contactId: contactId,
-            userId: userId,
-        };
-
-        const response = await axios.post(webhookUrl, webhookData, {
-            headers: {
-                "Content-Type": "application/json",
-            },
+        const response = await api.post("/video/generate-token", {
+            userId,
+            userName,
         });
-
-        return {
-            success: true,
-            data: response.data,
-        };
+        return response.data;
     } catch (error) {
-        console.error("Error sending video room webhook:", error);
+        console.error("Error generating video token:", error);
         throw error;
+    }
+};
+
+export const logCallSession = async (
+    callId,
+    participantId,
+    participantName,
+    userType,
+    action
+) => {
+    try {
+        const response = await api.post("/video/call-session", {
+            callId,
+            participantId,
+            participantName,
+            userType,
+            action,
+            timestamp: new Date().toISOString(),
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error logging call session:", error);
+        // Don't throw error for logging failures
+        return { success: false, error: error.message };
     }
 };
 
@@ -1331,199 +1127,6 @@ export const deleteRoomFromSystem = async (id) => {
         return normalizedResponse;
     } catch (error) {
         console.error(`Error deleting room ${id} from system:`, error);
-        throw error;
-    }
-};
-
-// Dual-API Room Management Functions (Telnyx + System Sync)
-export const createRoomWithSync = async (contactId) => {
-    let telnyxRoomId = null;
-
-    try {
-        console.log("🎥 Creating video room with dual-API sync...");
-
-        // Step 1: Create room in Telnyx
-        console.log("📡 Creating room in Telnyx...");
-        const telnyxResponse = await createVideoRoom(contactId);
-
-        if (!telnyxResponse.success || !telnyxResponse.data) {
-            throw new Error("Failed to create room in Telnyx");
-        }
-
-        const telnyxRoom = telnyxResponse.data;
-        telnyxRoomId = telnyxRoom.roomId;
-
-        console.log("✅ Telnyx room created:", telnyxRoomId);
-
-        // Step 2: Store room metadata in our system
-        console.log("💾 Storing room in system database...");
-        const systemRoomData = {
-            telnyxRoomId: telnyxRoom.roomId,
-            uniqueName: telnyxRoom.uniqueName,
-            joinUrl: telnyxRoom.joinUrl,
-            maxParticipants: telnyxRoom.maxParticipants,
-            enableRecording: telnyxRoom.enableRecording,
-            clientToken: telnyxRoom.clientToken,
-            refreshToken: telnyxRoom.refreshToken,
-            telnyxCreatedAt: telnyxRoom.createdAt,
-            createdFor: contactId,
-        };
-
-        const systemResponse = await createRoomInSystem(systemRoomData);
-
-        if (!systemResponse.success) {
-            throw new Error("Failed to store room in system database");
-        }
-
-        console.log("✅ Room stored in system database");
-
-        // Return combined data with system ID
-        return {
-            success: true,
-            data: {
-                ...telnyxRoom,
-                systemId: systemResponse.data.room.id,
-                createdFor: contactId,
-                user: systemResponse.data.room.user,
-                contact: systemResponse.data.room.contact,
-            },
-        };
-    } catch (error) {
-        console.error("❌ Error in createRoomWithSync:", error);
-
-        // Cleanup: If Telnyx room was created but system storage failed, clean up Telnyx room
-        if (telnyxRoomId) {
-            console.log(
-                "🧹 Cleaning up Telnyx room due to system storage failure..."
-            );
-            try {
-                await deleteVideoRoom(telnyxRoomId);
-                console.log("✅ Telnyx room cleaned up");
-            } catch (cleanupError) {
-                console.error(
-                    "❌ Failed to cleanup Telnyx room:",
-                    cleanupError
-                );
-            }
-        }
-
-        throw error;
-    }
-};
-
-export const updateRoomWithSync = async (
-    systemId,
-    telnyxRoomId,
-    updateData
-) => {
-    try {
-        console.log("🎥 Updating video room with dual-API sync...");
-
-        // Step 1: Update room in Telnyx
-        console.log("📡 Updating room in Telnyx...");
-        const telnyxResponse = await updateVideoRoom(telnyxRoomId, updateData);
-
-        if (!telnyxResponse.success || !telnyxResponse.data) {
-            throw new Error("Failed to update room in Telnyx");
-        }
-
-        console.log("✅ Telnyx room updated");
-
-        // Step 2: Update room metadata in our system
-        console.log("💾 Updating room in system database...");
-
-        // Only update the fields that were actually changed - preserve original joinUrl
-        const systemUpdateData = {
-            // Only include fields that should be updated, don't overwrite joinUrl unless explicitly requested
-            ...(updateData.max_participants && {
-                maxParticipants: telnyxResponse.data.maxParticipants,
-            }),
-            ...(updateData.enable_recording !== undefined && {
-                enableRecording: telnyxResponse.data.enableRecording,
-            }),
-            ...(updateData.unique_name && {
-                uniqueName: telnyxResponse.data.uniqueName,
-            }),
-            // Only update joinUrl if it was explicitly requested in updateData
-            ...(updateData.joinUrl && { joinUrl: telnyxResponse.data.joinUrl }),
-        };
-
-        console.log(
-            "📝 System update data (preserving original joinUrl):",
-            systemUpdateData
-        );
-
-        const systemResponse = await updateRoomInSystem(
-            systemId,
-            systemUpdateData
-        );
-
-        if (!systemResponse.success) {
-            console.warn(
-                "⚠️ Failed to update room in system database, but Telnyx update succeeded"
-            );
-        } else {
-            console.log("✅ Room updated in system database");
-        }
-
-        // Return combined data - preserve original room data and only update changed fields
-        return {
-            success: true,
-            data: {
-                systemId: systemId,
-                telnyxRoomId: telnyxRoomId,
-                // Only return the fields that were actually updated
-                ...(updateData.max_participants && {
-                    maxParticipants: telnyxResponse.data.maxParticipants,
-                }),
-                ...(updateData.enable_recording !== undefined && {
-                    enableRecording: telnyxResponse.data.enableRecording,
-                }),
-                ...(updateData.unique_name && {
-                    uniqueName: telnyxResponse.data.uniqueName,
-                }),
-                // Preserve other room data from system response
-                ...systemResponse.data?.room,
-            },
-        };
-    } catch (error) {
-        console.error("❌ Error in updateRoomWithSync:", error);
-        throw error;
-    }
-};
-
-export const deleteRoomWithSync = async (systemId, telnyxRoomId) => {
-    try {
-        console.log("🎥 Deleting video room with dual-API sync...");
-
-        // Step 1: Delete room from Telnyx
-        console.log("📡 Deleting room from Telnyx...");
-        const telnyxResponse = await deleteVideoRoom(telnyxRoomId);
-
-        if (!telnyxResponse.success) {
-            throw new Error("Failed to delete room from Telnyx");
-        }
-
-        console.log("✅ Telnyx room deleted");
-
-        // Step 2: Delete room from our system
-        console.log("💾 Deleting room from system database...");
-        const systemResponse = await deleteRoomFromSystem(systemId);
-
-        if (!systemResponse.success) {
-            console.warn(
-                "⚠️ Failed to delete room from system database, but Telnyx deletion succeeded"
-            );
-        } else {
-            console.log("✅ Room deleted from system database");
-        }
-
-        return {
-            success: true,
-            message: "Room deleted successfully from both systems",
-        };
-    } catch (error) {
-        console.error("❌ Error in deleteRoomWithSync:", error);
         throw error;
     }
 };

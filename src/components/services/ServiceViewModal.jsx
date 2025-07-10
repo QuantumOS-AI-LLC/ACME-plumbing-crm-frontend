@@ -1,52 +1,43 @@
+import React, { useState, useEffect } from "react";
 import {
-    Box,
     Dialog,
+    DialogTitle,
+    DialogContent,
     DialogActions,
-    IconButton,
+    TextField,
+    Button,
+    Box,
     Typography,
     Chip,
-    List,
-    ListItem,
-    ListItemText,
-    Button,
-    TextField,
-    Select,
-    MenuItem,
+    Grid,
     FormControl,
     InputLabel,
-    Divider,
-    Tooltip,
-    Fade,
-    Grid,
+    Select,
+    MenuItem,
     Alert,
+    IconButton,
+    Paper,
+    Divider,
+    CircularProgress,
 } from "@mui/material";
 import {
-    Add as AddIcon,
-    Delete as DeleteIcon,
-    Edit as EditIcon,
-    Save as SaveIcon,
-    Cancel as CancelIcon,
     Close as CloseIcon,
-    Category as CategoryIcon,
-    Description as DescriptionIcon,
-    CheckCircle as CheckCircleIcon,
+    Save as SaveIcon,
+    Delete as DeleteIcon,
+    Add as AddIcon,
 } from "@mui/icons-material";
-import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
-export const ServiceViewModal = ({
+const ServiceViewModal = ({
     open,
     onClose,
     service,
     onServiceUpdate,
     onServiceDelete,
 }) => {
-    const [isEditMode, setIsEditMode] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-
-    // Edit form state
-    const [editedData, setEditedData] = useState({
+    const [formData, setFormData] = useState({
         name: "",
         description: "",
         price: "",
@@ -56,21 +47,19 @@ export const ServiceViewModal = ({
         includedServices: [],
         status: "active",
     });
+    const [newTag, setNewTag] = useState("");
+    const [newService, setNewService] = useState("");
 
-    // Input states for adding new items
-    const [newTagInput, setNewTagInput] = useState("");
-    const [newIncludedServiceInput, setNewIncludedServiceInput] = useState("");
-
-    // Initialize edit data when service changes
     useEffect(() => {
-        if (service) {
-            setEditedData({
+        if (service && open) {
+            console.log("Service data received in modal:", service); // Debug log
+            setFormData({
                 name: service.name || "",
                 description: service.description || "",
                 price:
-                    typeof service.price === "number"
+                    service.price !== null && service.price !== undefined
                         ? service.price.toString()
-                        : service.price || "",
+                        : "",
                 duration: service.duration || "",
                 category: service.category || "",
                 tags: service.tags || [],
@@ -78,970 +67,488 @@ export const ServiceViewModal = ({
                 status: service.status || "active",
             });
         }
-    }, [service]);
+    }, [service, open]);
 
-    if (!service) return null;
+    useEffect(() => {
+        if (!open) {
+            setError(null);
+            setNewTag("");
+            setNewService("");
+        }
+    }, [open]);
 
-    const getCategoryColor = (category) => {
-        switch (category) {
-            case "Emergency":
-                return {
-                    color: "#f44336",
-                    bgColor: "#ffebee",
-                };
-            case "Installation":
-                return {
-                    color: "#8A2BE2",
-                    bgColor: "#f3e5f5",
-                };
-            case "Repair":
-                return {
-                    color: "#2196f3",
-                    bgColor: "#e3f2fd",
-                };
-            case "Maintenance":
-                return {
-                    color: "#4caf50",
-                    bgColor: "#e8f5e9",
-                };
-            default:
-                return {
-                    color: "#8A2BE2",
-                    bgColor: "#f3e5f5",
-                };
+    if (!open || !service) return null;
+
+    const handleInputChange = (field, value) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleAddTag = () => {
+        if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
+            setFormData((prev) => ({
+                ...prev,
+                tags: [...prev.tags, newTag.trim()],
+            }));
+            setNewTag("");
         }
     };
 
-    const formatPrice = (price) => {
-        if (typeof price === "number") {
-            return `$${price.toFixed(2)}`;
-        }
-        return price || "N/A";
+    const handleRemoveTag = (tag) => {
+        setFormData((prev) => ({
+            ...prev,
+            tags: prev.tags.filter((t) => t !== tag),
+        }));
     };
 
-    const handleEditMode = () => {
-        setIsEditMode(true);
-        setError(null);
-    };
-
-    const handleCancelEdit = () => {
-        setIsEditMode(false);
-        setError(null);
-        setNewTagInput("");
-        setNewIncludedServiceInput("");
-        // Reset to original data
-        setEditedData({
-            name: service.name || "",
-            description: service.description || "",
-            price:
-                typeof service.price === "number"
-                    ? service.price.toString()
-                    : service.price || "",
-            duration: service.duration || "",
-            category: service.category || "",
-            tags: service.tags || [],
-            includedServices: service.includedServices || [],
-            status: service.status || "active",
-        });
-    };
-
-    // Helper function to detect changed fields
-    const getChangedFields = (original, edited) => {
-        const changes = {};
-
-        // Compare name
-        const trimmedName = edited.name.trim();
-        if (original.name !== trimmedName) {
-            changes.name = trimmedName;
-        }
-
-        // Compare description (handle null/empty)
-        const trimmedDescription = edited.description.trim() || null;
-        if (original.description !== trimmedDescription) {
-            changes.description = trimmedDescription;
-        }
-
-        // Compare price with string comparison to prevent false positives
-        const originalPriceStr =
-            original.price === null || original.price === undefined
-                ? ""
-                : original.price.toString();
-        const editedPriceStr =
-            edited.price === null || edited.price === undefined
-                ? ""
-                : edited.price.toString();
-
-        if (originalPriceStr !== editedPriceStr) {
-            // Convert to proper format for API
-            let newPrice = null;
-            if (
-                edited.price !== "" &&
-                edited.price !== null &&
-                edited.price !== undefined
-            ) {
-                const parsed = parseFloat(edited.price);
-                if (!isNaN(parsed)) {
-                    newPrice = parsed;
-                }
-            }
-            changes.price = newPrice;
-        }
-
-        // Compare duration (handle null/empty)
-        const trimmedDuration = edited.duration.trim() || null;
-        if (original.duration !== trimmedDuration) {
-            changes.duration = trimmedDuration;
-        }
-
-        // Compare category
-        if (original.category !== edited.category) {
-            changes.category = edited.category;
-        }
-
-        // Compare status
-        if (original.status !== edited.status) {
-            changes.status = edited.status;
-        }
-
-        // Compare tags array (deep comparison)
-        const originalTags = original.tags || [];
-        const editedTags = edited.tags || [];
-        // Create copies for sorting to avoid mutating original arrays
-        const sortedOriginalTags = [...originalTags].sort();
-        const sortedEditedTags = [...editedTags].sort();
-
+    const handleAddService = () => {
         if (
-            JSON.stringify(sortedOriginalTags) !==
-            JSON.stringify(sortedEditedTags)
+            newService.trim() &&
+            !formData.includedServices.includes(newService.trim())
         ) {
-            changes.tags = editedTags;
+            setFormData((prev) => ({
+                ...prev,
+                includedServices: [...prev.includedServices, newService.trim()],
+            }));
+            setNewService("");
         }
-
-        // Compare includedServices array (deep comparison)
-        const originalServices = original.includedServices || [];
-        const editedServices = edited.includedServices || [];
-        // Create copies for sorting to avoid mutating original arrays
-        const sortedOriginalServices = [...originalServices].sort();
-        const sortedEditedServices = [...editedServices].sort();
-
-        if (
-            JSON.stringify(sortedOriginalServices) !==
-            JSON.stringify(sortedEditedServices)
-        ) {
-            changes.includedServices = editedServices;
-        }
-
-        // Debug logging to help identify issues
-        console.log("Change detection debug:", {
-            original: {
-                price: original.price,
-                priceStr: originalPriceStr,
-                includedServices: original.includedServices,
-                tags: original.tags,
-            },
-            edited: {
-                price: edited.price,
-                priceStr: editedPriceStr,
-                includedServices: edited.includedServices,
-                tags: edited.tags,
-            },
-            changes,
-        });
-
-        return changes;
     };
 
-    const handleSaveChanges = async () => {
+    const handleRemoveService = (service) => {
+        setFormData((prev) => ({
+            ...prev,
+            includedServices: prev.includedServices.filter(
+                (s) => s !== service
+            ),
+        }));
+    };
+
+    const handleSave = async () => {
+        if (!formData.name.trim()) {
+            setError("Service name is required");
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
 
-            // Detect only the changed fields
-            const changedFields = getChangedFields(service, editedData);
-
-            // Check if there are any changes
-            if (Object.keys(changedFields).length === 0) {
-                toast.info("No changes detected");
-                setIsEditMode(false);
-                setLoading(false);
-                return;
-            }
-
-            // Log the changes for debugging
-            console.log("Sending only changed fields:", changedFields);
-
-            // Create update object with only changed fields
             const updateData = {
                 id: service.id,
-                ...changedFields,
+                name: formData.name.trim(),
+                description: formData.description.trim(),
+                price: formData.price ? parseFloat(formData.price) : null,
+                duration: formData.duration.trim(),
+                category: formData.category,
+                tags: formData.tags,
+                includedServices: formData.includedServices,
+                status: formData.status,
             };
 
             if (onServiceUpdate) {
                 await onServiceUpdate(updateData);
-                setIsEditMode(false);
-
-                // Show success message with what was changed
-                const changedFieldNames = Object.keys(changedFields).join(", ");
-                toast.success(`Updated: ${changedFieldNames}`);
+                onClose();
             }
         } catch (err) {
-            console.error("Error saving changes:", err);
             setError(err.message || "Failed to save changes");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDeleteService = async () => {
-        if (
-            window.confirm(
-                "Are you sure you want to delete this service? This action cannot be undone."
-            )
-        ) {
-            try {
-                if (onServiceDelete) {
-                    await onServiceDelete(service.id);
-                }
-            } catch (err) {
-                console.error("Error deleting service:", err);
-                toast.error(err.message || "Failed to delete service");
-            }
-        }
+    const handleDelete = async () => {
+        // Show confirmation toast with action buttons
+        toast(`Delete "${service.name}"?`, {
+            description: "This action cannot be undone.",
+            action: {
+                label: "Delete",
+                onClick: async () => {
+                    try {
+                        if (onServiceDelete) {
+                            await onServiceDelete(service);
+                            onClose();
+                        }
+                    } catch (err) {
+                        setError(err.message || "Failed to delete service");
+                    }
+                },
+            },
+            cancel: {
+                label: "Cancel",
+                onClick: () => {
+                    toast.dismiss();
+                },
+            },
+            duration: 5000,
+        });
     };
 
-    const handleInputChange = (field, value) => {
-        setEditedData((prev) => ({ ...prev, [field]: value }));
+    const getCategoryColor = (category) => {
+        const colors = {
+            Emergency: "#ef4444",
+            Installation: "#8b5cf6",
+            Repair: "#3b82f6",
+            Maintenance: "#10b981",
+        };
+        return colors[category] || "#6b7280";
     };
-
-    const handleAddTag = () => {
-        if (
-            newTagInput.trim() &&
-            !editedData.tags.includes(newTagInput.trim())
-        ) {
-            setEditedData((prev) => ({
-                ...prev,
-                tags: [...prev.tags, newTagInput.trim()],
-            }));
-            setNewTagInput("");
-        }
-    };
-
-    const handleRemoveTag = (tagToRemove) => {
-        setEditedData((prev) => ({
-            ...prev,
-            tags: prev.tags.filter((tag) => tag !== tagToRemove),
-        }));
-    };
-
-    const handleAddIncludedService = () => {
-        if (
-            newIncludedServiceInput.trim() &&
-            !editedData.includedServices.includes(
-                newIncludedServiceInput.trim()
-            )
-        ) {
-            setEditedData((prev) => ({
-                ...prev,
-                includedServices: [
-                    ...prev.includedServices,
-                    newIncludedServiceInput.trim(),
-                ],
-            }));
-            setNewIncludedServiceInput("");
-        }
-    };
-
-    const handleRemoveIncludedService = (serviceToRemove) => {
-        setEditedData((prev) => ({
-            ...prev,
-            includedServices: prev.includedServices.filter(
-                (svc) => svc !== serviceToRemove
-            ),
-        }));
-    };
-
-    const categoryColors = getCategoryColor(service.category);
-
-    // Simplified detail item component
-    const DetailItem = ({ label, value, isEditing, editComponent }) => (
-        <Box sx={{ mb: 2 }}>
-            <Typography
-                variant="caption"
-                sx={{
-                    color: "text.secondary",
-                    display: "block",
-                    fontWeight: 500,
-                    letterSpacing: "0.5px",
-                    mb: 0.5,
-                }}
-            >
-                {label}
-            </Typography>
-            {isEditing ? (
-                editComponent
-            ) : (
-                <Typography
-                    variant="body1"
-                    sx={{
-                        fontWeight: 500,
-                        color: "text.primary",
-                    }}
-                >
-                    {value || "Not specified"}
-                </Typography>
-            )}
-        </Box>
-    );
 
     return (
         <Dialog
             open={open}
             onClose={onClose}
-            maxWidth="sm"
+            maxWidth="md"
             fullWidth
             PaperProps={{
                 sx: {
-                    borderRadius: "12px",
-                    overflow: "hidden",
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+                    borderRadius: 2,
                     maxHeight: "90vh",
                 },
             }}
-            TransitionComponent={Fade}
         >
-            {/* Header */}
-            <Box
-                sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    p: 3,
-                    backgroundColor: "#f8f9fa",
-                    borderBottom: "1px solid rgba(0,0,0,0.08)",
-                }}
-            >
-                <Box sx={{ flex: 1 }}>
-                    <Typography
-                        variant="h6"
-                        sx={{
-                            fontWeight: 700,
-                            color: "text.primary",
-                            mb: 1,
-                        }}
-                    >
-                        {service.name}
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            <DialogTitle>
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                    }}
+                >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <Typography variant="h6" component="h2">
+                            Edit Service
+                        </Typography>
                         <Chip
-                            label={service.category}
-                            sx={{
-                                backgroundColor: categoryColors.bgColor,
-                                color: categoryColors.color,
-                                fontWeight: 600,
-                                borderRadius: "6px",
-                                textTransform: "capitalize",
-                            }}
-                            icon={
-                                <CategoryIcon
-                                    sx={{
-                                        color:
-                                            categoryColors.color +
-                                            " !important",
-                                    }}
-                                />
+                            label={formData.status}
+                            color={
+                                formData.status === "active"
+                                    ? "success"
+                                    : "error"
                             }
-                        />
-                        <Chip
-                            label={service.status}
                             size="small"
-                            sx={{
-                                backgroundColor:
-                                    service.status === "active"
-                                        ? "#e8f5e9"
-                                        : "#ffebee",
-                                color:
-                                    service.status === "active"
-                                        ? "#4caf50"
-                                        : "#f44336",
-                                fontWeight: 500,
-                                textTransform: "capitalize",
-                            }}
                         />
                     </Box>
-                </Box>
-
-                {/* Action Buttons */}
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                    {!isEditMode ? (
-                        <>
-                            <Tooltip title="Edit Service" arrow>
-                                <IconButton
-                                    onClick={handleEditMode}
-                                    sx={{
-                                        backgroundColor:
-                                            "rgba(138, 43, 226, 0.1)",
-                                        color: "primary.main",
-                                        mr: 1,
-                                        "&:hover": {
-                                            backgroundColor:
-                                                "rgba(138, 43, 226, 0.2)",
-                                        },
-                                    }}
-                                >
-                                    <EditIcon />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete Service" arrow>
-                                <IconButton
-                                    onClick={handleDeleteService}
-                                    sx={{
-                                        backgroundColor:
-                                            "rgba(244, 67, 54, 0.1)",
-                                        color: "error.main",
-                                        mr: 1,
-                                        "&:hover": {
-                                            backgroundColor:
-                                                "rgba(244, 67, 54, 0.2)",
-                                        },
-                                    }}
-                                >
-                                    <DeleteIcon />
-                                </IconButton>
-                            </Tooltip>
-                        </>
-                    ) : (
-                        <>
-                            <Tooltip title="Save Changes" arrow>
-                                <IconButton
-                                    onClick={handleSaveChanges}
-                                    disabled={loading}
-                                    sx={{
-                                        backgroundColor:
-                                            "rgba(76, 175, 80, 0.1)",
-                                        color: "success.main",
-                                        mr: 1,
-                                        "&:hover": {
-                                            backgroundColor:
-                                                "rgba(76, 175, 80, 0.2)",
-                                        },
-                                        "&:disabled": {
-                                            backgroundColor: "rgba(0,0,0,0.05)",
-                                            color: "rgba(0,0,0,0.3)",
-                                        },
-                                    }}
-                                >
-                                    <SaveIcon />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Cancel" arrow>
-                                <IconButton
-                                    onClick={handleCancelEdit}
-                                    disabled={loading}
-                                    sx={{
-                                        backgroundColor:
-                                            "rgba(244, 67, 54, 0.1)",
-                                        color: "error.main",
-                                        mr: 1,
-                                        "&:hover": {
-                                            backgroundColor:
-                                                "rgba(244, 67, 54, 0.2)",
-                                        },
-                                    }}
-                                >
-                                    <CancelIcon />
-                                </IconButton>
-                            </Tooltip>
-                        </>
-                    )}
-                    <IconButton
-                        onClick={onClose}
-                        sx={{
-                            backgroundColor: "rgba(0,0,0,0.05)",
-                            "&:hover": {
-                                backgroundColor: "rgba(0,0,0,0.1)",
-                            },
-                        }}
-                    >
+                    <IconButton onClick={onClose} size="small">
                         <CloseIcon />
                     </IconButton>
                 </Box>
-            </Box>
+            </DialogTitle>
 
-            {/* Content */}
-            <Box sx={{ p: 3, overflowY: "auto" }}>
-                {/* Error Alert */}
+            <DialogContent dividers>
                 {error && (
                     <Alert severity="error" sx={{ mb: 3 }}>
                         {error}
                     </Alert>
                 )}
 
-                {/* Service Details Section */}
-                <Typography
-                    variant="subtitle1"
-                    sx={{
-                        fontWeight: 600,
-                        mb: 2,
-                        display: "flex",
-                        alignItems: "center",
-                    }}
-                >
-                    <DescriptionIcon sx={{ mr: 1, color: "primary.main" }} />
-                    Service Details
-                </Typography>
-
-                {isEditMode ? (
-                    // Edit Mode
-                    <Box>
-                        <DetailItem
-                            label="Service Name"
-                            isEditing={true}
-                            editComponent={
-                                <TextField
-                                    value={editedData.name}
+                {/* Basic Information */}
+                <Paper sx={{ p: 3, mb: 3, bgcolor: "grey.50" }}>
+                    <Typography variant="h6" gutterBottom>
+                        Basic Information
+                    </Typography>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                            <TextField
+                                fullWidth
+                                label="Service Name"
+                                value={formData.name}
+                                onChange={(e) =>
+                                    handleInputChange("name", e.target.value)
+                                }
+                                required
+                                placeholder="Enter service name"
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField
+                                fullWidth
+                                label="Description"
+                                value={formData.description}
+                                onChange={(e) =>
+                                    handleInputChange(
+                                        "description",
+                                        e.target.value
+                                    )
+                                }
+                                multiline
+                                rows={3}
+                                placeholder="Describe the service..."
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField
+                                fullWidth
+                                label="Price ($)"
+                                value={formData.price}
+                                onChange={(e) => {
+                                    if (
+                                        e.target.value === "" ||
+                                        /^\d*\.?\d*$/.test(e.target.value)
+                                    ) {
+                                        handleInputChange(
+                                            "price",
+                                            e.target.value
+                                        );
+                                    }
+                                }}
+                                placeholder="0.00"
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField
+                                fullWidth
+                                label="Duration"
+                                value={formData.duration}
+                                onChange={(e) =>
+                                    handleInputChange(
+                                        "duration",
+                                        e.target.value
+                                    )
+                                }
+                                placeholder="e.g., 2 hours"
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <FormControl fullWidth>
+                                <InputLabel>Category</InputLabel>
+                                <Select
+                                    value={formData.category}
+                                    label="Category"
                                     onChange={(e) =>
                                         handleInputChange(
-                                            "name",
+                                            "category",
                                             e.target.value
                                         )
                                     }
-                                    variant="outlined"
-                                    size="small"
-                                    fullWidth
-                                    placeholder="Service Name"
-                                    required
-                                />
-                            }
-                        />
-
-                        <DetailItem
-                            label="Description"
-                            isEditing={true}
-                            editComponent={
-                                <TextField
-                                    multiline
-                                    rows={3}
-                                    value={editedData.description}
+                                >
+                                    <MenuItem value="">
+                                        Select category
+                                    </MenuItem>
+                                    <MenuItem value="Emergency">
+                                        Emergency
+                                    </MenuItem>
+                                    <MenuItem value="Installation">
+                                        Installation
+                                    </MenuItem>
+                                    <MenuItem value="Repair">Repair</MenuItem>
+                                    <MenuItem value="Maintenance">
+                                        Maintenance
+                                    </MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={6}>
+                            <FormControl fullWidth>
+                                <InputLabel>Status</InputLabel>
+                                <Select
+                                    value={formData.status}
+                                    label="Status"
                                     onChange={(e) =>
                                         handleInputChange(
-                                            "description",
+                                            "status",
                                             e.target.value
                                         )
                                     }
-                                    variant="outlined"
-                                    fullWidth
-                                    size="small"
-                                    placeholder="Describe what this service includes..."
-                                />
-                            }
-                        />
-
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6}>
-                                <DetailItem
-                                    label="Price ($)"
-                                    isEditing={true}
-                                    editComponent={
-                                        <TextField
-                                            type="number"
-                                            value={editedData.price}
-                                            onChange={(e) =>
-                                                handleInputChange(
-                                                    "price",
-                                                    e.target.value
-                                                )
-                                            }
-                                            variant="outlined"
-                                            size="small"
-                                            fullWidth
-                                            placeholder="150.00"
-                                            inputProps={{ min: 0, step: 0.01 }}
-                                        />
-                                    }
-                                />
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                                <DetailItem
-                                    label="Duration"
-                                    isEditing={true}
-                                    editComponent={
-                                        <TextField
-                                            value={editedData.duration}
-                                            onChange={(e) =>
-                                                handleInputChange(
-                                                    "duration",
-                                                    e.target.value
-                                                )
-                                            }
-                                            variant="outlined"
-                                            size="small"
-                                            fullWidth
-                                            placeholder="e.g., Same day"
-                                        />
-                                    }
-                                />
-                            </Grid>
+                                >
+                                    <MenuItem value="active">Active</MenuItem>
+                                    <MenuItem value="inactive">
+                                        Inactive
+                                    </MenuItem>
+                                </Select>
+                            </FormControl>
                         </Grid>
+                    </Grid>
+                </Paper>
 
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6}>
-                                <DetailItem
-                                    label="Category"
-                                    isEditing={true}
-                                    editComponent={
-                                        <FormControl fullWidth size="small">
-                                            <Select
-                                                value={editedData.category}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "category",
-                                                        e.target.value
-                                                    )
-                                                }
-                                            >
-                                                <MenuItem value="Emergency">
-                                                    Emergency
-                                                </MenuItem>
-                                                <MenuItem value="Installation">
-                                                    Installation
-                                                </MenuItem>
-                                                <MenuItem value="Repair">
-                                                    Repair
-                                                </MenuItem>
-                                                <MenuItem value="Maintenance">
-                                                    Maintenance
-                                                </MenuItem>
-                                            </Select>
-                                        </FormControl>
-                                    }
-                                />
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                                <DetailItem
-                                    label="Status"
-                                    isEditing={true}
-                                    editComponent={
-                                        <FormControl fullWidth size="small">
-                                            <Select
-                                                value={editedData.status}
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        "status",
-                                                        e.target.value
-                                                    )
-                                                }
-                                            >
-                                                <MenuItem value="active">
-                                                    Active
-                                                </MenuItem>
-                                                <MenuItem value="inactive">
-                                                    Inactive
-                                                </MenuItem>
-                                                <MenuItem value="archived">
-                                                    Archived
-                                                </MenuItem>
-                                            </Select>
-                                        </FormControl>
-                                    }
-                                />
-                            </Grid>
-                        </Grid>
-
-                        <DetailItem
-                            label="Tags"
-                            isEditing={true}
-                            editComponent={
-                                <Box>
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 1,
-                                            mb: 1,
-                                        }}
-                                    >
-                                        <TextField
-                                            placeholder="Add tag"
-                                            value={newTagInput}
-                                            onChange={(e) =>
-                                                setNewTagInput(e.target.value)
-                                            }
-                                            variant="outlined"
-                                            size="small"
-                                            sx={{ flexGrow: 1 }}
-                                            onKeyPress={(e) => {
-                                                if (e.key === "Enter") {
-                                                    e.preventDefault();
-                                                    handleAddTag();
-                                                }
-                                            }}
-                                        />
-                                        <Button
-                                            variant="outlined"
-                                            onClick={handleAddTag}
-                                            size="small"
-                                            disabled={!newTagInput.trim()}
-                                            sx={{
-                                                minWidth: "auto",
-                                                px: 2,
-                                                textTransform: "none",
-                                            }}
-                                        >
-                                            Add
-                                        </Button>
-                                    </Box>
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            flexWrap: "wrap",
-                                            gap: 1,
-                                        }}
-                                    >
-                                        {editedData.tags.map((tag, index) => (
-                                            <Chip
-                                                key={index}
-                                                label={tag}
-                                                onDelete={() =>
-                                                    handleRemoveTag(tag)
-                                                }
-                                                size="small"
-                                                sx={{
-                                                    backgroundColor:
-                                                        "rgba(138, 43, 226, 0.1)",
-                                                    color: "primary.main",
-                                                    "& .MuiChip-deleteIcon": {
-                                                        color: "primary.main",
-                                                        "&:hover": {
-                                                            color: "error.main",
-                                                        },
-                                                    },
-                                                }}
-                                            />
-                                        ))}
-                                    </Box>
-                                </Box>
-                            }
-                        />
-                    </Box>
-                ) : (
-                    // View Mode
-                    <Box>
-                        <DetailItem
-                            label="Description"
-                            value={service.description}
-                        />
-
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6}>
-                                <DetailItem
-                                    label="Price"
-                                    value={formatPrice(service.price)}
-                                />
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                                <DetailItem
-                                    label="Duration"
-                                    value={service.duration}
-                                />
-                            </Grid>
-                        </Grid>
-
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6}>
-                                <DetailItem
-                                    label="Category"
-                                    value={service.category}
-                                />
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                                <DetailItem
-                                    label="Status"
-                                    value={service.status}
-                                />
-                            </Grid>
-                        </Grid>
-
-                        <DetailItem
-                            label="Tags"
-                            value={
-                                service.tags && service.tags.length > 0
-                                    ? service.tags.join(", ")
-                                    : "No tags"
-                            }
-                        />
-                    </Box>
-                )}
-
-                <Divider sx={{ my: 3 }} />
-
-                {/* Included Services Section */}
-                <Typography
-                    variant="subtitle1"
-                    sx={{
-                        fontWeight: 600,
-                        mb: 2,
-                        display: "flex",
-                        alignItems: "center",
-                    }}
-                >
-                    <CheckCircleIcon sx={{ mr: 1, color: "primary.main" }} />
-                    Included Services
-                </Typography>
-
-                {isEditMode && (
-                    <Box
-                        sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                            mb: 2,
-                        }}
-                    >
+                {/* Tags */}
+                <Paper sx={{ p: 3, mb: 3, bgcolor: "grey.50" }}>
+                    <Typography variant="h6" gutterBottom>
+                        Tags
+                    </Typography>
+                    <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
                         <TextField
-                            label="Add included service"
-                            variant="outlined"
-                            size="small"
                             fullWidth
-                            value={newIncludedServiceInput}
-                            onChange={(e) =>
-                                setNewIncludedServiceInput(e.target.value)
-                            }
+                            size="small"
+                            value={newTag}
+                            onChange={(e) => setNewTag(e.target.value)}
                             onKeyPress={(e) => {
                                 if (e.key === "Enter") {
                                     e.preventDefault();
-                                    handleAddIncludedService();
+                                    handleAddTag();
                                 }
                             }}
-                            placeholder="e.g., Drain Cleaning"
+                            placeholder="Add tag"
                         />
                         <Button
-                            variant="contained"
-                            onClick={handleAddIncludedService}
-                            disabled={!newIncludedServiceInput.trim()}
+                            variant="outlined"
+                            onClick={handleAddTag}
+                            disabled={!newTag.trim()}
                             startIcon={<AddIcon />}
-                            sx={{
-                                minWidth: "auto",
-                                px: 2,
-                                textTransform: "none",
-                                fontWeight: 500,
-                            }}
                         >
                             Add
                         </Button>
                     </Box>
-                )}
-
-                {/* Services List */}
-                {(isEditMode
-                    ? editedData.includedServices
-                    : service.includedServices
-                )?.length > 0 ? (
-                    <List sx={{ p: 0 }}>
-                        {(isEditMode
-                            ? editedData.includedServices
-                            : service.includedServices
-                        ).map((svc, index) => (
-                            <ListItem
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                        {formData.tags.map((tag, index) => (
+                            <Chip
                                 key={index}
-                                sx={{
-                                    borderRadius: "8px",
-                                    mb: 1,
-                                    backgroundColor: "rgba(0,0,0,0.02)",
-                                    "&:hover": {
-                                        backgroundColor: "rgba(0,0,0,0.05)",
-                                    },
-                                }}
-                                secondaryAction={
-                                    isEditMode && (
-                                        <Tooltip title="Remove service" arrow>
-                                            <IconButton
-                                                edge="end"
-                                                onClick={() =>
-                                                    handleRemoveIncludedService(
-                                                        svc
-                                                    )
-                                                }
-                                                sx={{
-                                                    color: "error.main",
-                                                    "&:hover": {
-                                                        backgroundColor:
-                                                            "rgba(244, 67, 54, 0.1)",
-                                                    },
-                                                }}
-                                            >
-                                                <DeleteIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                    )
-                                }
-                            >
-                                <ListItemText
-                                    primary={
-                                        <Typography
-                                            variant="body1"
-                                            sx={{
-                                                fontWeight: 500,
-                                                color: "text.primary",
-                                            }}
-                                        >
-                                            {svc}
-                                        </Typography>
-                                    }
-                                />
-                            </ListItem>
+                                label={tag}
+                                onDelete={() => handleRemoveTag(tag)}
+                                color="primary"
+                                variant="outlined"
+                            />
                         ))}
-                    </List>
-                ) : (
-                    <Box
-                        sx={{
-                            p: 3,
-                            textAlign: "center",
-                            backgroundColor: "rgba(0,0,0,0.02)",
-                            borderRadius: "8px",
-                            border: "2px dashed rgba(0,0,0,0.1)",
-                        }}
-                    >
-                        <Typography
-                            variant="body2"
+                    </Box>
+                </Paper>
+
+                {/* Included Services */}
+                <Paper sx={{ p: 3, mb: 3, bgcolor: "grey.50" }}>
+                    <Typography variant="h6" gutterBottom>
+                        Included Services
+                    </Typography>
+                    <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            value={newService}
+                            onChange={(e) => setNewService(e.target.value)}
+                            onKeyPress={(e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleAddService();
+                                }
+                            }}
+                            placeholder="Add included service"
+                        />
+                        <Button
+                            variant="outlined"
+                            onClick={handleAddService}
+                            disabled={!newService.trim()}
+                            startIcon={<AddIcon />}
+                        >
+                            Add
+                        </Button>
+                    </Box>
+                    {formData.includedServices.length > 0 ? (
+                        <Box
                             sx={{
-                                color: "text.secondary",
-                                fontStyle: "italic",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
                             }}
                         >
-                            {isEditMode
-                                ? "No included services added yet. Add some services above to get started."
-                                : "No included services added yet."}
+                            {formData.includedServices.map((service, index) => (
+                                <Paper
+                                    key={index}
+                                    sx={{
+                                        p: 2,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        bgcolor: "white",
+                                    }}
+                                >
+                                    <Typography variant="body2">
+                                        {service}
+                                    </Typography>
+                                    <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                            handleRemoveService(service)
+                                        }
+                                        color="error"
+                                    >
+                                        <DeleteIcon />
+                                    </IconButton>
+                                </Paper>
+                            ))}
+                        </Box>
+                    ) : (
+                        <Typography variant="body2" color="text.secondary">
+                            No services added yet
                         </Typography>
-                    </Box>
-                )}
-            </Box>
+                    )}
+                </Paper>
+            </DialogContent>
 
-            {/* Footer */}
-            <Divider />
             <DialogActions
                 sx={{
-                    p: 2,
-                    backgroundColor: "#f8f9fa",
+                    p: 3,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                 }}
             >
                 <Button
-                    onClick={onClose}
-                    variant="contained"
-                    disabled={loading}
+                    onClick={handleDelete}
+                    variant="outlined"
+                    startIcon={<DeleteIcon />}
                     sx={{
-                        minWidth: "120px",
-                        borderRadius: "6px",
+                        borderColor: "#f44336",
+                        color: "#f44336",
+                        borderRadius: "12px",
                         textTransform: "none",
-                        fontWeight: 500,
-                        boxShadow: "none",
+                        fontWeight: "bold",
+                        px: 3,
+                        py: 1,
+                        border: "2px solid #f44336",
+                        background:
+                            "linear-gradient(45deg, rgba(244, 67, 54, 0.05), rgba(244, 67, 54, 0.1))",
+                        backdropFilter: "blur(10px)",
+                        boxShadow: "0 4px 20px rgba(244, 67, 54, 0.2)",
+                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                         "&:hover": {
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                            backgroundColor: "#f44336",
+                            color: "#ffffff",
+                            borderColor: "#f44336",
+                            transform: "translateY(-2px)",
+                            boxShadow: "0 8px 30px rgba(244, 67, 54, 0.4)",
+                        },
+                        "&:active": {
+                            transform: "translateY(0px)",
                         },
                     }}
                 >
-                    Close
+                    Delete Service
+                </Button>
+
+                <Button
+                    onClick={handleSave}
+                    variant="contained"
+                    disabled={loading || !formData.name.trim()}
+                    startIcon={
+                        loading ? <CircularProgress size={18} /> : <SaveIcon />
+                    }
+                    sx={{
+                        bgcolor: "#8A2BE2",
+                        borderRadius: "12px",
+                        textTransform: "none",
+                        fontWeight: "bold",
+                        px: 3,
+                        py: 1,
+                        background: "linear-gradient(45deg, #8A2BE2, #9C27B0)",
+                        boxShadow: "0 4px 20px rgba(138, 43, 226, 0.3)",
+                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                        "&:hover": {
+                            bgcolor: "#7B1FA2",
+                            background:
+                                "linear-gradient(45deg, #7B1FA2, #8E24AA)",
+                            transform: "translateY(-2px)",
+                            boxShadow: "0 8px 30px rgba(138, 43, 226, 0.4)",
+                        },
+                        "&:active": {
+                            transform: "translateY(0px)",
+                        },
+                        "&:disabled": {
+                            background: "rgba(138, 43, 226, 0.3)",
+                            color: "rgba(255, 255, 255, 0.5)",
+                        },
+                    }}
+                >
+                    {loading ? "Saving..." : "Save Changes"}
                 </Button>
             </DialogActions>
         </Dialog>
     );
 };
+
+export default ServiceViewModal;

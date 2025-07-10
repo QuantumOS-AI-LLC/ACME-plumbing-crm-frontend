@@ -20,7 +20,7 @@ import {
 import { Add as AddIcon, Search as SearchIcon } from "@mui/icons-material";
 import { toast } from "sonner";
 
-import { ServiceViewModal } from "../components/services/ServiceViewModal";
+import ServiceViewModal from "../components/services/ServiceViewModal";
 import { ServiceListItem } from "../components/services/ServiceListItem";
 import AddServiceModal from "../components/services/AddServiceModal";
 import {
@@ -120,7 +120,24 @@ const MyServicesPage = () => {
     }, [filters.search]);
 
     const handleView = (service) => {
-        setSelectedService(service);
+        // Always use the original service data from the services array
+        // The service parameter might be transformed for display
+        const originalService = services.find((s) => s.id === service.id);
+        if (originalService) {
+            setSelectedService(originalService);
+        } else {
+            // Fallback: if we can't find the original, use the passed service
+            // but make sure price is a number if it's a formatted string
+            const cleanedService = { ...service };
+            if (
+                typeof cleanedService.price === "string" &&
+                cleanedService.price.startsWith("$")
+            ) {
+                cleanedService.price =
+                    parseFloat(cleanedService.price.replace("$", "")) || 0;
+            }
+            setSelectedService(cleanedService);
+        }
         setModalOpen(true);
     };
 
@@ -129,8 +146,16 @@ const MyServicesPage = () => {
     };
 
     const handleServiceCreated = (newService) => {
+        // Add the new service to local state instead of reloading entire list
+        setServices((prevServices) => [newService, ...prevServices]);
+
+        // Update pagination total
+        setPagination((prev) => ({
+            ...prev,
+            total: prev.total + 1,
+        }));
+
         toast.success("Service created successfully!");
-        loadServices(); // Reload services to get updated list
     };
 
     const handleServiceUpdated = async (updatedService) => {
@@ -140,16 +165,27 @@ const MyServicesPage = () => {
                 updatedService
             );
 
-            const webHookData = {
-                ...response.data,
-                serviceId: updatedService.id,
-                webhookEvent: "serviceUpdated",
-            };
-
-            await sendWebhook({ payload: webHookData });
             if (response.success) {
+                // Only send webhook if the update was successful
+                const webHookData = {
+                    ...response.data,
+                    serviceId: updatedService.id,
+                    webhookEvent: "serviceUpdated",
+                };
+
+                await sendWebhook({ payload: webHookData });
+
                 toast.success("Service updated successfully!");
-                loadServices(); // Reload services
+
+                // Update the service in local state instead of reloading entire list
+                setServices((prevServices) =>
+                    prevServices.map((service) =>
+                        service.id === updatedService.id
+                            ? { ...service, ...response.data }
+                            : service
+                    )
+                );
+
                 setModalOpen(false);
                 setSelectedService(null);
             } else {
@@ -161,21 +197,57 @@ const MyServicesPage = () => {
         }
     };
 
-    const handleServiceDeleted = async (serviceId) => {
-        try {
-            const response = await deleteServiceAPI(serviceId);
-            if (response.success) {
-                toast.success("Service deleted successfully!");
-                loadServices(); // Reload services
-                setModalOpen(false);
-                setSelectedService(null);
-            } else {
-                throw new Error(response.message || "Failed to delete service");
-            }
-        } catch (err) {
-            console.error("Error deleting service:", err);
-            toast.error(err.message || "Failed to delete service");
-        }
+    const handleServiceDeleted = async (service) => {
+        // Show confirmation toast with action buttons
+        toast(`Delete "${service.name}"?`, {
+            description: "This action cannot be undone.",
+            action: {
+                label: "Delete",
+                onClick: async () => {
+                    try {
+                        const response = await deleteServiceAPI(service.id);
+
+                        if (response.success) {
+                            // Send webhook for service deletion
+                            const webHookData = {
+                                serviceId: service.id,
+                                serviceName: service.name,
+                                webhookEvent: "serviceDeleted",
+                            };
+
+                            await sendWebhook({ payload: webHookData });
+
+                            toast.success("Service deleted successfully!");
+
+                            // Remove the service from local state
+                            setServices((prevServices) =>
+                                prevServices.filter((s) => s.id !== service.id)
+                            );
+
+                            // Update pagination total
+                            setPagination((prev) => ({
+                                ...prev,
+                                total: prev.total - 1,
+                            }));
+                        } else {
+                            throw new Error(
+                                response.message || "Failed to delete service"
+                            );
+                        }
+                    } catch (err) {
+                        console.error("Error deleting service:", err);
+                        toast.error(err.message || "Failed to delete service");
+                    }
+                },
+            },
+            cancel: {
+                label: "Cancel",
+                onClick: () => {
+                    toast.dismiss();
+                },
+            },
+            duration: 5000,
+        });
     };
 
     const handleAddService = () => {
@@ -449,6 +521,7 @@ const MyServicesPage = () => {
                                         )}
                                         isLast={index === services.length - 1}
                                         onView={handleView}
+                                        onDelete={handleServiceDeleted}
                                     />
                                 ))}
                             </List>
