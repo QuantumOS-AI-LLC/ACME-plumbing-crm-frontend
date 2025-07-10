@@ -552,12 +552,14 @@ const AIAssistantPage = () => {
                                         textAlign: "left",
                                         justifyContent: "flex-start",
                                         p: 0,
+                                        cursor: "pointer", // Add pointer cursor
                                         "&:hover": {
                                             textDecoration: "underline",
+                                            color: "primary.main", // Optional: change color on hover
                                         },
                                     }}
                                 >
-                                    <Typography variant="h6">
+                                    <Typography variant="h6" color="primary.main">
                                         {activeConversation.contactName ||
                                             "AI Conversation"}
                                     </Typography>
