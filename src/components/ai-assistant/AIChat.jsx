@@ -1090,64 +1090,6 @@ const AIChat = ({
                         ))}
                     </Box>
                 )}
-
-                <Box
-                    sx={{
-                        mt: 1,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                        gap: 1,
-                    }}
-                >
-                    <Chip
-                        label={
-                            isSending || isUploadingAttachments
-                                ? "Sending..."
-                                : "Ready"
-                        }
-                        size="small"
-                        color={
-                            isSending || isUploadingAttachments
-                                ? "warning"
-                                : "success"
-                        }
-                        variant="outlined"
-                    />
-
-                    {messages.length > 0 && pagination && (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                            }}
-                        >
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                            >
-                                {messages.length} of {totalMessages} messages
-                            </Typography>
-                            {hasMoreMessages && !isLoadingHistory && (
-                                <Button
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={loadMoreMessages}
-                                    disabled={isLoadingMore}
-                                    sx={{ minWidth: "auto", px: 1, py: 0.5 }}
-                                >
-                                    {isLoadingMore ? (
-                                        <CircularProgress size={12} />
-                                    ) : (
-                                        "Load More"
-                                    )}
-                                </Button>
-                            )}
-                        </Box>
-                    )}
-                </Box>
             </Paper>
 
             <Modal
