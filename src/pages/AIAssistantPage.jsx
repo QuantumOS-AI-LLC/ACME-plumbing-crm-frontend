@@ -14,11 +14,6 @@ import {
     Skeleton,
     Backdrop,
     ButtonBase, // Import ButtonBase
-    Dialog, // Import Dialog
-    DialogTitle, // Import DialogTitle
-    DialogContent, // Import DialogContent
-    DialogContentText, // Import DialogContentText
-    DialogActions, // Import DialogActions
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -43,11 +38,11 @@ const AIAssistantPage = () => {
     const conversationId = searchParams.get("conversationId"); // This is the initial, temporary ID
     const { user, loading: authLoading } = useAuth(); // Get user and auth loading state
     const [conversations, setConversations] = useState([]);
+    const [botContactConversation, setBotContactConversation] = useState(null); // New state for bot contact
     const [activeConversation, setActiveConversation] = useState(null);
     const [unreadCounts, setUnreadCounts] = useState({});
     const [isConversationListVisible, setConversationListVisible] =
         useState(false);
-    const [openBotContactDialog, setOpenBotContactDialog] = useState(false); // New state for bot contact dialog
     const { isConnected } = useSocket();
     const [conversationsLoading, setConversationsLoading] = useState(false); // Used for the InfiniteScroll loader
     const [isInitialLoading, setIsInitialLoading] = useState(true); // New state for initial full-list loading
@@ -122,39 +117,41 @@ const AIAssistantPage = () => {
 
                 let fetchedConvos = apiConvos;
 
-                // If fetching the first page, ensure Alli is at the top if she exists
+                // Separate bot contact from other conversations
+                let botConvo = null;
+                let otherConvos = apiConvos;
+
                 if (pageToFetch === 1) {
-                    const alliFromApi = apiConvos.find(
+                    botConvo = apiConvos.find(
                         (convo) => convo.contactId === currentBotContactId
                     );
+                    // Use the contactName from the fetched botConvo if available, otherwise default to "Alli"
+                    const botContactName = botConvo?.contactName || "Alli";
 
-                    if (alliFromApi) {
-                        alliFromApi.contactName = "Alli";
-                        fetchedConvos = [
-                            alliFromApi,
-                            ...apiConvos.filter(
-                                (convo) =>
-                                    convo.contactId !== currentBotContactId
-                            ),
-                        ];
+                    if (botConvo) {
+                        botConvo.contactName = botContactName;
+                        otherConvos = apiConvos.filter(
+                            (convo) => convo.contactId !== currentBotContactId
+                        );
                     } else {
-                        const localAlliConversation = {
+                        // If bot contact not found in API response, create a local placeholder
+                        botConvo = {
                             contactId: currentBotContactId,
-                            contactName: "Alli",
+                            contactName: botContactName,
                             lastMessage: null,
                             estimateId: null,
                         };
-                        fetchedConvos = [localAlliConversation, ...apiConvos];
                     }
+                    setBotContactConversation(botConvo);
+                } else {
+                    // For subsequent pages, just append to other conversations
+                    setBotContactConversation((prev) => prev); // Keep existing bot contact
                 }
 
                 setConversations((prev) => {
-                    // If it's the first page, replace existing conversations
-                    // Otherwise, append new conversations
-                    const newConvos =
-                        pageToFetch === 1
-                            ? fetchedConvos
-                            : [...prev, ...fetchedConvos];
+                    // If it's the first page, replace existing conversations with otherConvos
+                    // Otherwise, append new otherConvos
+                    const newConvos = pageToFetch === 1 ? otherConvos : [...prev, ...otherConvos];
 
                     // Handle URL-driven new conversation, ensuring it's at the top if it exists
                     const newConvoFromURL =
@@ -195,17 +192,17 @@ const AIAssistantPage = () => {
                             estimateId: null,
                         };
 
-                        const targetConversation = fetchedConvos.find(
+                        const targetConversation = otherConvos.find(
                             (convo) =>
                                 convo.contactId === contactId &&
                                 convo.id === conversationId
                         );
 
-                        if (!targetConversation) {
-                            fetchedConvos.unshift(newConvoFromURL);
+                        if (!targetConversation && newConvoFromURL.contactId !== currentBotContactId) {
+                            otherConvos.unshift(newConvoFromURL);
                         }
 
-                        const targetConversationFinal = fetchedConvos.find(
+                        const targetConversationFinal = otherConvos.find(
                             (convo) =>
                                 convo.contactId === contactId &&
                                 convo.id === conversationId
@@ -213,11 +210,17 @@ const AIAssistantPage = () => {
 
                         if (targetConversationFinal) {
                             setActiveConversation(targetConversationFinal);
-                        } else if (fetchedConvos.length > 0) {
-                            setActiveConversation(fetchedConvos[0]);
+                        } else if (botConvo && contactId === currentBotContactId) {
+                            setActiveConversation(botConvo);
+                        } else if (otherConvos.length > 0) {
+                            setActiveConversation(otherConvos[0]);
+                        } else if (botConvo) {
+                            setActiveConversation(botConvo);
                         }
-                    } else if (fetchedConvos.length > 0) {
-                        setActiveConversation(fetchedConvos[0]);
+                    } else if (botConvo) {
+                        setActiveConversation(botConvo);
+                    } else if (otherConvos.length > 0) {
+                        setActiveConversation(otherConvos[0]);
                     }
                 }
             } catch (error) {
@@ -225,11 +228,12 @@ const AIAssistantPage = () => {
                 if (pageToFetch === 1) {
                     const localAlliConversation = {
                         contactId: currentBotContactId,
-                        contactName: "Alli",
+                        contactName: "Alli", // Default to "Alli" if not found in API response
                         lastMessage: null,
                         estimateId: null,
                     };
-                    setConversations([localAlliConversation]);
+                    setBotContactConversation(localAlliConversation);
+                    setConversations([]); // No other conversations on error
                     setActiveConversation(localAlliConversation);
                     setHasMoreConversations(false);
                     setTotalConversations(1);
@@ -241,7 +245,7 @@ const AIAssistantPage = () => {
                 }
             }
         },
-        [contactId, contactName, conversationId]
+        [contactId, contactName, conversationId] // Removed user from dependencies as it's not directly used for botContactName
     );
 
     useEffect(() => {
@@ -321,7 +325,12 @@ const AIAssistantPage = () => {
     ); // Depend on conversationId from URL to correctly identify the temporary one
 
     const selectConversation = (contactId) => {
-        const selected = conversations.find((c) => c.contactId === contactId);
+        let selected = null;
+        if (botContactConversation && contactId === botContactConversation.contactId) {
+            selected = botContactConversation;
+        } else {
+            selected = conversations.find((c) => c.contactId === contactId);
+        }
         setActiveConversation(selected);
 
         setUnreadCounts((prevCounts) => ({
@@ -451,13 +460,36 @@ const AIAssistantPage = () => {
                         </Button> */}
                     </Box>
                     <Divider />
-
-                    <Box
-                        id="conversation-list-scrollable-div-inner"
-                        sx={{ flexGrow: 1, overflowY: "auto" }}
-                    >
-                        {" "}
-                        {/* Inner scrollable container */}
+{botContactConversation && (
+                        <List sx={{ pb: 0 }}> {/* Removed top and bottom padding */}
+                            <ListItem disablePadding sx={{ backgroundColor: '#E1BEE7', border: '2px solid #9575CD', borderRadius: '6px' }}>
+                                 <ListItemButton
+                                     selected={
+                                         activeConversation?.contactId ===
+                                        botContactConversation.contactId
+                                    }
+                                    onClick={() =>
+                                        selectConversation(botContactConversation.contactId)
+                                    }
+                                    
+                                >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography variant="body1" sx={{ fontSize: '1.2rem', color: 'black' }}>
+                                            {botContactConversation.contactName || "Alli"} 🤖
+                                        </Typography>
+                                        <Badge
+                                            badgeContent={
+                                                unreadCounts[botContactConversation.contactId] || 0
+                                            }
+                                            color="primary"
+                                            sx={{ ml: 1 }}
+                                        />
+                                    </Box>
+                                </ListItemButton>
+                            </ListItem>
+                        </List>
+                    )}
+                    <Box id="conversation-list-scrollable-div-inner" sx={{ flexGrow: 1, overflowY: "auto" }}> {/* Inner scrollable container */}
                         <InfiniteScroll
                             dataLength={conversations.length}
                             next={fetchMoreConversations}
@@ -487,58 +519,57 @@ const AIAssistantPage = () => {
                             scrollableTarget="conversation-list-scrollable-div-inner" // Target the inner scrollable div
                         >
                             <List sx={{ flexGrow: 1 }}>
-                                {isInitialLoading
-                                    ? Array.from({ length: 3 }).map(
-                                          (_, index) => (
-                                              <ListItem
-                                                  key={`skeleton-${index}`}
-                                                  disablePadding
-                                              >
-                                                  <ListItemButton>
-                                                      <Skeleton
-                                                          variant="text"
-                                                          width="100%"
-                                                          height={40}
-                                                      />
-                                                  </ListItemButton>
-                                              </ListItem>
-                                          )
-                                      )
-                                    : conversations.map((conversation) => (
-                                          <ListItem
-                                              key={conversation.contactId}
-                                              disablePadding
-                                          >
-                                              <ListItemButton
-                                                  selected={
-                                                      activeConversation?.contactId ===
-                                                      conversation.contactId
-                                                  }
-                                                  onClick={() =>
-                                                      selectConversation(
-                                                          conversation.contactId
-                                                      )
-                                                  }
-                                              >
-                                                  <ListItemText
-                                                      primary={
-                                                          conversation.contactName ||
-                                                          "Unnamed Contact"
-                                                      }
-                                                  />
-                                                  <Badge
-                                                      badgeContent={
-                                                          unreadCounts[
-                                                              conversation
-                                                                  .contactId
-                                                          ] || 0
-                                                      }
-                                                      color="primary"
-                                                      sx={{ ml: 1 }}
-                                                  />
-                                              </ListItemButton>
-                                          </ListItem>
-                                      ))}
+                                {isInitialLoading ? (
+                                    Array.from({ length: 3 }).map((_, index) => (
+                                        <ListItem
+                                            key={`skeleton-${index}`}
+                                            disablePadding
+                                        >
+                                            <ListItemButton>
+                                                <Skeleton
+                                                    variant="text"
+                                                    width="100%"
+                                                    height={40}
+                                                />
+                                            </ListItemButton>
+                                        </ListItem>
+                                    ))
+                                ) : (
+                                    conversations.map((conversation) => (
+                                        <ListItem
+                                            key={conversation.contactId}
+                                            disablePadding
+                                        >
+                                            <ListItemButton
+                                                selected={
+                                                    activeConversation?.contactId ===
+                                                    conversation.contactId
+                                                }
+                                                onClick={() =>
+                                                    selectConversation(
+                                                        conversation.contactId
+                                                    )
+                                                }
+                                            >
+                                                <ListItemText
+                                                    primary={
+                                                        conversation.contactName ||
+                                                        "Unnamed Contact"
+                                                    }
+                                                />
+                                                <Badge
+                                                    badgeContent={
+                                                        unreadCounts[
+                                                            conversation.contactId
+                                                        ] || 0
+                                                    }
+                                                    color="primary"
+                                                    sx={{ ml: 1 }}
+                                                />
+                                            </ListItemButton>
+                                        </ListItem>
+                                    ))
+                                )}
                             </List>
                         </InfiniteScroll>
                     </Box>
@@ -582,9 +613,7 @@ const AIAssistantPage = () => {
                                 <ButtonBase
                                     onClick={() => {
                                         const botContactId = user?.botContactId || user?.data?.user?.botContactId;
-                                        if (activeConversation?.contactId === botContactId) {
-                                            setOpenBotContactDialog(true); // Open the dialog
-                                        } else if (activeConversation?.contactId) {
+                                        if (activeConversation?.contactId !== botContactId && activeConversation?.contactId) {
                                             navigate(`/contacts/${activeConversation.contactId}`);
                                         }
                                     }}
@@ -592,16 +621,30 @@ const AIAssistantPage = () => {
                                         textAlign: "left",
                                         justifyContent: "flex-start",
                                         p: 0,
-                                        cursor: "pointer", // Add pointer cursor
+                                        cursor: "pointer", // Default cursor
                                         "&:hover": {
-                                            textDecoration: "underline",
-                                            color: "primary.main", // Optional: change color on hover
+                                            bgcolor: "action.hover", // Default hover background
                                         },
+                                        borderRadius: 1,
                                     }}
                                 >
-                                    <Typography variant="h6" color="primary.main">
-                                        {activeConversation.contactName ||
-                                            "AI Conversation"}
+                                    <Typography
+                                        variant="h6"
+                                        sx={(theme) => {
+                                            const botContactId = user?.botContactId || user?.data?.user?.botContactId;
+                                            const isBotContact = activeConversation?.contactId === botContactId;
+                                            return {
+                                                fontWeight:  'bold',
+                                                color:
+                                                isBotContact ? 'black' : 'primary.main',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                            };
+                                        }}
+                                    >
+                                        {activeConversation.contactName || "AI Conversation"}
+                                        {activeConversation?.contactId === (user?.botContactId || user?.data?.user?.botContactId) && "🤖 "}
                                     </Typography>
                                 </ButtonBase>
                             </Box>
@@ -672,25 +715,9 @@ const AIAssistantPage = () => {
                     )}
                 </Box>
             </Box>
-            {/* Bot Contact Dialog */}
-            <Dialog
-                open={openBotContactDialog}
-                onClose={() => setOpenBotContactDialog(false)}
-                aria-labelledby="bot-contact-dialog-title"
-                aria-describedby="bot-contact-dialog-description"
-            >
-                <DialogTitle id="bot-contact-dialog-title">Bot Contact</DialogTitle>
-                <DialogContent>
-                    <DialogContentText id="bot-contact-dialog-description">
-                        This is a bot contact. Details cannot be viewed.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenBotContactDialog(false)}>Okay</Button>
-                </DialogActions>
-            </Dialog>
         </Box>
     );
 };
 
 export default AIAssistantPage;
+
