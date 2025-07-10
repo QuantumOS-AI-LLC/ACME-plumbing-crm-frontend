@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 import {
     Box,
     TextField,
@@ -9,6 +10,7 @@ import {
     Chip,
     Modal,
     IconButton,
+    ButtonBase, // Import ButtonBase for clickable Typography
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -18,10 +20,12 @@ import AttachmentInput from "./AttachmentInput";
 
 const AIChat = ({
     contactId,
+    contactName, // Accept contactName as a prop
     estimateId = null,
     initialConversationId = null,
     onConversationSaved = () => {},
 }) => {
+    const navigate = useNavigate(); // Initialize useNavigate
     const [inputMessage, setInputMessage] = useState("");
     const [selectedFilesToUpload, setSelectedFilesToUpload] = useState([]);
     const [uploadedAttachments, setUploadedAttachments] = useState([]);
