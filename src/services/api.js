@@ -431,19 +431,6 @@ export const fetchJobs = async (params = {}) => {
         throw error;
     }
 };
-export const fetchJobsByContactId = async (contactId, params = {}) => {
-    try {
-        const newParams = { ...params };
-        if (newParams.status && Array.isArray(newParams.status)) {
-            newParams.status = newParams.status.join(",");
-        }
-        const response = await api.get(`/jobs/contact/${contactId}`, { params: newParams });
-        return response.data;
-    } catch (error) {
-        console.error(`Error fetching jobs for contact ${contactId}:`, error);
-        throw error;
-    }
-};
 export const fetchJob = async (id) => {
     try {
         const response = await api.get(`/jobs/${id}`);
@@ -607,6 +594,24 @@ export const deleteContact = async (id) => {
         return response.data;
     } catch (error) {
         console.error(`Error deleting contact ${id}:`, error);
+        throw error;
+    }
+};
+// Fetch jobs for a specific contact with pagination and filtering
+export const fetchJobsByContact = async (contactId, params = {}) => {
+    try {
+        // Normalize status parameter if it's an array
+        const newParams = { ...params };
+        if (newParams.status && Array.isArray(newParams.status)) {
+            newParams.status = newParams.status.join(",");
+        }
+        const response = await api.get(`/jobs/contact/${contactId}`, {
+            params: newParams,
+        });
+        console.log("Jobs by contact response:", response.data);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching jobs for contact ${contactId}:`, error);
         throw error;
     }
 };

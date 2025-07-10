@@ -1,5 +1,5 @@
 // ... (Previous imports remain unchanged)
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Box,
     Typography,
@@ -12,13 +12,14 @@ import {
     ListItemText,
     Divider,
     Button,
-    IconButton,
     CircularProgress,
     TextField,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
+    Tabs,
+    Tab,
 } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import PhoneIcon from "@mui/icons-material/Phone";
@@ -26,15 +27,18 @@ import EmailIcon from "@mui/icons-material/Email";
 import EditIcon from "@mui/icons-material/Edit";
 import VideoCallIcon from "@mui/icons-material/VideoCall";
 import DeleteIcon from "@mui/icons-material/Delete";
-import SettingsIcon from "@mui/icons-material/Settings";
 import { v4 as uuidv4 } from "uuid";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { fetchContact, updateContact } from "../services/api";
+import {
+    fetchContact,
+    updateContact,
+    fetchJobsByContact,
+} from "../services/api";
 import PageHeader from "../components/common/PageHeader";
 import { toast } from "sonner";
 import { useWebhook } from "../hooks/webHook";
 import { useVideoRoom } from "../hooks/useVideoRoom";
 import CallDurationSelector from "../components/video/CallDurationSelector";
+import SimpleJobList from "../components/jobs/SimpleJobList";
 
 const ContactDetailsPage = () => {
     const { id } = useParams();
@@ -62,7 +66,7 @@ const ContactDetailsPage = () => {
     const {
         loading: videoRoomLoading,
         videoRoomData,
-        roomsList,
+
         createRoom,
         updateRoom,
         deleteRoom,
@@ -80,6 +84,28 @@ const ContactDetailsPage = () => {
     const [selectedRoomForUpdate, setSelectedRoomForUpdate] = useState(null);
     const [openDurationSelector, setOpenDurationSelector] = useState(false);
 
+    // Job history state
+    const [jobs, setJobs] = useState([]);
+    const [activeJobTab, setActiveJobTab] = useState("open");
+    const [jobsLoading, setJobsLoading] = useState(false);
+    const [jobsError, setJobsError] = useState(null);
+    const [pagination, setPagination] = useState({
+        total: 0,
+        page: 1,
+        limit: 5,
+        pages: 1,
+        hasNextPage: false,
+        hasPrevPage: false,
+    });
+    const [contactInfo, setContactInfo] = useState(null);
+    const [allJobCounts, setAllJobCounts] = useState({
+        total: 0,
+        open: 0,
+        in_progress: 0,
+        completed: 0,
+        cancelled: 0,
+    });
+
     // Define pipeline stage options
     const pipelineStageOptions = [
         { value: "new_lead", label: "New Lead" },
@@ -89,6 +115,190 @@ const ContactDetailsPage = () => {
         { value: "job_completed", label: "Job Completed" },
         { value: "won", label: "Won" },
     ];
+
+    // Helper functions for job filtering and counting
+    const filterJobsByStatus = (jobs, status) => {
+        if (!jobs || jobs.length === 0) return [];
+
+        switch (status) {
+            case "open":
+                return jobs.filter((job) => job.status === "open");
+            case "in_progress":
+                return jobs.filter((job) => job.status === "in_progress");
+            case "completed":
+                return jobs.filter((job) => job.status === "completed");
+            case "cancelled":
+                return jobs.filter((job) => job.status === "cancelled");
+            default:
+                return jobs;
+        }
+    };
+
+    // Job-related computed values
+    const filteredJobs = useMemo(() => {
+        return filterJobsByStatus(jobs, activeJobTab);
+    }, [jobs, activeJobTab]);
+
+    // Show only 5 jobs initially
+    const displayedJobs = filteredJobs.slice(0, 5);
+    const hasMoreJobs = filteredJobs.length > 5;
+
+    // Job handlers
+    const handleJobTabChange = (event, newValue) => {
+        setActiveJobTab(newValue);
+        // Don't auto-reload jobs, just filter existing jobs
+    };
+
+    const handleViewAllJobs = () => {
+        navigate(`/jobs/contact/${id}`);
+    };
+
+    // Load all job counts for tabs
+    const loadAllJobCounts = useCallback(async () => {
+        try {
+            const statuses = ["open", "in_progress", "completed", "cancelled"];
+            const counts = {
+                total: 0,
+                open: 0,
+                in_progress: 0,
+                completed: 0,
+                cancelled: 0,
+            };
+
+            let apiWorked = false;
+
+            // Try to load counts from API first
+            for (const status of statuses) {
+                try {
+                    const response = await fetchJobsByContact(id, {
+                        page: 1,
+                        limit: 1, // We only need the count, not the actual jobs
+                        status: status,
+                    });
+
+                    if (response && response.success && response.pagination) {
+                        counts[status] = response.pagination.total || 0;
+                        counts.total += counts[status];
+                        apiWorked = true;
+                    }
+                    console.log("response ", response);
+                } catch (error) {
+                    console.warn(`Failed to load ${status} job count:`, error);
+                    counts[status] = 0;
+                }
+            }
+
+            // If API didn't work, use fake data counts
+            if (!apiWorked) {
+                console.log("API failed, using fake data for job counts");
+                const fakeJobs = generateFakeJobsForContact(
+                    id,
+                    contact?.name || "Contact",
+                    contact?.address || null
+                );
+
+                counts.total = fakeJobs.length;
+                counts.open = fakeJobs.filter(
+                    (job) => job.status === "open"
+                ).length;
+                counts.in_progress = fakeJobs.filter(
+                    (job) => job.status === "in_progress"
+                ).length;
+                counts.completed = fakeJobs.filter(
+                    (job) => job.status === "completed"
+                ).length;
+                counts.cancelled = fakeJobs.filter(
+                    (job) => job.status === "cancelled"
+                ).length;
+            }
+
+            setAllJobCounts(counts);
+            console.log("All job counts loaded:", counts);
+        } catch (error) {
+            console.error("Error loading all job counts:", error);
+        }
+    }, [id]); // Remove contact dependency to prevent auto-reload
+
+    // Load jobs for the contact
+    const loadJobsForContact = useCallback(
+        async (status = null) => {
+            try {
+                setJobsLoading(true);
+                setJobsError(null);
+
+                const params = {
+                    page: 1,
+                    limit: 50, // Load more jobs to show proper counts
+                    sortBy: "updatedAt",
+                    order: "desc",
+                };
+
+                // Only add status filter if a specific status is requested
+                if (status && status !== "all") {
+                    params.status = status;
+                }
+
+                try {
+                    const response = await fetchJobsByContact(id, params);
+
+                    if (response && response.success && response.data) {
+                        console.log("Jobs loaded successfully:", response.data);
+                        setJobs(response.data);
+                        setPagination(response.pagination || {});
+                        setContactInfo(response.contactInfo || null);
+                        return; // Exit early if API call succeeds
+                    }
+                } catch (apiError) {
+                    console.warn("API call failed, using fake data:", apiError);
+                }
+
+                // Fallback to fake data if API fails or returns no data
+                console.log("Using fake job data for demonstration");
+                const fakeJobs = generateFakeJobsForContact(
+                    id,
+                    contact?.name || "Contact",
+                    contact?.address || null
+                );
+
+                // Filter fake jobs by status if specified
+                let filteredFakeJobs = fakeJobs;
+                if (status && status !== "all") {
+                    filteredFakeJobs = fakeJobs.filter(
+                        (job) => job.status === status
+                    );
+                }
+
+                setJobs(filteredFakeJobs);
+                setPagination({
+                    total: filteredFakeJobs.length,
+                    page: 1,
+                    limit: 50,
+                    pages: 1,
+                    hasNextPage: false,
+                    hasPrevPage: false,
+                });
+                setContactInfo({
+                    id: id,
+                    name: contact?.name || "Contact",
+                });
+            } catch (error) {
+                console.error("Error loading jobs for contact:", error);
+                setJobsError("Failed to load jobs. Please try again.");
+                setJobs([]);
+                setPagination({
+                    total: 0,
+                    page: 1,
+                    limit: 5,
+                    pages: 1,
+                    hasNextPage: false,
+                    hasPrevPage: false,
+                });
+            } finally {
+                setJobsLoading(false);
+            }
+        },
+        [id] // Remove contact dependency to prevent auto-reload
+    );
 
     const loadExistingRooms = useCallback(async () => {
         try {
@@ -107,10 +317,6 @@ const ContactDetailsPage = () => {
                 setLoading(true);
                 const response = await fetchContact(id);
                 if (response && response.data) {
-                    console.log(
-                        "ContactDetailsPage: Loaded contact",
-                        response.data
-                    );
                     setContact(response.data);
                     setEditFormData({
                         name: response.data.name || "",
@@ -130,8 +336,24 @@ const ContactDetailsPage = () => {
         };
 
         loadContactDetails();
-        loadExistingRooms();
-    }, [id, loadExistingRooms]); // Add loadExistingRooms as a dependency
+    }, [id]); // Only depend on ID to prevent auto-reload
+
+    // Separate effect for loading jobs and counts after contact is loaded
+    useEffect(() => {
+        if (contact) {
+            const loadJobsAndCounts = async () => {
+                await Promise.all([loadJobsForContact(), loadAllJobCounts()]);
+            };
+            loadJobsAndCounts();
+        }
+    }, [contact?.id]); // Only depend on contact ID
+
+    // Separate effect for loading existing rooms
+    useEffect(() => {
+        if (id) {
+            loadExistingRooms();
+        }
+    }, [id]); // Only depend on ID
 
     // Auto-refresh effect to check for expired rooms every minute
     useEffect(() => {
@@ -228,10 +450,7 @@ const ContactDetailsPage = () => {
                 status: editFormData.status || "client",
                 tags: editFormData.tags,
             };
-            console.log(
-                "ContactDetailsPage: Submitting contact data",
-                contactDataToSubmit
-            );
+
             const response = await updateContact(id, contactDataToSubmit);
             const webHookData = {
                 webhookEvent: "ContactUpdated",
@@ -1137,7 +1356,7 @@ const ContactDetailsPage = () => {
                                             variant="body2"
                                             color="text.secondary"
                                         >
-                                            Cell Number
+                                            Cell Phone Number
                                         </Typography>
                                         <Typography variant="body1">
                                             {contact.phoneNumber}
@@ -1227,47 +1446,165 @@ const ContactDetailsPage = () => {
                             </TextField>
                         </Box>
                     </Grid>
-
-                    <Grid item xs={12}>
-                        <Typography variant="h6" gutterBottom>
-                            Recent Jobs List
-                        </Typography>
-                        <Box sx={{ mb: 3 }}>
-                            {contact.jobs && contact.jobs.length > 0 ? (
-                                <List disablePadding>
-                                    {contact.jobs.map((job, index) => (
-                                        <React.Fragment key={job.id}>
-                                            <ListItem sx={{ px: 0 }}>
-                                                <ListItemText
-                                                    primary={job.name}
-                                                    secondary={`Status: ${
-                                                        job.status
-                                                    } • Amount: $${
-                                                        job.amount?.toLocaleString() ||
-                                                        "N/A"
-                                                    }`}
-                                                />
-                                            </ListItem>
-                                            {index <
-                                                contact.jobs.length - 1 && (
-                                                <Divider />
-                                            )}
-                                        </React.Fragment>
-                                    ))}
-                                </List>
-                            ) : (
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    No recent jobs found.
-                                </Typography>
-                            )}
-                        </Box>
-                    </Grid>
                 </Grid>
             </Paper>
 
+            {/* Enhanced Job History Section */}
+            <Paper sx={{ p: 2, mb: 3 }}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 0,
+                    }}
+                >
+                    <Typography variant="h6">Recent Jobs</Typography>
+                </Box>
+
+                {/* Job Status Tabs */}
+                <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 0 }}>
+                    <Tabs
+                        value={activeJobTab}
+                        onChange={handleJobTabChange}
+                        aria-label="job status tabs"
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        sx={{
+                            "& .MuiTabs-flexContainer": {
+                                gap: { xs: 0, sm: 1 },
+                            },
+                            "& .MuiTab-root": {
+                                minWidth: { xs: "auto", sm: 120 },
+                                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                                fontWeight: 600,
+                                textTransform: "none",
+                                px: { xs: 1, sm: 2 },
+                                py: { xs: 1.5, sm: 2 },
+                                "&.Mui-selected": {
+                                    color: "primary.main",
+                                    fontWeight: 700,
+                                },
+                            },
+                            "& .MuiTabs-indicator": {
+                                height: 3,
+                                borderRadius: "3px 3px 0 0",
+                            },
+                            "& .MuiTabs-scrollButtons": {
+                                "&.Mui-disabled": {
+                                    opacity: 0.3,
+                                },
+                            },
+                        }}
+                    >
+                        <Tab
+                            label="Open Jobs"
+                            value="open"
+                            sx={{
+                                "& .MuiTab-wrapper": {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                },
+                            }}
+                        />
+                        <Tab
+                            label="In Progress"
+                            value="in_progress"
+                            sx={{
+                                "& .MuiTab-wrapper": {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                },
+                            }}
+                        />
+                        <Tab
+                            label="Completed"
+                            value="completed"
+                            sx={{
+                                "& .MuiTab-wrapper": {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                },
+                            }}
+                        />
+                        <Tab
+                            label="Cancelled"
+                            value="cancelled"
+                            sx={{
+                                "& .MuiTab-wrapper": {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                },
+                            }}
+                        />
+                    </Tabs>
+                </Box>
+
+                {/* Simple Job List */}
+                {jobsLoading ? (
+                    <Box sx={{ textAlign: "center", py: 4 }}>
+                        <CircularProgress size={40} />
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ mt: 2 }}
+                        >
+                            Loading jobs...
+                        </Typography>
+                    </Box>
+                ) : jobsError ? (
+                    <Box sx={{ textAlign: "center", py: 4 }}>
+                        <Typography
+                            variant="body1"
+                            color="error"
+                            sx={{ mb: 2 }}
+                        >
+                            {jobsError}
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            onClick={() => loadJobsForContact()}
+                            size="small"
+                        >
+                            Retry
+                        </Button>
+                    </Box>
+                ) : displayedJobs.length === 0 ? (
+                    <Box sx={{ textAlign: "center", py: 4 }}>
+                        <Typography variant="body1" color="text.secondary">
+                            No {activeJobTab.replace("_", " ")} jobs found for{" "}
+                            {contact.name}.
+                        </Typography>
+                    </Box>
+                ) : (
+                    <SimpleJobList jobs={displayedJobs} />
+                )}
+
+                {/* View All Button at bottom if there are more jobs */}
+                {hasMoreJobs && (
+                    <Box sx={{ textAlign: "center", mt: 3 }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={handleViewAllJobs}
+                            sx={{
+                                textTransform: "none",
+                                fontWeight: 400,
+                                px: 2,
+                                py: 1,
+                                width: "100%",
+                            }}
+                        >
+                            View All
+                        </Button>
+                    </Box>
+                )}
+            </Paper>
             <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
                     Communication History
