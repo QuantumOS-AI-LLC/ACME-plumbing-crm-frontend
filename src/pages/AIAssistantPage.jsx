@@ -452,19 +452,20 @@ const AIAssistantPage = () => {
                     <Divider />
                     {botContactConversation && (
                         <List sx={{ pb: 0 }}> {/* Removed top and bottom padding */}
-                            <ListItem disablePadding>
-                                <ListItemButton
-                                    selected={
-                                        activeConversation?.contactId ===
+                            <ListItem disablePadding sx={{ backgroundColor: '#FFF9C4' }}>
+                                 <ListItemButton
+                                     selected={
+                                         activeConversation?.contactId ===
                                         botContactConversation.contactId
                                     }
                                     onClick={() =>
                                         selectConversation(botContactConversation.contactId)
                                     }
+                                    
                                 >
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Typography variant="body1" sx={{ fontSize: '1.2rem', color: 'primary.main', fontWeight: 'bold' }}>
-                                            {botContactConversation.contactName || "Alli"} 🤖 
+                                        <Typography variant="body1" sx={{ fontSize: '1.2rem', color: 'black' }}>
+                                            {botContactConversation.contactName || "Alli"} 🤖
                                         </Typography>
                                         <Badge
                                             badgeContent={
@@ -696,3 +697,4 @@ const AIAssistantPage = () => {
 };
 
 export default AIAssistantPage;
+
