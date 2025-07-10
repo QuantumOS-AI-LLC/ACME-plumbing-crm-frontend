@@ -471,7 +471,6 @@ const AIAssistantPage = () => {
                             </ListItem>
                         </List>
                     )}
-                    <Divider /> {/* Add another divider after the fixed contact */}
 
                     <Box id="conversation-list-scrollable-div-inner" sx={{ flexGrow: 1, overflowY: "auto" }}> {/* Inner scrollable container */}
                         <InfiniteScroll
