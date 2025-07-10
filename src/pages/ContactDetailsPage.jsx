@@ -492,17 +492,6 @@ const ContactDetailsPage = () => {
 
         const isExpired = currentTime > expirationTime;
 
-        console.log("Room expiration check:", {
-            roomId: room.id,
-            uniqueName: room.uniqueName,
-            createdAt: room.createdAt,
-            durationMinutes: room.durationMinutes,
-            createdTime: new Date(createdTime).toLocaleString(),
-            expirationTime: new Date(expirationTime).toLocaleString(),
-            currentTime: new Date(currentTime).toLocaleString(),
-            isExpired: isExpired,
-        });
-
         return isExpired;
     };
 
@@ -672,20 +661,7 @@ const ContactDetailsPage = () => {
                         >
                             Text
                         </Button>
-                        <Button
-                            variant="outlined"
-                            color="primary"
-                            startIcon={<EditIcon />}
-                            onClick={handleEdit}
-                            size="medium"
-                            sx={{
-                                minWidth: { sm: "auto" },
-                                fontSize: { xs: "0.875rem", sm: "0.875rem" },
-                                width: { xs: "100%", sm: "auto" },
-                            }}
-                        >
-                            Edit
-                        </Button>
+
                         <Button
                             variant="contained"
                             color="primary"
@@ -703,6 +679,21 @@ const ContactDetailsPage = () => {
                         </Button>
                         <Button
                             variant="contained"
+                            color="secondary"
+                            startIcon={<EmailIcon />}
+                            onClick={handleEmail}
+                            disabled={!contact.email}
+                            size="medium"
+                            sx={{
+                                minWidth: { sm: "auto" },
+                                fontSize: { xs: "0.875rem", sm: "0.875rem" },
+                                width: { xs: "100%", sm: "auto" },
+                            }}
+                        >
+                            Email
+                        </Button>
+                        <Button
+                            variant="contained"
                             color="success"
                             startIcon={<VideoCallIcon />}
                             onClick={handleVideoRoom}
@@ -716,12 +707,12 @@ const ContactDetailsPage = () => {
                         >
                             {videoRoomLoading ? "Creating..." : "Video Room"}
                         </Button>
+
                         <Button
-                            variant="contained"
-                            color="secondary"
-                            startIcon={<EmailIcon />}
-                            onClick={handleEmail}
-                            disabled={!contact.email}
+                            variant="outlined"
+                            color="primary"
+                            startIcon={<EditIcon />}
+                            onClick={handleEdit}
                             size="medium"
                             sx={{
                                 minWidth: { sm: "auto" },
@@ -729,7 +720,7 @@ const ContactDetailsPage = () => {
                                 width: { xs: "100%", sm: "auto" },
                             }}
                         >
-                            Email
+                            Edit
                         </Button>
                     </Box>
                 </Box>
@@ -1146,7 +1137,7 @@ const ContactDetailsPage = () => {
                                             variant="body2"
                                             color="text.secondary"
                                         >
-                                            Phone Number
+                                            Cell Number
                                         </Typography>
                                         <Typography variant="body1">
                                             {contact.phoneNumber}
