@@ -334,7 +334,7 @@ const AIAssistantPage = () => {
       const timeoutId = setTimeout(() => {
         console.log("⏰ Debounced search executing:", { searchQuery });
         fetchAllConversations(botId, 1, CONVERSATIONS_PER_PAGE, searchQuery);
-      }, 300); // 300ms debounce
+      }, 1000); // 300ms debounce
 
       return () => {
         console.log("🚫 Clearing search timeout");
