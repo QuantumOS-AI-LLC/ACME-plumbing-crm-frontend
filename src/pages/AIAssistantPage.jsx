@@ -14,6 +14,11 @@ import {
     Skeleton,
     Backdrop,
     ButtonBase, // Import ButtonBase
+    Dialog, // Import Dialog
+    DialogTitle, // Import DialogTitle
+    DialogContent, // Import DialogContent
+    DialogContentText, // Import DialogContentText
+    DialogActions, // Import DialogActions
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -42,6 +47,7 @@ const AIAssistantPage = () => {
     const [unreadCounts, setUnreadCounts] = useState({});
     const [isConversationListVisible, setConversationListVisible] =
         useState(false);
+    const [openBotContactDialog, setOpenBotContactDialog] = useState(false); // New state for bot contact dialog
     const { isConnected } = useSocket();
     const [conversationsLoading, setConversationsLoading] = useState(false); // Used for the InfiniteScroll loader
     const [isInitialLoading, setIsInitialLoading] = useState(true); // New state for initial full-list loading
@@ -545,7 +551,7 @@ const AIAssistantPage = () => {
                                     onClick={() => {
                                         const botContactId = user?.botContactId || user?.data?.user?.botContactId;
                                         if (activeConversation?.contactId === botContactId) {
-                                            alert("This is a bot contact. Details cannot be viewed.");
+                                            setOpenBotContactDialog(true); // Open the dialog
                                         } else if (activeConversation?.contactId) {
                                             navigate(`/contacts/${activeConversation.contactId}`);
                                         }
@@ -632,6 +638,23 @@ const AIAssistantPage = () => {
                     )}
                 </Box>
             </Box>
+            {/* Bot Contact Dialog */}
+            <Dialog
+                open={openBotContactDialog}
+                onClose={() => setOpenBotContactDialog(false)}
+                aria-labelledby="bot-contact-dialog-title"
+                aria-describedby="bot-contact-dialog-description"
+            >
+                <DialogTitle id="bot-contact-dialog-title">Bot Contact</DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="bot-contact-dialog-description">
+                        This is a bot contact. Details cannot be viewed.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenBotContactDialog(false)}>Okay</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };
