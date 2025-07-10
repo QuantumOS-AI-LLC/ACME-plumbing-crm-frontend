@@ -452,7 +452,7 @@ const AIAssistantPage = () => {
                     <Divider />
                     {botContactConversation && (
                         <List sx={{ pb: 0 }}> {/* Removed top and bottom padding */}
-                            <ListItem disablePadding sx={{ backgroundColor: '#FFF9C4' }}>
+                            <ListItem disablePadding sx={{ backgroundColor: '#E1BEE7', border: '1px solid #9575CD' }}>
                                  <ListItemButton
                                      selected={
                                          activeConversation?.contactId ===
