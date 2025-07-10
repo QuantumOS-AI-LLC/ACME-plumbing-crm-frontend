@@ -29,7 +29,11 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { v4 as uuidv4 } from "uuid";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { fetchContact, updateContact } from "../services/api";
+import {
+    fetchContact,
+    fetchJobsByContact,
+    updateContact,
+} from "../services/api";
 import PageHeader from "../components/common/PageHeader";
 import { toast } from "sonner";
 import { useWebhook } from "../hooks/webHook";
@@ -40,6 +44,8 @@ const ContactDetailsPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [contact, setContact] = useState(null);
+    console.log("contact details:", contact);
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [openEditDialog, setOpenEditDialog] = useState(false);
@@ -100,6 +106,24 @@ const ContactDetailsPage = () => {
             // Don't show error toast for this, as it's not critical
         }
     }, [id, getRoomsForContact]); // Add dependencies
+
+    useEffect(() => {
+        const fetchJobContactId = async () => {
+            try {
+                const response = await fetchJobsByContact(contact.id);
+                if (response && response.data) {
+                    console.log(
+                        "ContactDetailsPage: Loaded contact for job",
+                        response.data
+                    );
+                    setContact(response.data);
+                }
+            } catch (error) {
+                console.error(`Error loading contact ${id}:`, error);
+                setError("Failed to load contact details. Please try again.");
+            }
+        };
+    }, [id]);
 
     useEffect(() => {
         const loadContactDetails = async () => {
@@ -1227,47 +1251,44 @@ const ContactDetailsPage = () => {
                             </TextField>
                         </Box>
                     </Grid>
-
-                    <Grid item xs={12}>
-                        <Typography variant="h6" gutterBottom>
-                            Recent Jobs List
-                        </Typography>
-                        <Box sx={{ mb: 3 }}>
-                            {contact.jobs && contact.jobs.length > 0 ? (
-                                <List disablePadding>
-                                    {contact.jobs.map((job, index) => (
-                                        <React.Fragment key={job.id}>
-                                            <ListItem sx={{ px: 0 }}>
-                                                <ListItemText
-                                                    primary={job.name}
-                                                    secondary={`Status: ${
-                                                        job.status
-                                                    } • Amount: $${
-                                                        job.amount?.toLocaleString() ||
-                                                        "N/A"
-                                                    }`}
-                                                />
-                                            </ListItem>
-                                            {index <
-                                                contact.jobs.length - 1 && (
-                                                <Divider />
-                                            )}
-                                        </React.Fragment>
-                                    ))}
-                                </List>
-                            ) : (
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    No recent jobs found.
-                                </Typography>
-                            )}
-                        </Box>
-                    </Grid>
                 </Grid>
             </Paper>
 
+            <Paper sx={{ p: 3 }}>
+                <Grid item xs={12}>
+                    <Typography variant="h6" gutterBottom>
+                        Recent Jobs List
+                    </Typography>
+                    <Box sx={{ mb: 3 }}>
+                        {contact.jobs && contact.jobs.length > 0 ? (
+                            <List disablePadding>
+                                {contact.jobs.map((job, index) => (
+                                    <React.Fragment key={job.id}>
+                                        <ListItem sx={{ px: 0 }}>
+                                            <ListItemText
+                                                primary={job.name}
+                                                secondary={`Status: ${
+                                                    job.status
+                                                } • Amount: $${
+                                                    job.amount?.toLocaleString() ||
+                                                    "N/A"
+                                                }`}
+                                            />
+                                        </ListItem>
+                                        {index < contact.jobs.length - 1 && (
+                                            <Divider />
+                                        )}
+                                    </React.Fragment>
+                                ))}
+                            </List>
+                        ) : (
+                            <Typography variant="body2" color="text.secondary">
+                                No recent jobs found.
+                            </Typography>
+                        )}
+                    </Box>
+                </Grid>
+            </Paper>
             <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
                     Communication History

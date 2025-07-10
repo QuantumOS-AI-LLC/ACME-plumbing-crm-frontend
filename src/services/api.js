@@ -598,6 +598,24 @@ export const deleteContact = async (id) => {
         throw error;
     }
 };
+// Fetch jobs for a specific contact
+export const fetchJobsByContact = async (contactId, params = {}) => {
+    try {
+        // Normalize status parameter if it's an array
+        const newParams = { ...params };
+        if (newParams.status && Array.isArray(newParams.status)) {
+            newParams.status = newParams.status.join(",");
+        }
+        const response = await api.get(`/jobs/contact/${contactId}`, {
+            params: newParams,
+        });
+        console.log("Jobs by contact response:", response.data);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching jobs for contact ${contactId}:`, error);
+        throw error;
+    }
+};
 
 // Calendar/Events APIs
 export const fetchEvents = async (params = {}) => {
