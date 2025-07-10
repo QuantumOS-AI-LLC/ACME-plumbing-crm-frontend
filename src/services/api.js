@@ -761,14 +761,58 @@ export const deleteNotification = async (id) => {
     }
 };
 
-export const getConversations = async (page = 1, limit = 10) => {
+// AI Conversations APIs - FIXED VERSION
+export const getConversations = async (params = {}) => {
     try {
+        // Log the parameters being sent
+        console.log('📡 getConversations API called with params:', params);
+
+        // Build query parameters properly
+        const queryParams = {};
+        
+        // Always include page and limit
+        if (params.page !== undefined) queryParams.page = params.page;
+        if (params.limit !== undefined) queryParams.limit = params.limit;
+        
+        // Add search parameter only if it exists and is not empty
+        if (params.search !== undefined && params.search !== null && params.search.trim() !== "") {
+            queryParams.search = params.search.trim();
+        }
+
+        console.log('📡 Final query params being sent:', queryParams);
+
         const response = await api.get("/ai/conversations", {
-            params: { page, limit },
+            params: queryParams,
         });
+
+        console.log('📥 getConversations API response:', response.data);
         return response.data;
     } catch (error) {
-        console.error("Error fetching AI conversations:", error);
+        console.error("❌ Error fetching AI conversations:", error);
+        throw error;
+    }
+};
+
+// Alternative version if your React component is calling with individual parameters
+export const getConversationsLegacy = async (page = 1, limit = 10, search = "") => {
+    try {
+        console.log('📡 getConversationsLegacy called with:', { page, limit, search });
+
+        const params = { page, limit };
+        
+        // Only add search parameter if it exists and is not empty
+        if (search && search.trim() !== "") {
+            params.search = search.trim();
+        }
+
+        console.log('📡 Final params for legacy call:', params);
+
+        const response = await api.get("/ai/conversations", { params });
+        
+        console.log('📥 getConversationsLegacy response:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error("❌ Error fetching AI conversations (legacy):", error);
         throw error;
     }
 };

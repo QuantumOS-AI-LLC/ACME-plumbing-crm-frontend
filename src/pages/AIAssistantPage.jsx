@@ -13,10 +13,14 @@ import {
     CircularProgress,
     Skeleton,
     Backdrop,
-    ButtonBase, // Import ButtonBase
+    ButtonBase,
+    TextField,
+    InputAdornment,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
 import PageHeader from "../components/common/PageHeader";
 import AIChat from "../components/ai-assistant/AIChat";
 import {
@@ -50,6 +54,10 @@ const AIAssistantPage = () => {
     const [hasMoreConversations, setHasMoreConversations] = useState(true);
     const [totalConversations, setTotalConversations] = useState(0);
     const CONVERSATIONS_PER_PAGE = 20; // Define a constant for items per page
+
+    // Search state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchLoading, setSearchLoading] = useState(false);
 
     // const [newConversationLoading, setNewConversationLoading] = useState(false); // Commented out - not needed when create functionality is disabled
 
@@ -91,8 +99,18 @@ const AIAssistantPage = () => {
         async (
             currentBotContactId,
             pageToFetch = 1,
-            limitToFetch = CONVERSATIONS_PER_PAGE
+            limitToFetch = CONVERSATIONS_PER_PAGE,
+            searchTerm = ""
         ) => {
+            // DEBUG: Log the parameters being passed
+            console.log('🔍 fetchAllConversations called with:', {
+                currentBotContactId,
+                pageToFetch,
+                limitToFetch,
+                searchTerm,
+                searchTermLength: searchTerm?.length || 0
+            });
+
             if (!currentBotContactId) {
                 console.warn(
                     "Bot Contact ID not available yet. Skipping conversation load."
@@ -109,9 +127,36 @@ const AIAssistantPage = () => {
             if (pageToFetch === 1) {
                 setIsInitialLoading(true);
             }
+            
+            // Set search loading state
+            if (searchTerm && pageToFetch === 1) {
+                setSearchLoading(true);
+            }
+            
             setConversationsLoading(true); // This will be for the bottom loader
             try {
-                const res = await getConversations(pageToFetch, limitToFetch);
+                // DEBUG: Log before API call
+                console.log('📡 Making API call to getConversations with:', {
+                    page: pageToFetch,
+                    limit: limitToFetch,
+                    search: searchTerm
+                });
+
+                // Pass search term to the API - FIXED: Ensure proper parameter passing
+                const res = await getConversations({
+                    page: pageToFetch,
+                    limit: limitToFetch,
+                    search: searchTerm.trim() // Trim whitespace
+                });
+
+                // DEBUG: Log API response
+                console.log('📥 API Response received:', {
+                    conversations: res?.data?.conversations?.length || 0,
+                    pagination: res?.data?.pagination,
+                    searchTerm,
+                    firstConversation: res?.data?.conversations?.[0]
+                });
+
                 const apiConvos = res?.data?.conversations || [];
                 const pagination = res?.data?.pagination;
 
@@ -135,12 +180,15 @@ const AIAssistantPage = () => {
                         );
                     } else {
                         // If bot contact not found in API response, create a local placeholder
-                        botConvo = {
-                            contactId: currentBotContactId,
-                            contactName: botContactName,
-                            lastMessage: null,
-                            estimateId: null,
-                        };
+                        // Only show bot contact if no search term or bot contact matches search
+                        if (!searchTerm || botContactName.toLowerCase().includes(searchTerm.toLowerCase())) {
+                            botConvo = {
+                                contactId: currentBotContactId,
+                                contactName: botContactName,
+                                lastMessage: null,
+                                estimateId: null,
+                            };
+                        }
                     }
                     setBotContactConversation(botConvo);
                 } else {
@@ -224,7 +272,12 @@ const AIAssistantPage = () => {
                     }
                 }
             } catch (error) {
-                console.error("Error loading conversations:", error);
+                console.error("❌ Error loading conversations:", {
+                    error: error.message,
+                    searchTerm,
+                    pageToFetch,
+                    stack: error.stack
+                });
                 if (pageToFetch === 1) {
                     const localAlliConversation = {
                         contactId: currentBotContactId,
@@ -240,6 +293,7 @@ const AIAssistantPage = () => {
                 }
             } finally {
                 setConversationsLoading(false);
+                setSearchLoading(false);
                 if (pageToFetch === 1) {
                     setIsInitialLoading(false);
                 }
@@ -248,8 +302,48 @@ const AIAssistantPage = () => {
         [contactId, contactName, conversationId] // Removed user from dependencies as it's not directly used for botContactName
     );
 
+    // Debounced search effect
     useEffect(() => {
-        if (!authLoading) {
+        const getBotContactIdFromUser = () => {
+            if (user) {
+                if (user.botContactId) {
+                    return user.botContactId;
+                } else if (
+                    user.data &&
+                    user.data.user &&
+                    user.data.user.botContactId
+                ) {
+                    return user.data.user.botContactId;
+                }
+            }
+            return null;
+        };
+
+        const botId = getBotContactIdFromUser();
+        
+        // DEBUG: Log search effect trigger
+        console.log('🔍 Search effect triggered:', {
+            searchQuery,
+            authLoading,
+            botId,
+            hasUser: !!user
+        });
+
+        if (!authLoading && botId) {
+            const timeoutId = setTimeout(() => {
+                console.log('⏰ Debounced search executing:', { searchQuery });
+                fetchAllConversations(botId, 1, CONVERSATIONS_PER_PAGE, searchQuery);
+            }, 300); // 300ms debounce
+
+            return () => {
+                console.log('🚫 Clearing search timeout');
+                clearTimeout(timeoutId);
+            };
+        }
+    }, [searchQuery, authLoading, user, fetchAllConversations]);
+
+    useEffect(() => {
+        if (!authLoading && !searchQuery) { // Only run initial load if no search query
             const getBotContactIdFromUser = () => {
                 if (user) {
                     if (user.botContactId) {
@@ -274,7 +368,7 @@ const AIAssistantPage = () => {
                 fetchAllConversations(null, 1, CONVERSATIONS_PER_PAGE);
             }
         }
-    }, [authLoading, user, fetchAllConversations]);
+    }, [authLoading, user, fetchAllConversations, searchQuery]);
 
     const fetchMoreConversations = () => {
         if (hasMoreConversations && !conversationsLoading) {
@@ -297,7 +391,8 @@ const AIAssistantPage = () => {
                 fetchAllConversations(
                     botId,
                     currentPage + 1,
-                    CONVERSATIONS_PER_PAGE
+                    CONVERSATIONS_PER_PAGE,
+                    searchQuery
                 );
             }
         }
@@ -337,6 +432,15 @@ const AIAssistantPage = () => {
             ...prevCounts,
             [contactId]: 0,
         }));
+    };
+
+    // Search handlers
+    const handleSearchChange = (event) => {
+        setSearchQuery(event.target.value);
+    };
+
+    const handleClearSearch = () => {
+        setSearchQuery("");
     };
 
     // COMMENTED OUT - Create conversation functionality disabled
@@ -460,9 +564,52 @@ const AIAssistantPage = () => {
                         </Button> */}
                     </Box>
                     <Divider />
-{botContactConversation && (
+
+                    {/* Search Bar */}
+                    <Box sx={{ p:1, flexShrink: 0 }}>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            placeholder="Search conversations..."
+                            value={searchQuery}
+                            onChange={handleSearchChange}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon color="action" />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: searchQuery && (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            size="small"
+                                            onClick={handleClearSearch}
+                                            edge="end"
+                                        >
+                                            <ClearIcon />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                            }}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    '& fieldset': {
+                                        borderColor: 'divider',
+                                    },
+                                    '&:hover fieldset': {
+                                        borderColor: 'primary.main',
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                        borderColor: 'primary.main',
+                                    },
+                                },
+                            }}
+                        />
+                    </Box>
+
+                    {botContactConversation && (
                         <List sx={{ pb: 0 }}> {/* Removed top and bottom padding */}
-                            <ListItem disablePadding sx={{ backgroundColor: '#E1BEE7', border: '2px solid #9575CD', borderRadius: '6px' }}>
+                            <ListItem disablePadding sx={{ borderTop: '1px solid rgb(234, 234, 234)',borderBottom: '1px solid rgb(234, 234, 234)', borderRadius: '0px' }}>
                                  <ListItemButton
                                      selected={
                                          activeConversation?.contactId ===
@@ -473,7 +620,7 @@ const AIAssistantPage = () => {
                                     }
                                     
                                 >
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Box sx={{ pt:0, display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Typography variant="body1" sx={{ fontSize: '1.2rem', color: 'black' }}>
                                             {botContactConversation.contactName || "Alli"} 🤖
                                         </Typography>
@@ -512,8 +659,12 @@ const AIAssistantPage = () => {
                                     sx={{ textAlign: "center", py: 2 }}
                                 >
                                     {totalConversations > 0
-                                        ? "You have seen all conversations"
-                                        : "No conversations found."}
+                                        ? searchQuery 
+                                            ? `No more results for "${searchQuery}"`
+                                            : "You have seen all conversations"
+                                        : searchQuery
+                                            ? `No conversations found for "${searchQuery}"`
+                                            : "No conversations found."}
                                 </Typography>
                             }
                             scrollableTarget="conversation-list-scrollable-div-inner" // Target the inner scrollable div
@@ -720,4 +871,3 @@ const AIAssistantPage = () => {
 };
 
 export default AIAssistantPage;
-
