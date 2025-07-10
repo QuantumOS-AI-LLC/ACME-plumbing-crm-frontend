@@ -13,6 +13,12 @@ import {
     CircularProgress,
     Skeleton,
     Backdrop,
+    ButtonBase, // Import ButtonBase
+    Dialog, // Import Dialog
+    DialogTitle, // Import DialogTitle
+    DialogContent, // Import DialogContent
+    DialogContentText, // Import DialogContentText
+    DialogActions, // Import DialogActions
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -24,12 +30,13 @@ import {
 } from "../services/api";
 import { useSocket } from "../contexts/SocketContext";
 import { useAuth } from "../hooks/useAuth"; // Corrected import path for useAuth
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom"; // Import useNavigate
 import InfiniteScroll from "react-infinite-scroll-component"; // Import InfiniteScroll
 
 // BOT_CONTACT_ID will now come from AuthContext
 
 const AIAssistantPage = () => {
+    const navigate = useNavigate(); // Initialize useNavigate
     const [searchParams] = useSearchParams();
     const contactId = searchParams.get("contactId");
     const contactName = searchParams.get("contactName");
@@ -40,6 +47,7 @@ const AIAssistantPage = () => {
     const [unreadCounts, setUnreadCounts] = useState({});
     const [isConversationListVisible, setConversationListVisible] =
         useState(false);
+    const [openBotContactDialog, setOpenBotContactDialog] = useState(false); // New state for bot contact dialog
     const { isConnected } = useSocket();
     const [conversationsLoading, setConversationsLoading] = useState(false); // Used for the InfiniteScroll loader
     const [isInitialLoading, setIsInitialLoading] = useState(true); // New state for initial full-list loading
@@ -571,10 +579,31 @@ const AIAssistantPage = () => {
                                 >
                                     <ArrowBackIcon />
                                 </IconButton>
-                                <Typography variant="h6">
-                                    {activeConversation.contactName ||
-                                        "AI Conversation"}
-                                </Typography>
+                                <ButtonBase
+                                    onClick={() => {
+                                        const botContactId = user?.botContactId || user?.data?.user?.botContactId;
+                                        if (activeConversation?.contactId === botContactId) {
+                                            setOpenBotContactDialog(true); // Open the dialog
+                                        } else if (activeConversation?.contactId) {
+                                            navigate(`/contacts/${activeConversation.contactId}`);
+                                        }
+                                    }}
+                                    sx={{
+                                        textAlign: "left",
+                                        justifyContent: "flex-start",
+                                        p: 0,
+                                        cursor: "pointer", // Add pointer cursor
+                                        "&:hover": {
+                                            textDecoration: "underline",
+                                            color: "primary.main", // Optional: change color on hover
+                                        },
+                                    }}
+                                >
+                                    <Typography variant="h6" color="primary.main">
+                                        {activeConversation.contactName ||
+                                            "AI Conversation"}
+                                    </Typography>
+                                </ButtonBase>
                             </Box>
 
                             {/* Socket.IO Chat Component */}
@@ -583,6 +612,7 @@ const AIAssistantPage = () => {
                                 {/* Added overflowY to chat messages */}
                                 <AIChat
                                     contactId={activeConversation.contactId}
+                                    contactName={activeConversation.contactName}
                                     estimateId={activeConversation.estimateId}
                                     initialConversationId={conversationId} // Pass the initial temporary ID
                                     onConversationSaved={
@@ -642,6 +672,23 @@ const AIAssistantPage = () => {
                     )}
                 </Box>
             </Box>
+            {/* Bot Contact Dialog */}
+            <Dialog
+                open={openBotContactDialog}
+                onClose={() => setOpenBotContactDialog(false)}
+                aria-labelledby="bot-contact-dialog-title"
+                aria-describedby="bot-contact-dialog-description"
+            >
+                <DialogTitle id="bot-contact-dialog-title">Bot Contact</DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="bot-contact-dialog-description">
+                        This is a bot contact. Details cannot be viewed.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenBotContactDialog(false)}>Okay</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };
