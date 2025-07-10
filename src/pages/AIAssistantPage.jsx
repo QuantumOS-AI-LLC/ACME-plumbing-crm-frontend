@@ -610,12 +610,13 @@ const AIAssistantPage = () => {
                                 >
                                     <Typography
                                         variant="h6"
-                                        color="primary.main"
                                         sx={(theme) => {
                                             const botContactId = user?.botContactId || user?.data?.user?.botContactId;
                                             const isBotContact = activeConversation?.contactId === botContactId;
                                             return {
-                                                fontWeight: isBotContact ? 'bold' : 'normal',
+                                                fontWeight:  'bold',
+                                                color:
+                                                isBotContact ? 'black' : 'primary.main',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: 1,
