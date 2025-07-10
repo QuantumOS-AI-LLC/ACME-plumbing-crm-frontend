@@ -425,21 +425,6 @@ const JobDetailsModal = ({ handleClose, open, job }) => {
                     </Box>
                 </Box>
             </Modal>
-
-            <Snackbar
-                open={showNotification}
-                autoHideDuration={4000}
-                onClose={() => setShowNotification(false)}
-                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-            >
-                <Alert
-                    onClose={() => setShowNotification(false)}
-                    severity={error ? "warning" : "success"}
-                    sx={{ width: "100%" }}
-                >
-                    {notificationMessage}
-                </Alert>
-            </Snackbar>
         </>
     );
 };

@@ -598,7 +598,7 @@ export const deleteContact = async (id) => {
         throw error;
     }
 };
-// Fetch jobs for a specific contact
+// Fetch jobs for a specific contact with pagination and filtering
 export const fetchJobsByContact = async (contactId, params = {}) => {
     try {
         // Normalize status parameter if it's an array
