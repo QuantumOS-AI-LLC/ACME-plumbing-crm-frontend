@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -16,6 +16,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PageHeader from "../components/common/PageHeader";
 import JobCard from "../components/jobs/JobCard";
 import { fetchJobsByContactId, updateJob } from "../services/api";
@@ -31,6 +32,7 @@ const JOB_STATUS = {
 
 const ContactJobsPage = () => {
   const { contactId } = useParams();
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [contactInfo, setContactInfo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -203,18 +205,53 @@ const ContactJobsPage = () => {
   );
   const pages = totalPages > 0 ? [...Array(totalPages).keys()] : [];
 
+  const handleBackClick = () => {
+    navigate(-1); // Go back to previous page
+  };
+
   return (
     <Box>
-      <PageHeader
-        title={
-          contactInfo 
-            ? `Jobs for ${contactInfo.name}` 
-            : loading 
-            ? "Loading..." 
-            : "Jobs for Contact"
-        }
-        action={false} // No "Add Job" button for contact-specific jobs page
-      />
+      {/* Back Button and Header Section */}
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        mb: 3,
+        gap: 2
+      }}>
+        <IconButton
+          onClick={handleBackClick}
+          sx={{
+            color: 'text.primary',
+            padding: '8px',
+            '&:hover': {
+              backgroundColor: 'action.hover',
+              color: 'primary.main',
+            },
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <ArrowBackIcon sx={{ fontSize: '1.5rem' }} />
+        </IconButton>
+        
+        <Box sx={{ flex: 1 }}>
+          <Typography 
+            variant="h4" 
+            component="h1" 
+            sx={{ 
+              fontWeight: 600,
+              color: 'text.primary',
+              fontSize: { xs: '1.5rem', sm: '2rem' }
+            }}
+          >
+            {contactInfo 
+              ? `Jobs for ${contactInfo.name}` 
+              : loading 
+              ? "Loading..." 
+              : "Jobs for Contact"
+            }
+          </Typography>
+        </Box>
+      </Box>
 
       {/* Enhanced Search Section - Full Width Button */}
       <Box sx={{ mb: 3, width: "100%" }}>
