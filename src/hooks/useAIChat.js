@@ -188,7 +188,7 @@ export const useAIChat = (
                     const historyResponse = await getConversationMessages(
                         contactId,
                         1,
-                        15
+                        10
                     );
 
                     if (

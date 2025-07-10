@@ -185,16 +185,6 @@ const AIChat = ({
                         const messageElements =
                             container.querySelectorAll("[data-message-id]");
 
-                        console.log("=== SCROLL RESTORATION DEBUG ===");
-                        console.log("New messages count:", newMessagesCount);
-                        console.log("Batch size:", batchSize);
-                        console.log("Total messages:", messages.length);
-                        console.log("Last message count:", lastMessageCount);
-                        console.log(
-                            "Message elements found:",
-                            messageElements.length
-                        );
-
                         if (
                             messageElements.length >= newMessagesCount &&
                             newMessagesCount > 0
@@ -541,11 +531,6 @@ const AIChat = ({
                                     mb: 1,
                                     position: "sticky",
                                     top: 0,
-                                    backgroundColor: "rgba(248, 249, 250, 0.9)",
-                                    backdropFilter: "blur(4px)",
-                                    borderRadius: "4px",
-                                    mx: 1,
-                                    zIndex: 1,
                                 }}
                             >
                                 <CircularProgress size={16} />
@@ -584,11 +569,6 @@ const AIChat = ({
                                 >
                                     <Box
                                         sx={{
-                                            maxWidth: {
-                                                xs: "90%",
-                                                sm: "80%",
-                                                md: "70%",
-                                            },
                                             minWidth: 0,
                                             display: "flex",
                                             flexDirection: "column",
@@ -1120,64 +1100,6 @@ const AIChat = ({
                         ))}
                     </Box>
                 )}
-
-                <Box
-                    sx={{
-                        mt: 1,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                        gap: 1,
-                    }}
-                >
-                    <Chip
-                        label={
-                            isSending || isUploadingAttachments
-                                ? "Sending..."
-                                : "Ready"
-                        }
-                        size="small"
-                        color={
-                            isSending || isUploadingAttachments
-                                ? "warning"
-                                : "success"
-                        }
-                        variant="outlined"
-                    />
-
-                    {messages.length > 0 && pagination && (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                            }}
-                        >
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                            >
-                                {messages.length} of {totalMessages} messages
-                            </Typography>
-                            {hasMoreMessages && !isLoadingHistory && (
-                                <Button
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={loadMoreMessages}
-                                    disabled={isLoadingMore}
-                                    sx={{ minWidth: "auto", px: 1, py: 0.5 }}
-                                >
-                                    {isLoadingMore ? (
-                                        <CircularProgress size={12} />
-                                    ) : (
-                                        "Load More"
-                                    )}
-                                </Button>
-                            )}
-                        </Box>
-                    )}
-                </Box>
             </Paper>
 
             <Modal

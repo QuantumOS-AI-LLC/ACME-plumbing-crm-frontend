@@ -88,7 +88,11 @@ const AIAssistantPage = () => {
     }, [activeConversation]);
 
     const fetchAllConversations = useCallback(
-        async (currentBotContactId, pageToFetch = 1, limitToFetch = CONVERSATIONS_PER_PAGE) => {
+        async (
+            currentBotContactId,
+            pageToFetch = 1,
+            limitToFetch = CONVERSATIONS_PER_PAGE
+        ) => {
             if (!currentBotContactId) {
                 console.warn(
                     "Bot Contact ID not available yet. Skipping conversation load."
@@ -290,7 +294,11 @@ const AIAssistantPage = () => {
             };
             const botId = getBotContactIdFromUser();
             if (botId) {
-                fetchAllConversations(botId, currentPage + 1, CONVERSATIONS_PER_PAGE);
+                fetchAllConversations(
+                    botId,
+                    currentPage + 1,
+                    CONVERSATIONS_PER_PAGE
+                );
             }
         }
     };
@@ -434,7 +442,9 @@ const AIAssistantPage = () => {
                     }}
                     id="conversation-list-scrollable-div" // ID for InfiniteScroll
                 >
-                    <Box sx={{ p: 2, flexShrink: 0 }}> {/* Fixed header */}
+                    <Box sx={{ p: 2, flexShrink: 0 }}>
+                        {" "}
+                        {/* Fixed header */}
                         <Typography variant="h6" gutterBottom>
                             Conversations
                         </Typography>
@@ -450,7 +460,7 @@ const AIAssistantPage = () => {
                         </Button> */}
                     </Box>
                     <Divider />
-                    {botContactConversation && (
+{botContactConversation && (
                         <List sx={{ pb: 0 }}> {/* Removed top and bottom padding */}
                             <ListItem disablePadding sx={{ backgroundColor: '#E1BEE7', border: '2px solid #9575CD', borderRadius: '6px' }}>
                                  <ListItemButton
@@ -479,20 +489,31 @@ const AIAssistantPage = () => {
                             </ListItem>
                         </List>
                     )}
-
                     <Box id="conversation-list-scrollable-div-inner" sx={{ flexGrow: 1, overflowY: "auto" }}> {/* Inner scrollable container */}
                         <InfiniteScroll
                             dataLength={conversations.length}
                             next={fetchMoreConversations}
                             hasMore={hasMoreConversations}
                             loader={
-                                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        p: 2,
+                                    }}
+                                >
                                     <CircularProgress size={24} />
                                 </Box>
                             }
                             endMessage={
-                                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                                    {totalConversations > 0 ? "You have seen all conversations" : "No conversations found."}
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ textAlign: "center", py: 2 }}
+                                >
+                                    {totalConversations > 0
+                                        ? "You have seen all conversations"
+                                        : "No conversations found."}
                                 </Typography>
                             }
                             scrollableTarget="conversation-list-scrollable-div-inner" // Target the inner scrollable div
@@ -629,7 +650,9 @@ const AIAssistantPage = () => {
                             </Box>
 
                             {/* Socket.IO Chat Component */}
-                            <Box sx={{ flexGrow: 1, p: 2, overflowY: "auto" }}> {/* Added overflowY to chat messages */}
+                            <Box sx={{ flexGrow: 1, p: 2, overflowY: "auto" }}>
+                                {" "}
+                                {/* Added overflowY to chat messages */}
                                 <AIChat
                                     contactId={activeConversation.contactId}
                                     contactName={activeConversation.contactName}
