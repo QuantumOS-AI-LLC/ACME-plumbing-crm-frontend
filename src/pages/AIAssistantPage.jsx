@@ -463,8 +463,8 @@ const AIAssistantPage = () => {
                                     }
                                 >
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Typography variant="body1" sx={{ fontSize: '1.2rem', color: 'primary.main' }}>
-                                            🤖 {botContactConversation.contactName || "Alli"}
+                                        <Typography variant="body1" sx={{ fontSize: '1.2rem', color: 'primary.main', fontWeight: 'bold' }}>
+                                            {botContactConversation.contactName || "Alli"} 🤖 
                                         </Typography>
                                         <Badge
                                             badgeContent={
@@ -607,9 +607,22 @@ const AIAssistantPage = () => {
                                         p: 0.5,
                                     }}
                                 >
-                                    <Typography variant="h6" color="primary.main">
-                                        {activeConversation.contactName ||
-                                            "AI Conversation"}
+                                    <Typography
+                                        variant="h6"
+                                        color="primary.main"
+                                        sx={(theme) => {
+                                            const botContactId = user?.botContactId || user?.data?.user?.botContactId;
+                                            const isBotContact = activeConversation?.contactId === botContactId;
+                                            return {
+                                                fontWeight: isBotContact ? 'bold' : 'normal',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                            };
+                                        }}
+                                    >
+                                        {activeConversation.contactName || "AI Conversation"}
+                                        {activeConversation?.contactId === (user?.botContactId || user?.data?.user?.botContactId) && "🤖 "}
                                     </Typography>
                                 </ButtonBase>
                             </Box>
