@@ -317,7 +317,12 @@ const AIAssistantPage = () => {
     ); // Depend on conversationId from URL to correctly identify the temporary one
 
     const selectConversation = (contactId) => {
-        const selected = conversations.find((c) => c.contactId === contactId);
+        let selected = null;
+        if (botContactConversation && contactId === botContactConversation.contactId) {
+            selected = botContactConversation;
+        } else {
+            selected = conversations.find((c) => c.contactId === contactId);
+        }
         setActiveConversation(selected);
 
         setUnreadCounts((prevCounts) => ({
@@ -446,7 +451,7 @@ const AIAssistantPage = () => {
                     </Box>
                     <Divider />
                     {botContactConversation && (
-                        <List>
+                        <List sx={{ pb: 0 }}> {/* Removed top and bottom padding */}
                             <ListItem disablePadding>
                                 <ListItemButton
                                     selected={
