@@ -1,21 +1,21 @@
 import { useState, useEffect } from "react";
 import {
-    Box,
-    Typography,
-    Paper,
-    CircularProgress,
-    List,
-    Button,
-    Tooltip,
-    Grid,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    TextField,
-    Pagination,
-    Alert,
-    InputAdornment,
+  Box,
+  Typography,
+  Paper,
+  CircularProgress,
+  List,
+  Button,
+  Tooltip,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  TextField,
+  Pagination,
+  Alert,
+  InputAdornment,
 } from "@mui/material";
 import { Add as AddIcon, Search as SearchIcon } from "@mui/icons-material";
 import { toast } from "sonner";
@@ -24,560 +24,526 @@ import ServiceViewModal from "../components/services/ServiceViewModal";
 import { ServiceListItem } from "../components/services/ServiceListItem";
 import AddServiceModal from "../components/services/AddServiceModal";
 import {
-    fetchServices,
-    deleteService as deleteServiceAPI,
-    updateService as updateServiceAPI,
+  fetchServices,
+  deleteService as deleteServiceAPI,
+  updateService as updateServiceAPI,
 } from "../services/api";
 import { useWebhook } from "../hooks/webHook";
 
 const MyServicesPage = () => {
-    const [loading, setLoading] = useState(true);
-    const [services, setServices] = useState([]);
-    const [selectedService, setSelectedService] = useState(null);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [addModalOpen, setAddModalOpen] = useState(false);
-    const [error, setError] = useState(null);
-    const { sendWebhook } = useWebhook();
-    // Pagination and filtering state
-    const [pagination, setPagination] = useState({
-        page: 1,
-        limit: 10,
-        total: 0,
-        pages: 0,
-    });
+  const [loading, setLoading] = useState(true);
+  const [services, setServices] = useState([]);
+  const [selectedService, setSelectedService] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [error, setError] = useState(null);
+  const { sendWebhook } = useWebhook();
+  // Pagination and filtering state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0,
+  });
 
-    // Filter state
-    const [filters, setFilters] = useState({
-        status: "",
-        category: "",
-        search: "",
-        sortBy: "createdAt",
-        order: "desc",
-    });
+  // Filter state
+  const [filters, setFilters] = useState({
+    status: "",
+    category: "",
+    search: "",
+    sortBy: "createdAt",
+    order: "desc",
+  });
 
-    // Load services from API
-    const loadServices = async () => {
-        try {
-            setLoading(true);
-            setError(null);
+  // Load services from API
+  const loadServices = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-            const params = {
-                page: pagination.page,
-                limit: pagination.limit,
-                sortBy: filters.sortBy,
-                order: filters.order,
-            };
+      const params = {
+        page: pagination.page,
+        limit: pagination.limit,
+        sortBy: filters.sortBy,
+        order: filters.order,
+      };
 
-            // Add filters if they exist
-            if (filters.status) params.status = filters.status;
-            if (filters.category) params.category = filters.category;
-            if (filters.search) params.search = filters.search;
+      // Add filters if they exist
+      if (filters.status) params.status = filters.status;
+      if (filters.category) params.category = filters.category;
+      if (filters.search) params.search = filters.search;
 
-            const response = await fetchServices(params);
+      const response = await fetchServices(params);
 
-            if (response.success) {
-                setServices(response.data);
-                setPagination((prev) => ({
-                    ...prev,
-                    total: response.pagination.total,
-                    pages: response.pagination.pages,
-                }));
-            } else {
-                throw new Error(response.message || "Failed to fetch services");
-            }
-        } catch (err) {
-            console.error("Error loading services:", err);
-            setError(err.message || "Failed to load services");
-            setServices([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Load services on component mount and when filters/pagination change
-    useEffect(() => {
-        loadServices();
-    }, [
-        pagination.page,
-        pagination.limit,
-        filters.status,
-        filters.category,
-        filters.sortBy,
-        filters.order,
-    ]);
-
-    // Handle search with debounce
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (pagination.page === 1) {
-                loadServices();
-            } else {
-                setPagination((prev) => ({ ...prev, page: 1 }));
-            }
-        }, 500);
-
-        return () => clearTimeout(timeoutId);
-    }, [filters.search]);
-
-    const handleView = (service) => {
-        // Always use the original service data from the services array
-        // The service parameter might be transformed for display
-        const originalService = services.find((s) => s.id === service.id);
-        if (originalService) {
-            setSelectedService(originalService);
-        } else {
-            // Fallback: if we can't find the original, use the passed service
-            // but make sure price is a number if it's a formatted string
-            const cleanedService = { ...service };
-            if (
-                typeof cleanedService.price === "string" &&
-                cleanedService.price.startsWith("$")
-            ) {
-                cleanedService.price =
-                    parseFloat(cleanedService.price.replace("$", "")) || 0;
-            }
-            setSelectedService(cleanedService);
-        }
-        setModalOpen(true);
-    };
-
-    const handleCloseAddModal = () => {
-        setAddModalOpen(false);
-    };
-
-    const handleServiceCreated = (newService) => {
-        // Add the new service to local state instead of reloading entire list
-        setServices((prevServices) => [newService, ...prevServices]);
-
-        // Update pagination total
+      if (response.success) {
+        setServices(response.data);
         setPagination((prev) => ({
-            ...prev,
-            total: prev.total + 1,
+          ...prev,
+          total: response.pagination.total,
+          pages: response.pagination.pages,
         }));
+      } else {
+        throw new Error(response.message || "Failed to fetch services");
+      }
+    } catch (err) {
+      console.error("Error loading services:", err);
+      setError(err.message || "Failed to load services");
+      setServices([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        toast.success("Service created successfully!");
-    };
+  // Load services on component mount and when filters/pagination change
+  useEffect(() => {
+    loadServices();
+  }, [
+    pagination.page,
+    pagination.limit,
+    filters.status,
+    filters.category,
+    filters.sortBy,
+    filters.order,
+  ]);
 
-    const handleServiceUpdated = async (updatedService) => {
-        try {
-            const response = await updateServiceAPI(
-                updatedService.id,
-                updatedService
-            );
+  // Handle search with debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (pagination.page === 1) {
+        loadServices();
+      } else {
+        setPagination((prev) => ({ ...prev, page: 1 }));
+      }
+    }, 500);
 
-            if (response.success) {
-                // Only send webhook if the update was successful
-                const webHookData = {
-                    ...response.data,
-                    serviceId: updatedService.id,
-                    webhookEvent: "serviceUpdated",
-                };
+    return () => clearTimeout(timeoutId);
+  }, [filters.search]);
 
-                await sendWebhook({ payload: webHookData });
+  const handleView = (service) => {
+    // Always use the original service data from the services array
+    // The service parameter might be transformed for display
+    const originalService = services.find((s) => s.id === service.id);
+    if (originalService) {
+      setSelectedService(originalService);
+    } else {
+      // Fallback: if we can't find the original, use the passed service
+      // but make sure price is a number if it's a formatted string
+      const cleanedService = { ...service };
+      if (
+        typeof cleanedService.price === "string" &&
+        cleanedService.price.startsWith("$")
+      ) {
+        cleanedService.price =
+          parseFloat(cleanedService.price.replace("$", "")) || 0;
+      }
+      setSelectedService(cleanedService);
+    }
+    setModalOpen(true);
+  };
 
-                toast.success("Service updated successfully!");
+  const handleCloseAddModal = () => {
+    setAddModalOpen(false);
+  };
 
-                // Update the service in local state instead of reloading entire list
-                setServices((prevServices) =>
-                    prevServices.map((service) =>
-                        service.id === updatedService.id
-                            ? { ...service, ...response.data }
-                            : service
-                    )
-                );
+  const handleServiceCreated = (newService) => {
+    // Add the new service to local state instead of reloading entire list
+    setServices((prevServices) => [newService, ...prevServices]);
 
-                setModalOpen(false);
-                setSelectedService(null);
-            } else {
-                throw new Error(response.message || "Failed to update service");
-            }
-        } catch (err) {
-            console.error("Error updating service:", err);
-            toast.error(err.message || "Failed to update service");
-        }
-    };
+    // Update pagination total
+    setPagination((prev) => ({
+      ...prev,
+      total: prev.total + 1,
+    }));
 
-    const handleServiceDeleted = async (service) => {
-        // Show confirmation toast with action buttons
-        toast(`Delete "${service.name}"?`, {
-            description: "This action cannot be undone.",
-            action: {
-                label: "Delete",
-                onClick: async () => {
-                    try {
-                        const response = await deleteServiceAPI(service.id);
+    toast.success("Service created successfully!");
+  };
 
-                        if (response.success) {
-                            // Send webhook for service deletion
-                            const webHookData = {
-                                serviceId: service.id,
-                                serviceName: service.name,
-                                webhookEvent: "serviceDeleted",
-                            };
+  const handleServiceUpdated = async (updatedService) => {
+    try {
+      const response = await updateServiceAPI(
+        updatedService.id,
+        updatedService
+      );
 
-                            await sendWebhook({ payload: webHookData });
+      if (response.success) {
+        // Only send webhook if the update was successful
+        const webHookData = {
+          ...response.data,
+          serviceId: updatedService.id,
+          webhookEvent: "serviceUpdated",
+        };
 
-                            toast.success("Service deleted successfully!");
+        await sendWebhook({ payload: webHookData });
 
-                            // Remove the service from local state
-                            setServices((prevServices) =>
-                                prevServices.filter((s) => s.id !== service.id)
-                            );
+        toast.success("Service updated successfully!");
 
-                            // Update pagination total
-                            setPagination((prev) => ({
-                                ...prev,
-                                total: prev.total - 1,
-                            }));
-                        } else {
-                            throw new Error(
-                                response.message || "Failed to delete service"
-                            );
-                        }
-                    } catch (err) {
-                        console.error("Error deleting service:", err);
-                        toast.error(err.message || "Failed to delete service");
-                    }
-                },
-            },
-            cancel: {
-                label: "Cancel",
-                onClick: () => {
-                    toast.dismiss();
-                },
-            },
-            duration: 5000,
-        });
-    };
+        // Update the service in local state instead of reloading entire list
+        setServices((prevServices) =>
+          prevServices.map((service) =>
+            service.id === updatedService.id
+              ? { ...service, ...response.data }
+              : service
+          )
+        );
 
-    const handleAddService = () => {
-        setAddModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
         setModalOpen(false);
         setSelectedService(null);
-    };
+      } else {
+        throw new Error(response.message || "Failed to update service");
+      }
+    } catch (err) {
+      console.error("Error updating service:", err);
+      toast.error(err.message || "Failed to update service");
+    }
+  };
 
-    const handleFilterChange = (field, value) => {
-        setFilters((prev) => ({ ...prev, [field]: value }));
-        // Reset to page 1 when filters change, BUT NOT FOR SEARCH (as it has its own debounced handler)
-        if (field !== "search" && pagination.page !== 1) {
-            setPagination((prev) => ({ ...prev, page: 1 }));
-        }
-    };
+  const handleServiceDeleted = async (service) => {
+    // Show confirmation toast with action buttons
+    toast(`Delete "${service.name}"?`, {
+      description: "This action cannot be undone.",
+      action: {
+        label: "Delete",
+        onClick: async () => {
+          try {
+            const response = await deleteServiceAPI(service.id);
 
-    const handlePageChange = (event, newPage) => {
-        setPagination((prev) => ({ ...prev, page: newPage }));
-    };
+            if (response.success) {
+              // Send webhook for service deletion
+              const webHookData = {
+                serviceId: service.id,
+                serviceName: service.name,
+                webhookEvent: "serviceDeleted",
+              };
 
-    const handleLimitChange = (event) => {
-        const newLimit = event.target.value;
-        setPagination((prev) => ({
-            ...prev,
-            limit: newLimit,
-            page: 1, // Reset to first page when changing limit
-        }));
-    };
+              await sendWebhook({ payload: webHookData });
 
-    // Format price for display
-    const formatPrice = (price) => {
-        if (typeof price === "number") {
-            return `$${price.toFixed(2)}`;
-        }
-        return price || "N/A";
-    };
+              toast.success("Service deleted successfully!");
 
-    // Transform service data to match component expectations
-    const transformServiceForDisplay = (service) => ({
-        ...service,
-        price: formatPrice(service.price),
-        skills: service.tags || [], // Map tags to skills for compatibility
-        color: getCategoryColor(service.category),
+              // Remove the service from local state
+              setServices((prevServices) =>
+                prevServices.filter((s) => s.id !== service.id)
+              );
+
+              // Update pagination total
+              setPagination((prev) => ({
+                ...prev,
+                total: prev.total - 1,
+              }));
+            } else {
+              throw new Error(response.message || "Failed to delete service");
+            }
+          } catch (err) {
+            console.error("Error deleting service:", err);
+            toast.error(err.message || "Failed to delete service");
+          }
+        },
+      },
+      cancel: {
+        label: "Cancel",
+        onClick: () => {
+          toast.dismiss();
+        },
+      },
+      duration: 5000,
     });
+  };
 
-    const getCategoryColor = (category) => {
-        switch (category) {
-            case "Emergency":
-            case "Installation":
-                return "#8A2BE2";
-            case "Repair":
-            case "Maintenance":
-                return "#3498db";
-            default:
-                return "#8A2BE2";
-        }
-    };
+  const handleAddService = () => {
+    setAddModalOpen(true);
+  };
 
-    return (
-        <Box>
-            {/* Header with Add Service Button */}
-            <Box
-                sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    mb: 3,
-                }}
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedService(null);
+  };
+
+  const handleFilterChange = (field, value) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
+    // Reset to page 1 when filters change, BUT NOT FOR SEARCH (as it has its own debounced handler)
+    if (field !== "search" && pagination.page !== 1) {
+      setPagination((prev) => ({ ...prev, page: 1 }));
+    }
+  };
+
+  const handlePageChange = (event, newPage) => {
+    setPagination((prev) => ({ ...prev, page: newPage }));
+  };
+
+  const handleLimitChange = (event) => {
+    const newLimit = event.target.value;
+    setPagination((prev) => ({
+      ...prev,
+      limit: newLimit,
+      page: 1, // Reset to first page when changing limit
+    }));
+  };
+
+  // Format price for display
+  const formatPrice = (price) => {
+    if (typeof price === "number") {
+      return `$${price.toFixed(2)}`;
+    }
+    return price || "N/A";
+  };
+
+  // Transform service data to match component expectations
+  const transformServiceForDisplay = (service) => ({
+    ...service,
+    price: formatPrice(service.price),
+    skills: service.tags || [], // Map tags to skills for compatibility
+    color: getCategoryColor(service.category),
+  });
+
+  const getCategoryColor = (category) => {
+    switch (category) {
+      case "Emergency":
+      case "Installation":
+        return "#8A2BE2";
+      case "Repair":
+      case "Maintenance":
+        return "#3498db";
+      default:
+        return "#8A2BE2";
+    }
+  };
+
+  return (
+    <Box>
+      {/* Header with Add Service Button */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
+        <Typography variant="h4" sx={{ fontWeight: 600, color: "#2c3e50" }}>
+          My Services
+        </Typography>
+        <Tooltip title="Add New Service" arrow>
+          <Button
+            onClick={handleAddService}
+            variant="contained"
+            startIcon={<AddIcon />}
+            sx={{
+              textTransform: "none",
+              fontWeight: 500,
+              borderRadius: "8px",
+              boxShadow: "none",
+              "&:hover": {
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              },
+            }}
+          >
+            Add Service
+          </Button>
+        </Tooltip>
+      </Box>
+
+      {/* Filters and Search */}
+      <Paper sx={{ p: 3, mb: 3, borderRadius: "12px" }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              fullWidth
+              placeholder="Search services..."
+              value={filters.search}
+              onChange={(e) => handleFilterChange("search", e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+              size="small"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={filters.status}
+                label="Status"
+                onChange={(e) => handleFilterChange("status", e.target.value)}
+              >
+                <MenuItem value="">All</MenuItem>
+                <MenuItem value="active">Active</MenuItem>
+                <MenuItem value="inactive">Inactive</MenuItem>
+                <MenuItem value="archived">Archived</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={filters.category}
+                label="Category"
+                onChange={(e) => handleFilterChange("category", e.target.value)}
+              >
+                <MenuItem value="">All</MenuItem>
+                <MenuItem value="Emergency Repair">Emergency Repair</MenuItem>
+                <MenuItem value="Installation">Installation</MenuItem>
+                <MenuItem value="Repair">Repair</MenuItem>
+                <MenuItem value="Maintenance">Maintenance</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Sort By</InputLabel>
+              <Select
+                value={filters.sortBy}
+                label="Sort By"
+                onChange={(e) => handleFilterChange("sortBy", e.target.value)}
+              >
+                <MenuItem value="createdAt">Created Date</MenuItem>
+                <MenuItem value="name">Name</MenuItem>
+                <MenuItem value="price">Price</MenuItem>
+                <MenuItem value="category">Category</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Order</InputLabel>
+              <Select
+                value={filters.order}
+                label="Order"
+                onChange={(e) => handleFilterChange("order", e.target.value)}
+              >
+                <MenuItem value="desc">Descending</MenuItem>
+                <MenuItem value="asc">Ascending</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={1}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Per Page</InputLabel>
+              <Select
+                value={pagination.limit}
+                label="Per Page"
+                onChange={handleLimitChange}
+              >
+                <MenuItem value={5}>5</MenuItem>
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={20}>20</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Services Content */}
+      <Box>
+        {loading ? (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: 200,
+            }}
+          >
+            <CircularProgress sx={{ color: "#8A2BE2" }} />
+          </Box>
+        ) : services.length === 0 ? (
+          <Box sx={{ textAlign: "center", py: 5 }}>
+            <Typography variant="body1">
+              {error ? "Failed to load services." : "No services found."}
+            </Typography>
+            {!error && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleAddService}
+                sx={{ mt: 2 }}
+              >
+                Add Your First Service
+              </Button>
+            )}
+          </Box>
+        ) : (
+          <>
+            <Paper
+              sx={{
+                borderRadius: "16px",
+                overflow: "hidden",
+                boxShadow: "0 10px 30px rgba(138, 43, 226, 0.1)",
+                border: "1px solid rgba(138, 43, 226, 0.1)",
+                backgroundColor: "#ffffff",
+                mb: 3,
+              }}
             >
-                <Typography
-                    variant="h4"
-                    sx={{ fontWeight: 600, color: "#2c3e50" }}
-                >
-                    My Services
-                </Typography>
-                <Tooltip title="Add New Service" arrow>
-                    <Button
-                        onClick={handleAddService}
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        sx={{
-                            textTransform: "none",
-                            fontWeight: 500,
-                            borderRadius: "8px",
-                            boxShadow: "none",
-                            "&:hover": {
-                                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                            },
-                        }}
-                    >
-                        Add Service
-                    </Button>
-                </Tooltip>
-            </Box>
-
-            {/* Filters and Search */}
-            <Paper sx={{ p: 3, mb: 3, borderRadius: "12px" }}>
-                <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={6} md={3}>
-                        <TextField
-                            fullWidth
-                            placeholder="Search services..."
-                            value={filters.search}
-                            onChange={(e) =>
-                                handleFilterChange("search", e.target.value)
-                            }
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                            size="small"
-                        />
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={2}>
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Status</InputLabel>
-                            <Select
-                                value={filters.status}
-                                label="Status"
-                                onChange={(e) =>
-                                    handleFilterChange("status", e.target.value)
-                                }
-                            >
-                                <MenuItem value="">All</MenuItem>
-                                <MenuItem value="active">Active</MenuItem>
-                                <MenuItem value="inactive">Inactive</MenuItem>
-                                <MenuItem value="archived">Archived</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={2}>
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Category</InputLabel>
-                            <Select
-                                value={filters.category}
-                                label="Category"
-                                onChange={(e) =>
-                                    handleFilterChange(
-                                        "category",
-                                        e.target.value
-                                    )
-                                }
-                            >
-                                <MenuItem value="">All</MenuItem>
-                                <MenuItem value="Emergency">Emergency</MenuItem>
-                                <MenuItem value="Installation">
-                                    Installation
-                                </MenuItem>
-                                <MenuItem value="Repair">Repair</MenuItem>
-                                <MenuItem value="Maintenance">
-                                    Maintenance
-                                </MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={2}>
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Sort By</InputLabel>
-                            <Select
-                                value={filters.sortBy}
-                                label="Sort By"
-                                onChange={(e) =>
-                                    handleFilterChange("sortBy", e.target.value)
-                                }
-                            >
-                                <MenuItem value="createdAt">
-                                    Created Date
-                                </MenuItem>
-                                <MenuItem value="name">Name</MenuItem>
-                                <MenuItem value="price">Price</MenuItem>
-                                <MenuItem value="category">Category</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={2}>
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Order</InputLabel>
-                            <Select
-                                value={filters.order}
-                                label="Order"
-                                onChange={(e) =>
-                                    handleFilterChange("order", e.target.value)
-                                }
-                            >
-                                <MenuItem value="desc">Descending</MenuItem>
-                                <MenuItem value="asc">Ascending</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={1}>
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Per Page</InputLabel>
-                            <Select
-                                value={pagination.limit}
-                                label="Per Page"
-                                onChange={handleLimitChange}
-                            >
-                                <MenuItem value={5}>5</MenuItem>
-                                <MenuItem value={10}>10</MenuItem>
-                                <MenuItem value={20}>20</MenuItem>
-                                <MenuItem value={50}>50</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                </Grid>
+              <List sx={{ p: 3 }}>
+                {services.map((service, index) => (
+                  <ServiceListItem
+                    key={service.id}
+                    service={transformServiceForDisplay(service)}
+                    isLast={index === services.length - 1}
+                    onView={handleView}
+                    onDelete={handleServiceDeleted}
+                  />
+                ))}
+              </List>
             </Paper>
 
-            {/* Error Alert */}
-            {error && (
-                <Alert severity="error" sx={{ mb: 3 }}>
-                    {error}
-                </Alert>
+            {/* Pagination */}
+            {pagination.pages > 1 && (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  mt: 3,
+                }}
+              >
+                <Pagination
+                  count={pagination.pages}
+                  page={pagination.page}
+                  onChange={handlePageChange}
+                  color="primary"
+                  size="large"
+                />
+              </Box>
             )}
 
-            {/* Services Content */}
-            <Box>
-                {loading ? (
-                    <Box
-                        sx={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            height: 200,
-                        }}
-                    >
-                        <CircularProgress sx={{ color: "#8A2BE2" }} />
-                    </Box>
-                ) : services.length === 0 ? (
-                    <Box sx={{ textAlign: "center", py: 5 }}>
-                        <Typography variant="body1">
-                            {error
-                                ? "Failed to load services."
-                                : "No services found."}
-                        </Typography>
-                        {!error && (
-                            <Button
-                                variant="contained"
-                                startIcon={<AddIcon />}
-                                onClick={handleAddService}
-                                sx={{ mt: 2 }}
-                            >
-                                Add Your First Service
-                            </Button>
-                        )}
-                    </Box>
-                ) : (
-                    <>
-                        <Paper
-                            sx={{
-                                borderRadius: "16px",
-                                overflow: "hidden",
-                                boxShadow:
-                                    "0 10px 30px rgba(138, 43, 226, 0.1)",
-                                border: "1px solid rgba(138, 43, 226, 0.1)",
-                                backgroundColor: "#ffffff",
-                                mb: 3,
-                            }}
-                        >
-                            <List sx={{ p: 3 }}>
-                                {services.map((service, index) => (
-                                    <ServiceListItem
-                                        key={service.id}
-                                        service={transformServiceForDisplay(
-                                            service
-                                        )}
-                                        isLast={index === services.length - 1}
-                                        onView={handleView}
-                                        onDelete={handleServiceDeleted}
-                                    />
-                                ))}
-                            </List>
-                        </Paper>
-
-                        {/* Pagination */}
-                        {pagination.pages > 1 && (
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    mt: 3,
-                                }}
-                            >
-                                <Pagination
-                                    count={pagination.pages}
-                                    page={pagination.page}
-                                    onChange={handlePageChange}
-                                    color="primary"
-                                    size="large"
-                                />
-                            </Box>
-                        )}
-
-                        {/* Results Summary */}
-                        <Box sx={{ textAlign: "center", mt: 2 }}>
-                            <Typography variant="body2" color="text.secondary">
-                                Showing{" "}
-                                {(pagination.page - 1) * pagination.limit + 1}{" "}
-                                to{" "}
-                                {Math.min(
-                                    pagination.page * pagination.limit,
-                                    pagination.total
-                                )}{" "}
-                                of {pagination.total} services
-                            </Typography>
-                        </Box>
-                    </>
-                )}
+            {/* Results Summary */}
+            <Box sx={{ textAlign: "center", mt: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+                {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
+                of {pagination.total} services
+              </Typography>
             </Box>
+          </>
+        )}
+      </Box>
 
-            {/* Modals */}
-            <ServiceViewModal
-                open={modalOpen}
-                onClose={handleCloseModal}
-                service={selectedService}
-                onServiceUpdate={handleServiceUpdated}
-                onServiceDelete={handleServiceDeleted}
-            />
-            <AddServiceModal
-                open={addModalOpen}
-                onClose={handleCloseAddModal}
-                onServiceCreated={handleServiceCreated}
-            />
-        </Box>
-    );
+      {/* Modals */}
+      <ServiceViewModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        service={selectedService}
+        onServiceUpdate={handleServiceUpdated}
+        onServiceDelete={handleServiceDeleted}
+      />
+      <AddServiceModal
+        open={addModalOpen}
+        onClose={handleCloseAddModal}
+        onServiceCreated={handleServiceCreated}
+      />
+    </Box>
+  );
 };
 
 export default MyServicesPage;
