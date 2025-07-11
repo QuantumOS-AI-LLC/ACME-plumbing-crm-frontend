@@ -31,10 +31,82 @@ const NotificationsPage = () => {
         removeNotification,
     } = useNotifications();
 
+    // Filter notifications by date range
+    const filterNotificationsByDate = (notifications, dateFilter) => {
+        if (!dateFilter) return notifications;
+
+        const now = new Date();
+        const today = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+        );
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const lastWeek = new Date(today);
+        lastWeek.setDate(lastWeek.getDate() - 7);
+
+        return notifications.filter((notification) => {
+            const notificationDate = new Date(notification.createdAt);
+
+            switch (dateFilter) {
+                case "today":
+                    return notificationDate >= today;
+                case "yesterday":
+                    const yesterdayEnd = new Date(yesterday);
+                    yesterdayEnd.setDate(yesterdayEnd.getDate() + 1);
+                    return (
+                        notificationDate >= yesterday &&
+                        notificationDate < yesterdayEnd
+                    );
+                case "last7days":
+                    return notificationDate >= lastWeek;
+                default:
+                    return true;
+            }
+        });
+    };
+
+    // Get current filter settings based on tab
+    const getCurrentFilters = () => {
+        let isRead, dateFilter;
+
+        switch (tabValue) {
+            case 0: // All
+                isRead = undefined;
+                dateFilter = null;
+                break;
+            case 1: // Unread
+                isRead = false;
+                dateFilter = null;
+                break;
+            case 2: // Read
+                isRead = true;
+                dateFilter = null;
+                break;
+            case 3: // Today
+                isRead = undefined;
+                dateFilter = "today";
+                break;
+            case 4: // Yesterday
+                isRead = undefined;
+                dateFilter = "yesterday";
+                break;
+            case 5: // Last 7 days
+                isRead = undefined;
+                dateFilter = "last7days";
+                break;
+            default:
+                isRead = undefined;
+                dateFilter = null;
+        }
+
+        return { isRead, dateFilter };
+    };
+
     useEffect(() => {
         // Load notifications based on tab value
-        const isRead =
-            tabValue === 0 ? undefined : tabValue === 1 ? false : true;
+        const { isRead } = getCurrentFilters();
         loadNotifications(1, 10, isRead);
     }, [tabValue, loadNotifications]);
 
@@ -43,8 +115,7 @@ const NotificationsPage = () => {
     };
 
     const handlePageChange = (event, page) => {
-        const isRead =
-            tabValue === 0 ? undefined : tabValue === 1 ? false : true;
+        const { isRead } = getCurrentFilters();
         loadNotifications(page, 10, isRead);
     };
 
@@ -80,6 +151,14 @@ const NotificationsPage = () => {
         return date.toLocaleDateString();
     };
 
+    // Get filtered notifications for display
+    const getDisplayNotifications = () => {
+        const { dateFilter } = getCurrentFilters();
+        return filterNotificationsByDate(notifications, dateFilter);
+    };
+
+    const displayNotifications = getDisplayNotifications();
+
     return (
         <Box>
             <PageHeader title="Notifications" />
@@ -90,10 +169,15 @@ const NotificationsPage = () => {
                         value={tabValue}
                         onChange={handleTabChange}
                         aria-label="notification tabs"
+                        variant="scrollable"
+                        scrollButtons="auto"
                     >
                         <Tab label="All" />
                         <Tab label="Unread" />
                         <Tab label="Read" />
+                        <Tab label="Today" />
+                        <Tab label="Yesterday" />
+                        <Tab label="Last 7 days" />
                     </Tabs>
                 </Box>
 
@@ -102,7 +186,8 @@ const NotificationsPage = () => {
                         variant="outlined"
                         onClick={handleMarkAllAsRead}
                         disabled={
-                            loading || !notifications.some((n) => !n.isRead)
+                            loading ||
+                            !displayNotifications.some((n) => !n.isRead)
                         }
                     >
                         Mark all as read
@@ -117,9 +202,9 @@ const NotificationsPage = () => {
                     >
                         <CircularProgress />
                     </Box>
-                ) : notifications.length > 0 ? (
+                ) : displayNotifications.length > 0 ? (
                     <List disablePadding>
-                        {notifications.map((notification) => (
+                        {displayNotifications.map((notification) => (
                             <React.Fragment key={notification.id}>
                                 <ListItem
                                     sx={{
@@ -198,7 +283,12 @@ const NotificationsPage = () => {
                 ) : (
                     <Box sx={{ p: 4, textAlign: "center" }}>
                         <Typography variant="body1" color="text.secondary">
-                            No notifications found
+                            {tabValue === 3 && "No notifications from today"}
+                            {tabValue === 4 &&
+                                "No notifications from yesterday"}
+                            {tabValue === 5 &&
+                                "No notifications from the last 7 days"}
+                            {tabValue < 3 && "No notifications found"}
                         </Typography>
                     </Box>
                 )}
