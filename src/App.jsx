@@ -57,9 +57,9 @@ const App = () => {
             <CssBaseline />
             <VideoProvider>
                 <DashboardStatsProvider>
-                    <JobsProvider>
-                        <EstimatesProvider>
-                            <EventsProvider>
+                    <EventsProvider>
+                        <JobsProvider>
+                            <EstimatesProvider>
                                 <SocketProvider>
                                     <NotificationSettingsProvider>
                                         <NotificationProvider>
@@ -279,9 +279,9 @@ const App = () => {
                                     </NotificationProvider>
                                 </NotificationSettingsProvider>
                             </SocketProvider>
-                        </EventsProvider>
-                    </EstimatesProvider>
-                </JobsProvider>
+                        </EstimatesProvider>
+                    </JobsProvider>
+                </EventsProvider>
             </DashboardStatsProvider>
             </VideoProvider>
         </ThemeProvider>
