@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { fetchJobs } from "../services/api";
 import { useDashboardStats } from "./DashboardStatsContext";
 import { useAuth } from "../hooks/useAuth";
+import { useEvents } from "./EventsContext";
+import { toast } from "sonner";
 
 const JobsContext = createContext();
 
@@ -25,6 +27,7 @@ export const JobsProvider = ({ children }) => {
     });
     const { updateJobsCount } = useDashboardStats();
     const { isAuthenticated, isInitialized } = useAuth();
+    const { addEventToState } = useEvents();
 
     const loadJobs = async (params = {}) => {
         try {
@@ -137,6 +140,19 @@ export const JobsProvider = ({ children }) => {
         setJobs((prevJobs) => [newJob, ...prevJobs]);
         // Update dashboard stats directly without API call
         updateJobsCount("add", null, newJob.status);
+
+        // Create an event for the new job
+        const newEvent = {
+            title: `Job: ${newJob.title || `Job ID: ${newJob.id}`}`, // Defensive check for title
+            start: newJob.scheduledDate || new Date().toISOString(),
+            end: newJob.scheduledDate || new Date().toISOString(),
+            allDay: true, // Assuming jobs are all-day events for now
+            jobId: newJob.id,
+            status: newJob.status || "scheduled", // Default status
+            description: newJob.description || "No description provided.", // Default description
+        };
+        addEventToState(newEvent);
+        toast.success(`Job "${newJob.title || newJob.id}" and associated event created successfully!`);
     };
 
     // Remove a job from the state

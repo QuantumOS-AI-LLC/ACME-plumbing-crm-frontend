@@ -26,7 +26,6 @@ import { useWebhook } from "../hooks/webHook";
 // Constants matching backend
 const EVENT_TYPE = {
   JOB: "job",
-  ESTIMATE: "estimate",
   MEETING: "meeting",
   OTHER: "other",
 };
