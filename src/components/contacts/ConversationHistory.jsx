@@ -345,7 +345,7 @@ const ConversationHistory = ({ contactId, contactName }) => {
   const tabData = [
     {
       label: "All",
-      icon: <SearchIcon />,
+      icon: null,
       count: Object.values(dummyData).flat().length, // TODO: Replace with conversationData
     },
     { label: "SMS", icon: <SmsIcon />, count: dummyData.sms.length }, // TODO: Replace with conversationData.sms.length
@@ -562,19 +562,33 @@ const ConversationHistory = ({ contactId, contactName }) => {
               </Typography>
             </Box>
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <IconButton size="small" onClick={() => handleDownload(item)}>
-              <DownloadIcon />
-            </IconButton>
-            <IconButton size="small" onClick={() => toggleExpanded(item.id)}>
-              {expandedItems[item.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            </IconButton>
-          </Box>
+          <IconButton size="small" onClick={() => handleDownload(item)}>
+            <DownloadIcon />
+          </IconButton>
         </Box>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          {item.messages.length} messages
-        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 1,
+          }}
+        >
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              cursor: "pointer",
+            }}
+            onClick={() => toggleExpanded(item.id)}
+          >
+            {item.messages.length} messages
+          </Typography>
+          <IconButton size="small" onClick={() => toggleExpanded(item.id)}>
+            {expandedItems[item.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </IconButton>
+        </Box>
 
         <Collapse in={expandedItems[item.id]}>
           <Box sx={{ mt: 2, maxHeight: 300, overflowY: "auto" }}>
@@ -635,11 +649,9 @@ const ConversationHistory = ({ contactId, contactName }) => {
               </Typography>
             </Box>
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <IconButton size="small" onClick={() => handleDownload(item)}>
-              <DownloadIcon />
-            </IconButton>
-          </Box>
+          <IconButton size="small" onClick={() => handleDownload(item)}>
+            <DownloadIcon />
+          </IconButton>
         </Box>
 
         <Typography variant="body2" color="text.secondary">
@@ -676,22 +688,37 @@ const ConversationHistory = ({ contactId, contactName }) => {
               </Typography>
             </Box>
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <IconButton size="small" onClick={() => handleDownload(item)}>
-              <DownloadIcon />
-            </IconButton>
-            <IconButton size="small" onClick={() => toggleExpanded(item.id)}>
-              {expandedItems[item.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            </IconButton>
-          </Box>
+          <IconButton size="small" onClick={() => handleDownload(item)}>
+            <DownloadIcon />
+          </IconButton>
         </Box>
 
         <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
           {item.subject}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          {item.preview}
-        </Typography>
+
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 1,
+          }}
+        >
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              cursor: "pointer",
+            }}
+            onClick={() => toggleExpanded(item.id)}
+          >
+            {item.preview}
+          </Typography>
+          <IconButton size="small" onClick={() => toggleExpanded(item.id)}>
+            {expandedItems[item.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </IconButton>
+        </Box>
 
         <Collapse in={expandedItems[item.id]}>
           <Box sx={{ mt: 2, maxHeight: 300, overflowY: "auto" }}>
@@ -752,19 +779,33 @@ const ConversationHistory = ({ contactId, contactName }) => {
               </Typography>
             </Box>
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <IconButton size="small" onClick={() => handleDownload(item)}>
-              <DownloadIcon />
-            </IconButton>
-            <IconButton size="small" onClick={() => toggleExpanded(item.id)}>
-              {expandedItems[item.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            </IconButton>
-          </Box>
+          <IconButton size="small" onClick={() => handleDownload(item)}>
+            <DownloadIcon />
+          </IconButton>
         </Box>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Video transcript available
-        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 1,
+          }}
+        >
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              cursor: "pointer",
+            }}
+            onClick={() => toggleExpanded(item.id)}
+          >
+            Video transcript available
+          </Typography>
+          <IconButton size="small" onClick={() => toggleExpanded(item.id)}>
+            {expandedItems[item.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </IconButton>
+        </Box>
 
         <Collapse in={expandedItems[item.id]}>
           <Box sx={{ mt: 2, maxHeight: 300, overflowY: "auto" }}>
@@ -911,23 +952,121 @@ const ConversationHistory = ({ contactId, contactName }) => {
         <Tabs
           value={activeTab}
           onChange={handleTabChange}
-          variant="scrollable"
-          scrollButtons="auto"
+          variant={{ xs: "fullWidth", sm: "scrollable" }}
+          scrollButtons={{ xs: false, sm: "auto" }}
+          sx={{
+            "& .MuiTab-root": {
+              minHeight: { xs: 72, sm: 48 },
+              flexDirection: { xs: "column", sm: "row" },
+
+              minWidth: { xs: 0, sm: 120 },
+              maxWidth: { xs: "none", sm: "none" },
+              padding: { xs: "8px 0px", sm: "20px 24px 12px 16px" },
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
+              flex: { xs: 1, sm: "none" },
+              overflow: "visible",
+            },
+            "& .MuiTabs-flexContainer": {
+              height: { xs: "auto", sm: "auto" },
+              width: { xs: "100%", sm: "auto" },
+              overflow: "visible",
+            },
+            "& .MuiTabs-root": {
+              width: { xs: "100%", sm: "auto" },
+              overflow: "visible",
+            },
+            overflow: "visible",
+          }}
         >
           {tabData.map((tab, index) => (
             <Tab
               key={index}
-              icon={tab.icon}
+              icon={
+                tab.icon ? (
+                  <Box sx={{ position: "relative", display: "inline-flex" }}>
+                    {tab.icon}
+                    <Badge
+                      badgeContent={tab.count}
+                      color="primary"
+                      sx={{
+                        position: "absolute",
+                        top: 0,
+                        right: 0,
+                        transform: "translate(50%, -50%)",
+                        "& .MuiBadge-badge": {
+                          display: { xs: "block", sm: "none" },
+                          fontSize: "0.6rem",
+                          minWidth: "16px",
+                          height: "16px",
+                        },
+                      }}
+                    />
+                  </Box>
+                ) : (
+                  // Show badge for "All" tab on small devices only
+                  <Box
+                    sx={{
+                      position: "relative",
+                      display: { xs: "inline-flex", sm: "none" },
+                      width: 24,
+                      height: 24,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Badge
+                      badgeContent={tab.count}
+                      color="primary"
+                      sx={{
+                        "& .MuiBadge-badge": {
+                          fontSize: "0.6rem",
+                          minWidth: "16px",
+                          height: "16px",
+                          position: "relative",
+                          transform: "none",
+                        },
+                      }}
+                    >
+                      <Box sx={{ width: 24, height: 24 }} />
+                    </Badge>
+                  </Box>
+                )
+              }
               label={
-                <Badge
-                  badgeContent={tab.count}
-                  color="primary"
-                  sx={{ "& .MuiBadge-badge": { right: -6, top: -8 } }}
-                >
-                  {tab.label}
-                </Badge>
+                <Box sx={{ textAlign: "center" }}>
+                  <Badge
+                    badgeContent={tab.count}
+                    color="primary"
+                    sx={{
+                      "& .MuiBadge-badge": {
+                        display: { xs: "none", sm: "block" },
+                        right: -6,
+                        top: -8,
+                      },
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: { xs: "0.7rem", sm: "0.875rem" },
+                        fontWeight: 500,
+                        textTransform: "none",
+                      }}
+                    >
+                      {tab.label}
+                    </Typography>
+                  </Badge>
+                </Box>
               }
               iconPosition="start"
+              sx={{
+                "& .MuiTab-iconWrapper": {
+                  mb: { xs: 0.5, sm: 0 },
+                  mr: { xs: 0, sm: 1 },
+                },
+                flexDirection: { xs: "column", sm: "row" },
+                textTransform: "none",
+              }}
             />
           ))}
         </Tabs>
