@@ -40,6 +40,33 @@ import { useVideoRoom } from "../hooks/useVideoRoom";
 import CallDurationSelector from "../components/video/CallDurationSelector";
 import SimpleJobList from "../components/jobs/SimpleJobList";
 
+// Phone number formatting utility
+const formatPhoneNumber = (phoneNumber) => {
+    if (!phoneNumber) return "";
+
+    // Remove all non-digit characters
+    const cleaned = phoneNumber.replace(/\D/g, "");
+
+    // Check if it's a valid US phone number (10 digits)
+    if (cleaned.length === 10) {
+        return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(
+            6
+        )}`;
+    }
+
+    // Check if it's 11 digits starting with 1 (US country code)
+    if (cleaned.length === 11 && cleaned.startsWith("1")) {
+        const withoutCountryCode = cleaned.slice(1);
+        return `${withoutCountryCode.slice(0, 3)}-${withoutCountryCode.slice(
+            3,
+            6
+        )}-${withoutCountryCode.slice(6)}`;
+    }
+
+    // Return original if it doesn't match expected formats
+    return phoneNumber;
+};
+
 const ContactDetailsPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -1359,7 +1386,9 @@ const ContactDetailsPage = () => {
                                             Cell Phone Number
                                         </Typography>
                                         <Typography variant="body1">
-                                            {contact.phoneNumber}
+                                            {formatPhoneNumber(
+                                                contact.phoneNumber
+                                            )}
                                         </Typography>
                                     </Grid>
                                 )}
